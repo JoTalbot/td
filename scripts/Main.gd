@@ -555,6 +555,11 @@ func _process(delta: float) -> void:
 		state.heal(float(state.max_hp) * 0.35)
 		hud.flash_message("🧰 Ремкомплект! +35% HP")
 		sfx.play("repair", 0.9)
+	# Бортмеханик (мета): штопает броню, пока пыль не поднялась снова
+	if battle_active and waves.between_waves and not state.is_game_over:
+		var mech_rate := meta.mechanic_rate()
+		if mech_rate > 0.0:
+			state.heal(mech_rate * delta)
 
 
 ## Урон по фуре: тряска камеры пропорциональна влётушему урону.

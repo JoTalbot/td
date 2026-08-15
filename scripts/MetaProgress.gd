@@ -5,7 +5,7 @@ extends Node
 
 const SAVE_PATH := "user://meta_progress.save"
 
-## Постоянные улучшения мастерской: 4 штуки × 3 уровня.
+## Постоянные улучшения мастерской × 3 уровня.
 const DEFS := {
 	"frame": {
 		"name": "Усиленная рама",
@@ -37,6 +37,12 @@ const DEFS := {
 		"desc": "Рейс начинается с бесплатным орудием (ур. = больше железа)",
 		"costs": [4, 8, 13],
 	},
+	"mechanic": {
+		"name": "Бортмеханик",
+		"icon": "🔧",
+		"desc": "Чинит 2 HP/сек в перерыве между волнами (за уровень)",
+		"costs": [5, 9, 14],
+	},
 }
 
 ## Какие орудия бесплатно стоят на фуре в начале рейса — по уровню кладовой.
@@ -48,7 +54,7 @@ const START_WEAPONS := {
 }
 
 var blueprints := 0
-var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0, "arsenal": 0}
+var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0, "arsenal": 0, "mechanic": 0}
 var best_wave := 0              # рекорд волн за рейс (между сессиями)
 var last_run_was_record := false
 
@@ -126,3 +132,8 @@ func reward_mult() -> float:
 
 func cooldown_mult() -> float:
 	return 1.0 - 0.07 * level_of("crew")
+
+
+## Скорость починки бортмеханика: HP/сек, только в перерыве между волнами.
+func mechanic_rate() -> float:
+	return 2.0 * level_of("mechanic")
