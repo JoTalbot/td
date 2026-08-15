@@ -8,7 +8,7 @@ signal boss_event(text: String)
 ## Рейс пройден: доехали до города (волны маршрута кончились).
 signal run_completed
 ## Любой враг убит — для контрактов-баунти и лута.
-signal enemy_killed
+signal enemy_killed(type: String)
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
 const CopterScript := preload("res://scripts/RaiderCopter.gd")
@@ -143,7 +143,7 @@ func _spawn(data: Dictionary) -> void:
 	enemies_alive += 1
 	enemy.died.connect(func(_r):
 		enemies_alive -= 1
-		enemy_killed.emit())
+		enemy_killed.emit(enemy.enemy_type))
 	get_tree().current_scene.add_child(enemy)
 	# Появляются сзади в клубах пыли, чуть сбоку
 	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
@@ -164,7 +164,7 @@ func _spawn_ace(data: Dictionary) -> void:
 	ace.died.connect(func(_r):
 		enemies_alive -= 1
 		bosses_down += 1
-		enemy_killed.emit())
+		enemy_killed.emit("ace"))
 	ace.phase_announced.connect(func(text: String): boss_event.emit(text))
 	ace.spawn_minions.connect(_on_ace_escort)
 	get_tree().current_scene.add_child(ace)
@@ -178,6 +178,8 @@ func _on_ace_escort(count: int) -> void:
 		var c: Node3D = CopterScript.new()
 		c.truck = truck
 		c.state = state
+		# Эскорт не блокирует волну, но сбитый автожир — добыча
+		c.died.connect(func(_r): enemy_killed.emit("copter"))
 		get_tree().current_scene.add_child(c)
 		c.global_position = truck.global_position + Vector3(-4.0 + i * 8.0, 14.0, -24.0)
 

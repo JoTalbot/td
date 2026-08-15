@@ -23,6 +23,8 @@ var research_left := 0             # сколько рейсов до завер
 var inventory: Dictionary = {}     # item_id -> qty (скрафченные модули)
 var pending: Array = []            # модули, выданные в следующий рейс
 var poi_used: Array = []           # осмотренные находки: ключи "day_seed:city"
+var reputation: Dictionary = {}    # city -> очки репутации (0..100) у фракции
+var trophies: Dictionary = {}      # тип трофея -> кол-во (ездит с фурой)
 ## Ссылка на мета-прогресс (чертежи). Ставится из Main.
 var meta: Node = null
 
@@ -55,6 +57,8 @@ func load_campaign() -> void:
 	inventory = data.get("inventory", {})
 	pending = data.get("pending", [])
 	poi_used = data.get("poi_used", [])
+	reputation = data.get("reputation", {})
+	trophies = data.get("trophies", {})
 	# Находки живут одни сутки: чистим метки прошлых дней
 	var today_prefix := "%d:" % day_seed
 	poi_used = poi_used.filter(func(k: Variant) -> bool: return str(k).begins_with(today_prefix))
@@ -79,6 +83,8 @@ func save_campaign() -> void:
 		"inventory": inventory,
 		"pending": pending,
 		"poi_used": poi_used,
+		"reputation": reputation,
+		"trophies": trophies,
 	}))
 
 ## --- База (только в родном городе) ---
@@ -182,12 +188,44 @@ func price_of(res: String, city: String) -> int:
 	return maxi(int(round(base * mod * jitter)), 1)
 
 
+## --- Репутация у фракций городов ---
+func rep_of(city: String) -> int:
+	return int(reputation.get(city, 0))
+
+
+func rep_level(city: String) -> int:
+	return CampaignData.rep_level_of(rep_of(city))
+
+
+func rep_title(city: String) -> String:
+	return CampaignData.REP_LEVELS[rep_level(city)]["title"]
+
+
+## Очки репутации с потолком 100. Без сейва — разом сохранит вызывающий.
+func gain_rep(city: String, n: int) -> void:
+	reputation[city] = clampi(rep_of(city) + n, 0, 100)
+
+
+## Цена покупки для НАШЕЙ фуры: свои дают скидку (-4% за уровень).
+## Округляем вниз — скидка должна чувствоваться даже на дешёвом товаре.
+func buy_price(res: String, city: String) -> int:
+	var disc := 1.0 - 0.04 * float(rep_level(city))
+	return maxi(int(floor(price_of(res, city) * disc)), 1)
+
+
+## Доля цены при продаже: +3% за уровень репутации (потолок 95%).
+func sell_rate(city: String) -> float:
+	var rate := 0.85 if "tradecraft" in research_done else 0.75
+	return minf(rate + 0.03 * float(rep_level(city)), 0.95)
+
+
 func buy(res: String, qty: int) -> bool:
-	var cost := price_of(res, location) * qty
+	var cost := buy_price(res, location) * qty
 	if cost > wallet or qty > cargo_space():
 		return false
 	wallet -= cost
 	add_cargo(res, qty)
+	gain_rep(location, 1)  # деньги сливаются — тебя запоминают
 	save_campaign()
 	return true
 
@@ -196,11 +234,52 @@ func sell(res: String, qty: int) -> bool:
 	if int(cargo.get(res, 0)) < qty:
 		return false
 	take_cargo(res, qty)
-	# Скупают за 75% цены; с техой «Торговые связи» — за 85%
-	var rate := 0.85 if "tradecraft" in research_done else 0.75
-	wallet += int(price_of(res, location) * qty * rate)
+	wallet += int(price_of(res, location) * qty * sell_rate(location))
+	gain_rep(location, 1)
 	save_campaign()
 	return true
+
+
+## --- Трофейные тачки (ангар) ---
+func add_trophies(d: Dictionary) -> void:
+	for t in d:
+		if CampaignData.TROPHIES.has(t):
+			trophies[t] = int(trophies.get(t, 0)) + int(d[t])
+	save_campaign()
+
+
+## Разобрать трофей: распил на ресурсы, что не влезло — скупщику за полцены.
+## Возвращает текст итога для UI.
+func scrap_trophy(t: String) -> String:
+	if int(trophies.get(t, 0)) <= 0:
+		return ""
+	trophies[t] = int(trophies[t]) - 1
+	var d: Dictionary = CampaignData.TROPHIES[t]
+	var parts: Array[String] = []
+	var fallback := 0
+	for res in d["salvage"]:
+		var want: int = d["salvage"][res]
+		var fit := add_cargo(res, want)
+		if fit > 0:
+			parts.append("+%d %s" % [fit, CampaignData.RESOURCES[res]["name"]])
+		if want > fit:
+			fallback += int(CampaignData.RESOURCES[res]["price"] * 0.5) * (want - fit)
+	if fallback > 0:
+		wallet += fallback
+		parts.append("остаток скупщику: ⚙+%d" % fallback)
+	save_campaign()
+	return "; ".join(parts) if not parts.is_empty() else "Груда ржавчины."
+
+
+## Продать трофей целиком за лом. Возвращает выручку.
+func sell_trophy(t: String) -> int:
+	if int(trophies.get(t, 0)) <= 0:
+		return 0
+	trophies[t] = int(trophies[t]) - 1
+	var price: int = CampaignData.TROPHIES[t]["scrap_price"]
+	wallet += price
+	save_campaign()
+	return price
 
 
 ## --- Исследования (лаборатория, тикают рейсами как в EVE) ---
@@ -316,7 +395,7 @@ func _generate_offers(city: String) -> Array:
 	var res_keys: Array = CampaignData.RESOURCES.keys()
 	for i in 2:
 		var tpl: Dictionary = tpls[i % tpls.size()]
-		var c := {"type": tpl["type"], "uid": "%s_%d_%d" % [city, day_seed, i]}
+		var c := {"type": tpl["type"], "uid": "%s_%d_%d" % [city, day_seed, i], "origin": city}
 		match tpl["type"]:
 			"deliver":
 				c["res"] = res_keys[rng.randi() % res_keys.size()]
@@ -360,7 +439,12 @@ func note_kill() -> Array:
 	for i in range(contracts.size() - 1, -1, -1):
 		var c: Dictionary = contracts[i]
 		if c["type"] == "bounty" and kills_total - int(c["start_kills"]) >= int(c["qty"]):
+			var origin: String = c.get("origin", "")
+			c["reward"] = int(int(c["reward"]) * (1.0 + 0.05 * float(rep_level(origin))))
 			wallet += int(c["reward"])
+			if origin != "":
+				gain_rep(origin, 3)
+				save_campaign()
 			done.append(c)
 			contracts.remove_at(i)
 	return done
@@ -451,9 +535,9 @@ func resolve_poi(city: String) -> Dictionary:
 
 
 ## --- Итоги рейса ---
-## Прибыл в город: лом рейса в кошелёк, лут в трюм, контракты проверены.
-## Возвращает сводку для панели прибытия.
-func arrive(city: String, run_scrap: int, loot: Dictionary) -> Dictionary:
+## Прибыл в город: лом рейса в кошелёк, лут в трюм, контракты проверены,
+## трофеи в ангар. Возвращает сводку для панели прибытия.
+func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary = {}) -> Dictionary:
 	location = city
 	day += 1
 	wallet += run_scrap
@@ -468,16 +552,33 @@ func arrive(city: String, run_scrap: int, loot: Dictionary) -> Dictionary:
 			# Не влезло — сдали попутному скупщику за полцены
 			scrap_fallback += int(CampaignData.RESOURCES[res]["price"] * 0.5) * rest
 	wallet += scrap_fallback
+	# Трофейные обломки едут с нами
+	for t in captured:
+		if CampaignData.TROPHIES.has(t):
+			trophies[t] = int(trophies.get(t, 0)) + int(captured[t])
+	var rep_gains := {"dest": 0, "contracts": {}}
+	gain_rep(city, 1)  # доехал живым — к тебе присматриваются
+	rep_gains["dest"] = 1
 	var done: Array = []
 	for i in range(contracts.size() - 1, -1, -1):
 		var c: Dictionary = contracts[i]
 		if c["type"] == "reach" and c["dest"] == city:
+			var origin: String = c.get("origin", "")
+			c["reward"] = int(int(c["reward"]) * (1.0 + 0.05 * float(rep_level(origin))))
 			wallet += int(c["reward"])
+			if origin != "":
+				gain_rep(origin, 3)
+				rep_gains["contracts"][origin] = int(rep_gains["contracts"].get(origin, 0)) + 3
 			done.append(c)
 			contracts.remove_at(i)
 		elif c["type"] == "deliver" and c["dest"] == city and cargo_qty(c["res"]) >= int(c["qty"]):
 			take_cargo(c["res"], int(c["qty"]))
+			var origin2: String = c.get("origin", "")
+			c["reward"] = int(int(c["reward"]) * (1.0 + 0.05 * float(rep_level(origin2))))
 			wallet += int(c["reward"])
+			if origin2 != "":
+				gain_rep(origin2, 4)
+				rep_gains["contracts"][origin2] = int(rep_gains["contracts"].get(origin2, 0)) + 4
 			done.append(c)
 			contracts.remove_at(i)
 	# Производство базы, если приехали домой
@@ -502,7 +603,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary) -> Dictionary:
 	# Доска контрактов в новом городе обновляется
 	offers.erase(city)
 	save_campaign()
-	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced, "research": research_finished}
+	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced, "research": research_finished, "trophies": captured, "rep": rep_gains}
 
 
 ## Рейс провален: груз пополам, лом рейса сгорел.

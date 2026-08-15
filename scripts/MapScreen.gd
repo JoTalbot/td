@@ -208,6 +208,9 @@ func _render_sheet() -> void:
 	elif _view == "lab":
 		_sheet_title.text = "%s %s — ЛАБОРАТОРИЯ" % [c["icon"], c["name"]]
 		_render_lab(is_here)
+	elif _view == "hangar":
+		_sheet_title.text = "%s %s — АНГАР ТРОФЕЕВ" % [c["icon"], c["name"]]
+		_render_hangar(is_here)
 	else:
 		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
 		_render_info(c, is_here, route)
@@ -224,7 +227,13 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			cheap.append("%s %s" % [CampaignData.RESOURCES[r]["icon"], CampaignData.RESOURCES[r]["name"]])
 	spec.text = "Дёшево тут: %s" % (", ".join(cheap) if not cheap.is_empty() else "ничего особенного")
 	spec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
+	# Фракция и наше положение в ней
+	var rep_lvl: int = campaign.rep_level(_selected)
+	var frac := _mk_label(_sheet_body, 14, Color(0.7, 0.85, 0.9).lerp(Color(0.95, 0.8, 0.4), rep_lvl / 4.0))
+	frac.text = "🎪 %s — отношение: %s (%d/100). Скидка -%d%%, скупка +%d%%, контракты +%d%%" % [
+		c.get("faction", "фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected),
+		rep_lvl * 4, rep_lvl * 3, rep_lvl * 5]
+	frac.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
 		var poi: Dictionary = campaign.poi_at(_selected)
@@ -253,16 +262,26 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		ct.custom_minimum_size = Vector2(170, 52)
 		ct.pressed.connect(func(): _view = "contracts"; _render_sheet())
 		btns.add_child(ct)
+		var tn := 0
+		for t in campaign.trophies:
+			tn += int(campaign.trophies[t])
+		var hg := _rusty_button("🛻 Ангар (%d)" % tn, Color(0.75, 0.7, 0.55))
+		hg.custom_minimum_size = Vector2(160, 52)
+		hg.pressed.connect(func(): _view = "hangar"; _render_sheet())
+		btns.add_child(hg)
 		if bool(c.get("home", false)):
+			var btns2 := HBoxContainer.new()
+			btns2.add_theme_constant_override("separation", 8)
+			_sheet_body.add_child(btns2)
 			var bb := _rusty_button("🏠 База", Color(0.85, 0.7, 0.3))
 			bb.custom_minimum_size = Vector2(150, 52)
 			bb.pressed.connect(func(): _view = "base"; _render_sheet())
-			btns.add_child(bb)
+			btns2.add_child(bb)
 			var lb := _rusty_button("⚗️ Лаборатория" if campaign.bld_level("lab") > 0 else "⚗️ Лаборатория (нет)", Color(0.7, 0.8, 0.5))
 			lb.custom_minimum_size = Vector2(210, 52)
 			lb.disabled = campaign.bld_level("lab") == 0
 			lb.pressed.connect(func(): _view = "lab"; _render_sheet())
-			btns.add_child(lb)
+			btns2.add_child(lb)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
 		var go := _rusty_button("🚚 В РЕЙС: %d волн, опасность ★%.0f" % [waves_count, float(route[1])], Color(0.9, 0.5, 0.25))
@@ -303,10 +322,12 @@ func _render_market(is_here: bool) -> void:
 		_sheet_body.add_child(row)
 		var name_l := _mk_label(row, 15, TEXT_DIM)
 		name_l.custom_minimum_size = Vector2(240, 0)
-		name_l.text = "%s %s ⚙%d  (в трюме: %d)" % [d["icon"], d["name"], campaign.price_of(res, campaign.location), campaign.cargo_qty(res)]
+		var bp: int = campaign.buy_price(res, campaign.location)
+		var sp: int = int(campaign.price_of(res, campaign.location) * campaign.sell_rate(campaign.location))
+		name_l.text = "%s %s ⚙%d/⚙%d  (трюм: %d)" % [d["icon"], d["name"], bp, sp, campaign.cargo_qty(res)]
 		var buy_b := _rusty_button("Купить", Color(0.7, 0.85, 0.5))
 		buy_b.custom_minimum_size = Vector2(110, 40)
-		buy_b.disabled = campaign.wallet < campaign.price_of(res, campaign.location) or campaign.cargo_space() < 1
+		buy_b.disabled = campaign.wallet < bp or campaign.cargo_space() < 1
 		var r: String = res
 		buy_b.pressed.connect(func(): campaign.buy(r, 1); _render_sheet())
 		row.add_child(buy_b)
@@ -315,6 +336,49 @@ func _render_market(is_here: bool) -> void:
 		sell_b.disabled = campaign.cargo_qty(res) < 1
 		sell_b.pressed.connect(func(): campaign.sell(r, 1); _render_sheet())
 		row.add_child(sell_b)
+
+
+## Ангар: захваченные в рейсах тачки — пилить на ресурсы или продавать.
+func _render_hangar(is_here: bool) -> void:
+	var back := _rusty_button("← К описанию")
+	back.custom_minimum_size = Vector2(170, 40)
+	back.pressed.connect(func(): _view = "info"; _render_sheet())
+	_sheet_body.add_child(back)
+	var total := 0
+	for t in campaign.trophies:
+		total += int(campaign.trophies[t])
+	if total == 0:
+		var l := _mk_label(_sheet_body, 15, Color(0.7, 0.55, 0.4))
+		l.text = "Пусто. Тачки добываются в рейсах: бей рейдеров — целые обломки отбуксируем сюда."
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		return
+	if not is_here:
+		var nl := _mk_label(_sheet_body, 14, Color(0.7, 0.55, 0.4))
+		nl.text = "Ангар при фуре — работать можно в городе, где стоим."
+		return
+	for t in CampaignData.TROPHIES:
+		var have: int = int(campaign.trophies.get(t, 0))
+		if have <= 0:
+			continue
+		var d: Dictionary = CampaignData.TROPHIES[t]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(row)
+		var parts: Array = []
+		for res in d["salvage"]:
+			parts.append("%s×%d" % [CampaignData.RESOURCES[res]["icon"], int(d["salvage"][res])])
+		var lab := _mk_label(row, 14, TEXT_DIM)
+		lab.custom_minimum_size = Vector2(280, 0)
+		lab.text = "%s %s ×%d — распил: %s" % [d["icon"], d["name"], have, " ".join(parts)]
+		var tid: String = t
+		var scr := _rusty_button("Разобрать", Color(0.75, 0.7, 0.55))
+		scr.custom_minimum_size = Vector2(130, 40)
+		scr.pressed.connect(func(): campaign.scrap_trophy(tid); _render_sheet())
+		row.add_child(scr)
+		var sel := _rusty_button("⚙%d" % int(d["scrap_price"]), Color(0.9, 0.6, 0.3))
+		sel.custom_minimum_size = Vector2(90, 40)
+		sel.pressed.connect(func(): campaign.sell_trophy(tid); _render_sheet())
+		row.add_child(sel)
 
 
 func _render_contracts(is_here: bool) -> void:

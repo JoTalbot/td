@@ -70,6 +70,9 @@
 - Воздушный босс (корсар): волна %10 в `WaveManager._spawn_ace()` — тот же `RaiderCopter` с `is_ace`, фазы как у тягача; считается в `enemies_alive`.
 - Дневные моды: `CampaignData.DAILY_MODS` + `Campaign.daily_mods()` (сид = дата) + применение в `Main._apply_campaign_effects()` и/или `Campaign.price_of()`.
 - Новые находки (POI): тип в `CampaignData.POI_TYPES` + ветка `match` в `Campaign.resolve_poi()`. Генерация детерминирована (`poi_for(city, day_seed)`), осмотр одноразовый за день (`poi_used: "day_seed:city"`), бросок фиксирован сидом — перезаход не рероллит.
+- Мета-стартовые орудия: уровни `MetaProgress.DEFS["arsenal"]` → списки в `MetaProgress.START_WEAPONS`, монтируются в `Main._apply_campaign_effects()` с метой `free_start` (продаются за 0, иначе фарм лома).
+- Репутация фракций: `CampaignData.REP_LEVELS` (пороги/титулы) + `Campaign.gain_rep()/rep_level()`, эффекты в `buy_price()`(−4%/ур., floor) и `sell_rate()`(+3%/ур.), награды контрактов ×(1+0.05·ур. заказчика) в `note_kill()`/`arrive()` (у контракта есть `origin`).
+- Трофейные тачки: шаблон в `CampaignData.TROPHIES` (chance/salvage/scrap_price) + `WaveManager.enemy_killed(type)` → захват в `Main._on_enemy_killed()` → `campaign.arrive(..., captured)`; ангар — `MapScreen._render_hangar()` («Разобрать» в ресурсы / «Продать» за лом).
 
 ## Сборка под Android
 

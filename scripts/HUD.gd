@@ -20,6 +20,7 @@ var waves: Node
 var truck: Node3D
 var abilities: Node = null
 var meta: Node = null
+var campaign: Node = null
 
 var _scrap_label: Label
 var _hp_label: Label
@@ -528,6 +529,32 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		rl.add_theme_color_override("font_color", Color(0.8, 0.85, 0.6))
 		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(rl)
+	var tros: Dictionary = summary.get("trophies", {})
+	if not tros.is_empty():
+		var tl := Label.new()
+		var tparts: Array = []
+		for t in tros:
+			var td: Dictionary = CampaignData.TROPHIES.get(t, {"icon": "🛻", "name": t})
+			tparts.append("%s %s×%d" % [td["icon"], td["name"], int(tros[t])])
+		tl.text = "🛻 Трофеи в ангаре: " + ", ".join(tparts)
+		tl.add_theme_font_size_override("font_size", 15)
+		tl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.5))
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(tl)
+	var rep: Dictionary = summary.get("rep", {})
+	var contracts_rep: Dictionary = rep.get("contracts", {})
+	if int(rep.get("dest", 0)) > 0 or not contracts_rep.is_empty():
+		var rpl := Label.new()
+		var rparts: Array = []
+		if int(rep.get("dest", 0)) > 0:
+			rparts.append("%s +%d" % [CampaignData.CITIES[campaign.location]["faction"], int(rep["dest"])])
+		for oc in contracts_rep:
+			rparts.append("%s +%d" % [CampaignData.CITIES.get(oc, {}).get("faction", "?"), int(contracts_rep[oc])])
+		rpl.text = "🤝 Репутация: " + ", ".join(rparts)
+		rpl.add_theme_font_size_override("font_size", 14)
+		rpl.add_theme_color_override("font_color", Color(0.7, 0.85, 0.9))
+		rpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(rpl)
 	for c in summary.get("done", []):
 		var cl := Label.new()
 		cl.text = "✅ Контракт закрыт: +⚙%d" % int(c["reward"])

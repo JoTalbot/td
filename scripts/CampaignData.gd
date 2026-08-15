@@ -20,6 +20,7 @@ const CITIES := {
 		"icon": "🏰",
 		"pos": Vector2(0.50, 0.84),
 		"desc": "Скала с водяным насосом. Наш дом и наша база.",
+		"faction": "Дети Воды",
 		"mods": {"water": 0.6, "food": 0.9},
 		"home": true,
 	},
@@ -28,6 +29,7 @@ const CITIES := {
 		"icon": "🛢",
 		"pos": Vector2(0.16, 0.56),
 		"desc": "Нефтяные вышки и вечный чад. Топливо льётся рекой.",
+		"faction": "Нефтяные Бароны",
 		"mods": {"fuel": 0.5, "water": 1.4},
 	},
 	"bulletfarm": {
@@ -35,6 +37,7 @@ const CITIES := {
 		"icon": "🔸",
 		"pos": Vector2(0.83, 0.48),
 		"desc": "Шахты и литейни. Свинец и порох — местный хлеб.",
+		"faction": "Литейный Синдикат",
 		"mods": {"ammo": 0.5, "metal": 0.8, "food": 1.3},
 	},
 	"bartertown": {
@@ -42,6 +45,7 @@ const CITIES := {
 		"icon": "⚖️",
 		"pos": Vector2(0.50, 0.30),
 		"desc": "Вольный торговый город. Всё есть, всё дорого.",
+		"faction": "Вольные Торговцы",
 		"mods": {"metal": 0.9, "fuel": 0.9, "water": 0.9, "ammo": 0.9, "food": 0.9, "chips": 0.8},
 	},
 	"crowsnest": {
@@ -49,6 +53,7 @@ const CITIES := {
 		"icon": "📡",
 		"pos": Vector2(0.20, 0.10),
 		"desc": "Свалка довоенной техники. Кликуши торгуют электроникой.",
+		"faction": "Кликуши",
 		"mods": {"chips": 0.5, "metal": 1.2, "fuel": 1.2},
 	},
 }
@@ -194,6 +199,35 @@ const DAILY_MODS := {
 	"horde":    {"name": "Караван", "icon": "🏍", "desc": "+2 рейдера на волну, +10% наград"},
 	"tailwind": {"name": "Попутный ветер", "icon": "🍃", "desc": "мир летит +15%, КД Нитро -20%"},
 }
+
+## Репутация у фракций: очки 0..100, уровень по порогам.
+## Бонусы уровня: -4% к цене покупки, +3% к доле продажи, +5% к награде контракта.
+const REP_LEVELS := [
+	{"min": 0, "title": "Чужак"},
+	{"min": 5, "title": "Знакомый"},
+	{"min": 15, "title": "Свой"},
+	{"min": 30, "title": "Уважаемый"},
+	{"min": 50, "title": "Легенда"},
+]
+
+## Трофейные тачки: шанс захвата обломка, распил на ресурсы и цена продажи.
+const TROPHIES := {
+	"buggy":  {"name": "Багги", "icon": "🛞", "chance": 0.12, "scrap_price": 25, "salvage": {"metal": 2, "ammo": 1}},
+	"biker":  {"name": "Мотоцикл", "icon": "🏍", "chance": 0.12, "scrap_price": 20, "salvage": {"metal": 1, "fuel": 1}},
+	"ram":    {"name": "Таран", "icon": "🛡", "chance": 0.18, "scrap_price": 45, "salvage": {"metal": 4, "chips": 1}},
+	"copter": {"name": "Автожир", "icon": "🚁", "chance": 0.10, "scrap_price": 35, "salvage": {"metal": 2, "chips": 1}},
+	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2}},
+	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3}},
+}
+
+## Уровень репутации по очкам.
+static func rep_level_of(points: int) -> int:
+	var lvl := 0
+	for i in REP_LEVELS.size():
+		if points >= int(REP_LEVELS[i]["min"]):
+			lvl = i
+	return lvl
+
 
 ## Рандомные локации пустоши (POI): каждый день по сиду даты часть городов
 ## получает находку поблизости. Осматривается один раз в день.

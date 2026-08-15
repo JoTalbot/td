@@ -85,6 +85,9 @@ func _do_ambush() -> void:
 		var copter: Node3D = Copter.new()
 		copter.truck = truck
 		copter.state = state
+		if waves != null:
+			# Сбитый автожир засады — добыча для ангара трофеев
+			copter.died.connect(func(_r): waves.enemy_killed.emit("copter"))
 		get_tree().current_scene.add_child(copter)
 		# Впархивают сверху-сзади, немного вразброд
 		copter.global_position = truck.global_position + Vector3(

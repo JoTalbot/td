@@ -31,10 +31,24 @@ const DEFS := {
 		"desc": "-7% к кулдаунам способностей",
 		"costs": [4, 7, 12],
 	},
+	"arsenal": {
+		"name": "Оружейная кладовая",
+		"icon": "🗃",
+		"desc": "Рейс начинается с бесплатным орудием (ур. = больше железа)",
+		"costs": [4, 8, 13],
+	},
+}
+
+## Какие орудия бесплатно стоят на фуре в начале рейса — по уровню кладовой.
+## Бесплатные орудия продаются за 0 лома (см. Main._on_sell_pressed).
+const START_WEAPONS := {
+	1: ["mgun"],
+	2: ["mgun", "flamer"],
+	3: ["mgun", "flamer", "cannon"],
 }
 
 var blueprints := 0
-var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0}
+var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0, "arsenal": 0}
 
 
 func _ready() -> void:

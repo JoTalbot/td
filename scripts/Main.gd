@@ -36,6 +36,7 @@ var battle_active := false
 var _destination := ""
 ## Лут, набранный в рейсе (в трюм попадёт по прибытии)
 var _run_loot: Dictionary = {}
+var _run_trophies: Dictionary = {}
 ## Ремкомплект из крафта: раз за рейс автопочинка при HP < 25%
 var _repair_kit_ready := false
 
@@ -116,6 +117,7 @@ func _ready() -> void:
 	map_screen.name = "MapScreen"
 	map_screen.campaign = campaign
 	add_child(map_screen)
+	hud.campaign = campaign
 	map_screen.travel_requested.connect(_on_travel)
 
 	waves.boss_event.connect(hud.flash_message)
@@ -139,6 +141,7 @@ func _on_travel(city_id: String) -> void:
 	waves.run_length = 4 + int(route[0]) * 2
 	waves.danger = float(route[1])
 	_run_loot.clear()
+	_run_trophies.clear()
 	map_screen.hide_screen()
 	hud.visible = true
 	battle_active = true
@@ -157,6 +160,20 @@ func _apply_campaign_effects() -> void:
 		state.damage_mult = 1.12
 	if "convoy" in campaign.research_done:
 		waves.bonus_mult = 1.15
+	# Мета-мастерская: стартовые орудия оружейной кладовой (продаются за 0)
+	for wtype in MetaProgress.START_WEAPONS.get(meta.level_of("arsenal"), []):
+		var slot := -1
+		for i in truck.slot_nodes.size():
+			if not truck.weapons.has(i):
+				slot = i
+				break
+		if slot >= 0:
+			var fw: Node3D = WeaponScript.new()
+			fw.setup(wtype, state)
+			fw.slot_index = slot
+			fw.set_meta("free_start", true)
+			truck.mount_weapon(slot, fw)
+			hud.flash_message("🗃 Кладовая: %s на борту" % WeaponData.DEFS[wtype]["name"])
 	# Дневные модификаторы пустоши
 	for m in campaign.daily_mods():
 		match m:
@@ -193,15 +210,20 @@ func _apply_campaign_effects() -> void:
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
 func _on_run_completed() -> void:
 	battle_active = false
-	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot)
+	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
 	hud.show_arrival(CampaignData.CITIES[_destination]["name"], summary)
 
 
-## Убийство рейдера: баунти-контракты + шанс лута в трюм.
-func _on_enemy_killed() -> void:
+## Убийство рейдера: баунти-контракты + шанс лута в трюм + захват обломка.
+func _on_enemy_killed(type: String) -> void:
 	var done: Array = campaign.note_kill()
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
+	# Угон: целая тачка выхвачена из-под обломков — в ангар по прибытии
+	var tpl: Dictionary = CampaignData.TROPHIES.get(type, {})
+	if not tpl.is_empty() and randf() < float(tpl["chance"]):
+		_run_trophies[type] = int(_run_trophies.get(type, 0)) + 1
+		hud.flash_message("🛻 Захвачен трофей: %s %s!" % [tpl["icon"], tpl["name"]])
 	# Лут: 25% шанс на ресурс с убитого (металл чаще всего)
 	if randf() < 0.25:
 		var roll := randf()
@@ -375,10 +397,14 @@ func _on_upgrade_pressed() -> void:
 func _on_sell_pressed() -> void:
 	if not is_instance_valid(selected_weapon):
 		return
-	var refund: int = selected_weapon.sell_value()
+	# Бесплатные орудия кладовой не продаются — только разборка за 0
+	var refund: int = selected_weapon.sell_value() if not selected_weapon.has_meta("free_start") else 0
 	truck.unmount_weapon(selected_weapon.slot_index)
-	state.earn(refund)
-	hud.flash_message("+%d лома за демонтаж" % refund)
+	if refund > 0:
+		state.earn(refund)
+		hud.flash_message("+%d лома за демонтаж" % refund)
+	else:
+		hud.flash_message("Разобрано на болты (подарок кладовой)")
 	selected_weapon = null
 	hud.hide_weapon_panel()
 
