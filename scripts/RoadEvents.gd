@@ -11,6 +11,8 @@ var state: Node
 var truck: Node3D
 var wasteland: Node
 var env: Environment = null
+## Ссылка на менеджер волн: события живут только в рейсе.
+var waves: Node = null
 
 ## Паузы между событиями (сек)
 const FIRST_EVENT_MIN := 18.0
@@ -46,6 +48,8 @@ func setup(p_state: Node, p_truck: Node3D, p_wasteland: Node, p_env: Environment
 
 func _process(delta: float) -> void:
 	if state == null or truck == null or state.is_game_over:
+		return
+	if waves != null and not waves.active:
 		return
 	_timer -= delta
 	if _timer <= 0.0:

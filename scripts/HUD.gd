@@ -13,6 +13,7 @@ const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const AbilityData := preload("res://scripts/AbilityData.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
+const CampaignData := preload("res://scripts/CampaignData.gd")
 
 var state: Node
 var waves: Node
@@ -55,7 +56,11 @@ func _ready() -> void:
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
-	waves.wave_started.connect(func(i): _wave_label.text = "Волна %d" % i)
+	waves.wave_started.connect(func(i):
+		if waves.run_length > 0:
+			_wave_label.text = "Волна %d/%d" % [i, waves.run_length]
+		else:
+			_wave_label.text = "Волна %d" % i)
 	waves.wave_cleared.connect(func(i): flash_message("Волна %d отбита!" % i))
 
 	_scrap_label.text = "⚙ %d" % state.scrap
@@ -441,11 +446,83 @@ func _build_game_over() -> void:
 		col.add_child(mbtn)
 		_meta_buttons[id] = mbtn
 
-	var btn := _rusty_button("В новый рейс")
-	btn.custom_minimum_size = Vector2(220, 54)
+	var btn := _rusty_button("На карту пустоши")
+	btn.custom_minimum_size = Vector2(240, 54)
 	btn.add_theme_font_size_override("font_size", 19)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	col.add_child(btn)
+
+
+## Панель прибытия: город, лом рейса, лут в трюм, закрытые контракты.
+func build_arrival_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.name = "ArrivalPanel"
+	panel.add_theme_stylebox_override("panel", _styled_panel(Color(0.7, 0.85, 0.5)))
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -290
+	panel.offset_right = 290
+	panel.offset_top = -220
+	panel.offset_bottom = 220
+	panel.visible = false
+	add_child(panel)
+	var col := VBoxContainer.new()
+	col.name = "Col"
+	col.add_theme_constant_override("separation", 10)
+	panel.add_child(col)
+	return panel
+
+
+func show_arrival(city_name: String, summary: Dictionary) -> void:
+	var panel := find_child("ArrivalPanel", false, false) as PanelContainer
+	if panel == null:
+		panel = build_arrival_panel()
+	var col := panel.get_node("Col")
+	for ch in col.get_children():
+		ch.queue_free()
+	var title := Label.new()
+	title.text = "🏁 ПРИБЫТИЕ: %s" % city_name
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	var scrap_l := Label.new()
+	scrap_l.text = "⚙ Лом рейса: +%d" % int(summary.get("scrap", 0))
+	scrap_l.add_theme_font_size_override("font_size", 18)
+	scrap_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(scrap_l)
+	var loot: Dictionary = summary.get("loot", {})
+	if not loot.is_empty():
+		var ll := Label.new()
+		var parts: Array = []
+		for res in loot:
+			var d: Dictionary = CampaignData.RESOURCES[res]
+			parts.append("%s×%d" % [d["icon"], int(loot[res])])
+		ll.text = "📦 В трюм: " + ", ".join(parts)
+		ll.add_theme_font_size_override("font_size", 16)
+		ll.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(ll)
+	if int(summary.get("sold", 0)) > 0:
+		var sl := Label.new()
+		sl.text = "💰 Не влезло, продано кустарям: +⚙%d" % int(summary["sold"])
+		sl.add_theme_font_size_override("font_size", 15)
+		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(sl)
+	for c in summary.get("done", []):
+		var cl := Label.new()
+		cl.text = "✅ Контракт закрыт: +⚙%d" % int(c["reward"])
+		cl.add_theme_font_size_override("font_size", 16)
+		cl.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
+		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(cl)
+	var btn := _rusty_button("К стоянке (карта)", Color(0.7, 0.85, 0.5))
+	btn.custom_minimum_size = Vector2(0, 54)
+	btn.add_theme_font_size_override("font_size", 19)
+	btn.pressed.connect(func(): restart_pressed.emit())
+	col.add_child(btn)
+	panel.visible = true
 
 
 func show_game_over(wave: int, earned: int = 0) -> void:

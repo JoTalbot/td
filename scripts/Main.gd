@@ -13,6 +13,9 @@ const TruckData := preload("res://scripts/TruckData.gd")
 const Abilities := preload("res://scripts/Abilities.gd")
 const RoadEvents := preload("res://scripts/RoadEvents.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
+const Campaign := preload("res://scripts/Campaign.gd")
+const CampaignData := preload("res://scripts/CampaignData.gd")
+const MapScreen := preload("res://scripts/MapScreen.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -23,8 +26,16 @@ var hud: HUD
 var abilities: Abilities
 var events: RoadEvents
 var meta: MetaProgress
+var campaign: Campaign
+var map_screen: MapScreen
 var world_env: Environment
 var _earned_blueprints := 0
+## Рейс идёт (тапы по сцене работают только в бою)
+var battle_active := false
+## Город назначения текущего рейса
+var _destination := ""
+## Лут, набранный в рейсе (в трюм попадёт по прибытии)
+var _run_loot: Dictionary = {}
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -93,16 +104,80 @@ func _ready() -> void:
 	hud.restart_pressed.connect(_on_restart_pressed)
 	hud.ability_pressed.connect(abilities.try_activate)
 	abilities.feedback.connect(hud.flash_message)
+	# Кампания: карта пустоши, экономика, контракты
+	campaign = Campaign.new()
+	campaign.name = "Campaign"
+	add_child(campaign)
+
+	map_screen = MapScreen.new()
+	map_screen.name = "MapScreen"
+	map_screen.campaign = campaign
+	add_child(map_screen)
+	map_screen.travel_requested.connect(_on_travel)
+
 	waves.boss_event.connect(hud.flash_message)
 	events.announced.connect(hud.flash_message)
 	hud.meta_upgrade_pressed.connect(_on_meta_upgrade)
 	state.game_over.connect(_on_game_over)
+	waves.run_completed.connect(_on_run_completed)
+	waves.enemy_killed.connect(_on_enemy_killed)
 
+	# Старт — на карте; бой начинается с выбора маршрута
+	hud.visible = false
+	events.waves = waves
+
+
+## Игрок выбрал маршрут на карте — запускаем рейс.
+func _on_travel(city_id: String) -> void:
+	var route: Array = CampaignData.route_between(campaign.location, city_id)
+	if route.is_empty():
+		return
+	_destination = city_id
+	waves.run_length = 4 + int(route[0]) * 2
+	waves.danger = float(route[1])
+	_run_loot.clear()
+	map_screen.hide_screen()
+	hud.visible = true
+	battle_active = true
+	hud.flash_message("🚚 Рейс: %s → %s" % [
+		CampaignData.CITIES[campaign.location]["name"],
+		CampaignData.CITIES[city_id]["name"]])
 	waves.start()
 
 
-## Конец рейса: начисляем чертежи за волны и убитых боссов.
+## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
+func _on_run_completed() -> void:
+	battle_active = false
+	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot)
+	hud.show_arrival(CampaignData.CITIES[_destination]["name"], summary)
+
+
+## Убийство рейдера: баунти-контракты + шанс лута в трюм.
+func _on_enemy_killed() -> void:
+	var done: Array = campaign.note_kill()
+	for c in done:
+		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
+	# Лут: 25% шанс на ресурс с убитого (металл чаще всего)
+	if randf() < 0.25:
+		var roll := randf()
+		var res := "metal"
+		if roll > 0.93:
+			res = "chips"
+		elif roll > 0.80:
+			res = "fuel"
+		elif roll > 0.68:
+			res = "ammo"
+		elif roll > 0.55:
+			res = "food"
+		elif roll > 0.45:
+			res = "water"
+		_run_loot[res] = int(_run_loot.get(res, 0)) + 1
+
+
+## Конец рейса смертью фуры: чертежи капают, груз в трюме пополам.
 func _on_game_over() -> void:
+	battle_active = false
+	campaign.fail_run()
 	_earned_blueprints = meta.finish_run(waves.wave_index, waves.bosses_down)
 	hud.show_game_over(waves.wave_index, _earned_blueprints)
 
@@ -162,7 +237,7 @@ func _setup_lights() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if state.is_game_over:
+	if state.is_game_over or not battle_active:
 		return
 	var tap_position := Vector2.ZERO
 	var tapped := false
@@ -288,4 +363,6 @@ func _process(delta: float) -> void:
 
 
 func _on_restart_pressed() -> void:
+	# Релоад сцены = свежая фура, снова на карте
+	campaign.save_campaign()
 	get_tree().reload_current_scene()

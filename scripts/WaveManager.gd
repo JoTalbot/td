@@ -5,6 +5,10 @@ signal wave_started(index: int)
 signal wave_cleared(index: int)
 ## Сообщения от боссов (смена фаз, появление босса) — для HUD.
 signal boss_event(text: String)
+## Рейс пройден: доехали до города (волны маршрута кончились).
+signal run_completed
+## Любой враг убит — для контрактов-баунти и лута.
+signal enemy_killed
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
 
@@ -14,6 +18,12 @@ var state: Node
 var wave_index := 0
 var enemies_alive := 0
 var bosses_down := 0
+## false, пока идёт экран карты; рейс запускается start().
+var active := false
+## Сколько волн до города; -1 — бесконечная классика.
+var run_length := -1
+## Множитель опасности маршрута (цифра дороги с карты).
+var danger := 1.0
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -30,12 +40,13 @@ const TYPES := {
 
 
 func start() -> void:
+	active = true
 	between_waves = true
 	countdown = 5.0
 
 
 func _process(delta: float) -> void:
-	if state.is_game_over:
+	if not active or state.is_game_over:
 		return
 	if between_waves:
 		countdown -= delta
@@ -51,10 +62,15 @@ func _process(delta: float) -> void:
 			spawning = false
 	elif enemies_alive <= 0:
 		wave_cleared.emit(wave_index)
-		var bonus := 25 + wave_index * 6
+		var bonus := int((25 + wave_index * 6) * danger)
 		if truck.upgrade_levels["engine"] > 0:
 			bonus = int(bonus * (1.0 + 0.25 * truck.upgrade_levels["engine"]))
 		state.earn(bonus)
+		# Конец маршрута — город у горизонта
+		if run_length > 0 and wave_index >= run_length:
+			active = false
+			run_completed.emit()
+			return
 		between_waves = true
 		countdown = 8.0
 
@@ -66,8 +82,8 @@ func _launch_wave() -> void:
 	_spawn_timer = 0.5
 	_spawn_queue.clear()
 
-	var count := 4 + wave_index
-	var hp_scale := 1.0 + (wave_index - 1) * 0.2
+	var count := 4 + wave_index + int((danger - 1.0) * 3.0)
+	var hp_scale := (1.0 + (wave_index - 1) * 0.2) * danger
 	for i in count:
 		var t := "buggy"
 		if wave_index >= 2 and i % 3 == 1:
@@ -112,7 +128,9 @@ func _spawn(data: Dictionary) -> void:
 	enemy.truck = truck
 	enemy.state = state
 	enemies_alive += 1
-	enemy.died.connect(func(_r): enemies_alive -= 1)
+	enemy.died.connect(func(_r):
+		enemies_alive -= 1
+		enemy_killed.emit())
 	get_tree().current_scene.add_child(enemy)
 	# Появляются сзади в клубах пыли, чуть сбоку
 	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
@@ -120,7 +138,7 @@ func _spawn(data: Dictionary) -> void:
 
 ## Босс в отчаянии зовёт байкеров на подмогу.
 func _on_boss_spawn_minions(count: int) -> void:
-	var hp_scale := 1.0 + (wave_index - 1) * 0.2
+	var hp_scale := (1.0 + (wave_index - 1) * 0.2) * danger
 	for i in count:
 		_spawn({"type": "biker", "hp_scale": hp_scale})
 
