@@ -489,6 +489,10 @@ func _handle_tap(screen_pos: Vector2) -> void:
 		if slot >= 0:
 			_try_mount(slot)
 			return
+	elif truck.nearest_free_slot(hit) >= 0 and not meta.tutorial_seen("build_first"):
+		# Новичок тапает слот, не выбрав орудие — подсказываем порядок действий
+		hud.flash_message("⬇ Сначала выберите орудие на панели снизу!")
+		return
 	_deselect_weapon()
 
 

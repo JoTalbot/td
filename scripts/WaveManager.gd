@@ -106,9 +106,10 @@ func _launch_wave() -> void:
 	var sab_in_wave := false
 	for i in count:
 		var t := "buggy"
-		if wave_index >= 2 and i % 3 == 1:
+		# Порог новичка: первая волна — только багги; байкеры с 3-й, тараны с 5-й
+		if wave_index >= 3 and i % 3 == 1:
 			t = "biker"
-		if wave_index >= 4 and i % 4 == 2:
+		if wave_index >= 5 and i % 4 == 2:
 			t = "ram"
 		var d := {"type": t, "hp_scale": hp_scale}
 		# С 8-й волны часть байкеров — диверсанты с зарядами против орудий
@@ -116,17 +117,18 @@ func _launch_wave() -> void:
 			d["sab"] = true
 			sab_in_wave = true
 		_spawn_queue.append(d)
-	# Фланговые колонны: с 5-й волны подмога заходит сбоку в разгар боя
+	# Фланговые колонны: с 6-й волны подмога заходит сбоку в разгар боя
+	# (5-ю не трогаем — там первый босс, порог новичка и так стена)
 	_flank_plan.clear()
 	_spawned_count = 0
-	if wave_index >= 5:
+	if wave_index >= 6:
 		_flank_plan.append({"at": int(ceil(count * 0.35)), "side": 1.0,
 			"type": "biker" if wave_index >= 8 else "buggy",
 			"n": 3, "done": false})
-	if wave_index >= 9:
+	if wave_index >= 10:
 		_flank_plan.append({"at": int(ceil(count * 0.7)), "side": -1.0,
-			"type": "ram" if wave_index >= 12 else "buggy",
-			"n": 2 if wave_index >= 12 else 3, "done": false})
+			"type": "ram" if wave_index >= 13 else "buggy",
+			"n": 2 if wave_index >= 13 else 3, "done": false})
 	if wave_index % 5 == 0:
 		if wave_index % 15 == 0:
 			# Каждая пятнадцатая — Военный Поезд: локомотив + сцеп вагонов
@@ -177,7 +179,8 @@ func _spawn(data: Dictionary) -> void:
 	if t == "boss":
 		enemy.enemy_type = "boss"
 		enemy.is_boss = true
-		enemy.max_hp = int(350 * data["hp_scale"])
+		# Пологая кривая: первый тягач (волна 5) бьётся 3–4 орудиями, не требуя меты
+		enemy.max_hp = int(300.0 * (1.0 + (wave_index - 1) * 0.15) * danger)
 		enemy.chase_speed = 6.5
 		enemy.reward = 70
 		enemy.attack_damage = 12
