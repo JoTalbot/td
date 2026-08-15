@@ -147,7 +147,8 @@ func _process(delta: float) -> void:
 func _find_target() -> Node3D:
 	var best: Node3D = null
 	var best_d := 1e9
-	var r: float = stats()["range"]
+	# Дальность режется дорожными событиями (песчаная буря)
+	var r: float = stats()["range"] * (state.weapon_range_mult if state != null else 1.0)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(enemy) or enemy.is_dying:
 			continue

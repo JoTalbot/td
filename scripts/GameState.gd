@@ -13,6 +13,9 @@ var hp: int = START_HP
 var max_hp: int = START_HP
 var is_game_over: bool = false
 
+## Множитель дальности орудий (песчаная буря и т.п.). Крутится дорожными событиями.
+var weapon_range_mult := 1.0
+
 var _heal_accum := 0.0
 var _invulnerable := 0.0
 

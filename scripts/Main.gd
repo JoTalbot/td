@@ -11,6 +11,7 @@ const WeaponScript := preload("res://scripts/Weapon.gd")
 const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const Abilities := preload("res://scripts/Abilities.gd")
+const RoadEvents := preload("res://scripts/RoadEvents.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -19,6 +20,8 @@ var state: GameState
 var waves: WaveManager
 var hud: HUD
 var abilities: Abilities
+var events: RoadEvents
+var world_env: Environment
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -56,6 +59,11 @@ func _ready() -> void:
 	abilities.setup(state, truck, wasteland)
 	add_child(abilities)
 
+	events = RoadEvents.new()
+	events.name = "RoadEvents"
+	events.setup(state, truck, wasteland, world_env)
+	add_child(events)
+
 	hud = HUD.new()
 	hud.name = "HUD"
 	hud.state = state
@@ -72,6 +80,7 @@ func _ready() -> void:
 	hud.ability_pressed.connect(abilities.try_activate)
 	abilities.feedback.connect(hud.flash_message)
 	waves.boss_event.connect(hud.flash_message)
+	events.announced.connect(hud.flash_message)
 	state.game_over.connect(func(): hud.show_game_over(waves.wave_index))
 
 	waves.start()
@@ -100,9 +109,10 @@ func _setup_environment() -> void:
 	env.adjustment_contrast = 1.06
 	env.adjustment_saturation = 1.12
 
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	add_child(world_env)
+	var world_env_node := WorldEnvironment.new()
+	world_env_node.environment = env
+	add_child(world_env_node)
+	world_env = env
 
 
 func _setup_lights() -> void:

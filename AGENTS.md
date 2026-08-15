@@ -36,6 +36,7 @@
 | `scripts/WeaponData.gd` | Данные орудий: 4 типа × 3 уровня (mgun/flamer/harpoon/cannon) |
 | `scripts/AbilityData.gd` | Данные способностей экипажа: залп/щит/нитро, кулдауны, цвета |
 | `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
+| `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |
 | `scripts/Enemy.gd` | Рейдер: догоняет, пристраивается на `attack_offset`, таранит; типы buggy/biker/ram/boss; смерть — кувырок и отставание |
@@ -52,6 +53,7 @@
 - Новые апгрейды фуры: `TruckData.DEFS` + ветка в `Truck.apply_upgrade()` с обязательным видимым обвесом.
 - Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом.
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.2 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
+- Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
 
 ## Сборка под Android
 
