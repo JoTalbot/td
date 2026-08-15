@@ -18,6 +18,7 @@ const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const Campaign := preload("res://scripts/Campaign.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const MapScreen := preload("res://scripts/MapScreen.gd")
+const Tutorial := preload("res://scripts/Tutorial.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -28,6 +29,7 @@ var hud: HUD
 var abilities: Abilities
 var events: RoadEvents
 var sfx: SoundFX
+var tutorial: Node
 var meta: MetaProgress
 var campaign: Campaign
 var map_screen: MapScreen
@@ -104,6 +106,11 @@ func _ready() -> void:
 	events.setup(state, truck, wasteland, world_env)
 	add_child(events)
 
+	# Обучение новичка: одноразовые контекстные подсказки (флаги в мета-сейве)
+	tutorial = Tutorial.new()
+	tutorial.name = "Tutorial"
+	add_child(tutorial)
+
 	hud = HUD.new()
 	hud.name = "HUD"
 	hud.state = state
@@ -118,7 +125,11 @@ func _ready() -> void:
 	hud.sell_pressed.connect(_on_sell_pressed)
 	hud.truck_upgrade_pressed.connect(_on_truck_upgrade)
 	hud.restart_pressed.connect(_on_restart_pressed)
-	hud.ability_pressed.connect(func(a): if abilities.try_activate(a): sfx.play("ability", 0.8))
+	hud.ability_pressed.connect(func(a):
+		if abilities.try_activate(a):
+			sfx.play("ability", 0.8)
+			if tutorial != null:
+				tutorial.notify("ability"))
 	abilities.feedback.connect(hud.flash_message)
 	# Кампания: карта пустоши, экономика, контракты
 	campaign = Campaign.new()
@@ -146,6 +157,7 @@ func _ready() -> void:
 	waves.boss_event.connect(func(_t): sfx.play("boss", 0.85); camera_rig.add_trauma(0.3))
 	hud.sfx = sfx
 	map_screen.sfx = sfx
+	tutorial.setup(self, hud, state, waves, truck, meta)
 	_sync_legendary_abilities()
 
 	# Старт — на карте; бой начинается с выбора маршрута
@@ -173,6 +185,7 @@ func _on_travel(city_id: String) -> void:
 	_apply_campaign_effects()
 	_spawn_escort_if_needed(city_id)
 	_sync_legendary_abilities()
+	tutorial.notify("travel")
 	waves.start()
 
 
@@ -299,6 +312,7 @@ func _mount_legendary(item: String) -> void:
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
 func _on_run_completed() -> void:
 	battle_active = false
+	tutorial.notify("arrival")
 	# Эскорт решается ДО arrive: фургон жив — фракция платит щедро
 	var escort_pay := 0
 	if not campaign.active_escort_for(_destination).is_empty():
@@ -373,6 +387,7 @@ func _on_weapon_jam_requested() -> void:
 ## Конец рейса смертью фуры: чертежи капают, груз в трюме пополам.
 func _on_game_over() -> void:
 	battle_active = false
+	tutorial.notify("gameover")
 	sfx.play("big_boom", 1.0)
 	camera_rig.add_trauma(1.0)
 	campaign.fail_run()
@@ -488,6 +503,7 @@ func _try_mount(slot: int) -> void:
 	truck.mount_weapon(slot, weapon)
 	hud.flash_message("%s установлен" % WeaponData.DEFS[selected_weapon_type]["name"])
 	truck.set_slots_highlight(selected_weapon_type != "")
+	tutorial.notify("mounted")
 
 
 func _select_weapon(weapon: Node3D) -> void:

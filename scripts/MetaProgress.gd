@@ -57,6 +57,7 @@ var blueprints := 0
 var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0, "arsenal": 0, "mechanic": 0}
 var best_wave := 0              # рекорд волн за рейс (между сессиями)
 var last_run_was_record := false
+var tutorial_flags: Dictionary = {}   # обучение новичка: id подсказки -> показана
 
 
 func _ready() -> void:
@@ -74,6 +75,7 @@ func load_meta() -> void:
 		return
 	blueprints = int(data.get("blueprints", 0))
 	best_wave = int(data.get("best_wave", 0))
+	tutorial_flags = data.get("tutorial_flags", {})
 	var lvls: Dictionary = data.get("levels", {})
 	for id in levels:
 		levels[id] = int(lvls.get(id, 0))
@@ -83,7 +85,7 @@ func save_meta() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"blueprints": blueprints, "levels": levels, "best_wave": best_wave}))
+	f.store_string(JSON.stringify({"blueprints": blueprints, "levels": levels, "best_wave": best_wave, "tutorial_flags": tutorial_flags}))
 
 
 ## Итоги рейса: чертёж за каждую достигнутую волну + по два за убитого босса.
@@ -98,6 +100,18 @@ func finish_run(wave_index: int, bosses_down: int) -> int:
 
 func level_of(id: String) -> int:
 	return int(levels.get(id, 0))
+
+
+## --- Обучение новичка: каждая подсказка показывается один раз и навсегда ---
+func tutorial_seen(id: String) -> bool:
+	return bool(tutorial_flags.get(id, false))
+
+
+func mark_tutorial(id: String) -> void:
+	if tutorial_seen(id):
+		return
+	tutorial_flags[id] = true
+	save_meta()
 
 
 ## Цена следующего уровня; -1 — если уже максимум.

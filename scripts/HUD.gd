@@ -59,6 +59,7 @@ func _ready() -> void:
 	_build_game_over()
 	_build_ability_bar()
 	_build_encounter()
+	_build_hint()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -440,6 +441,54 @@ func show_encounter(title: String, desc: String, options: Array) -> void:
 func hide_encounter() -> void:
 	if _encounter_panel != null:
 		_encounter_panel.visible = false
+
+
+## --- Подсказка обучения: закреплённый баннер, тап — «понял» ---
+signal hint_dismissed
+
+var _hint_panel: PanelContainer
+var _hint_label: Label
+
+
+func _build_hint() -> void:
+	_hint_panel = PanelContainer.new()
+	_hint_panel.add_theme_stylebox_override("panel", _styled_panel(Color(0.55, 0.75, 1.0)))
+	_hint_panel.anchor_left = 0.5
+	_hint_panel.anchor_right = 0.5
+	_hint_panel.anchor_top = 0.27
+	_hint_panel.anchor_bottom = 0.27
+	_hint_panel.offset_left = -300
+	_hint_panel.offset_right = 300
+	_hint_panel.offset_top = 0
+	_hint_panel.offset_bottom = 84
+	_hint_panel.visible = false
+	_hint_panel.gui_input.connect(_on_hint_gui_input)
+	add_child(_hint_panel)
+	_hint_label = Label.new()
+	_hint_label.add_theme_font_size_override("font_size", 15)
+	_hint_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint_panel.add_child(_hint_label)
+
+
+func _on_hint_gui_input(ev: InputEvent) -> void:
+	var tapped: bool = (ev is InputEventScreenTouch and ev.pressed) \
+		or (ev is InputEventMouseButton and ev.pressed)
+	if tapped and _hint_panel.visible:
+		hide_hint()
+		hint_dismissed.emit()
+
+
+func show_hint(text: String) -> void:
+	_hint_label.text = text + "\n(тап — понял)"
+	_hint_panel.visible = true
+
+
+func hide_hint() -> void:
+	if _hint_panel != null:
+		_hint_panel.visible = false
 
 
 func _build_message() -> void:

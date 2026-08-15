@@ -67,6 +67,7 @@
 - Перф-бюджеты: взрывы в группе `fx_explosion` (≥8 — не спавнить, ≥4 — без OmniLight), лампа `Weapon._flash` visible только при выстреле, снаряды в группе `projectiles`; бенч — docs/PERF.md.
 - Мета «Бортмеханик»: `MetaProgress.DEFS.mechanic` → `mechanic_rate()` HP/сек; починка в `Main._process()` только при `waves.between_waves` (дроби копит `GameState.heal`).
 - Встречи на трассе: `RoadEvents.encounter(title, desc, options)` → модалка `HUD.show_encounter()` (кнопки через `_rusty_button`, cb из опций, старт волны прячет); гейтинг `_maybe_encounter()` на фронте `between_waves`, лимит `ENCOUNTER_MAX_PER_RUN`, сброс в `Main._on_travel()`. Старые кнопки — только `remove_child` + `queue_free`, иначе перехватывают тапы до конца кадра!
+- Обучение новичка: `scripts/Tutorial.gd` — шаги в `_steps()` (id/text/when/timeout), флаги в `MetaProgress.tutorial_flags` (сейв `tutorial_flags`); Main шлёт `tutorial.notify("travel"/"mounted"/"ability"/"arrival"/"gameover")`; баннер `HUD.show_hint()`, тап — `hint_dismissed` = шаг засчитан. Новый шаг = запись в `_steps()` + ветка в `_done_condition()`.
 - Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
 - Новые мета-улучшения: `MetaProgress.DEFS` + метод бонуса, применяемый из `Main._ready()` при старте рейса. Магазин — в HUD game-over панели.
 - Новые здания базы: `CampaignData.BUILDINGS` + эффект в `Campaign` (например `cargo_cap()` или `arrive()`-производство).
