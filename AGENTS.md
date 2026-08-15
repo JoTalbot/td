@@ -67,6 +67,8 @@
 - Новые здания базы: `CampaignData.BUILDINGS` + эффект в `Campaign` (например `cargo_cap()` или `arrive()`-производство).
 - Новые техи: `CampaignData.RESEARCH` + применение эффекта в `Main._apply_campaign_effects()`. Тикают рейсами (`arrive`/`fail_run`), цена = лом + ресурсы + чертежи (`bp`).
 - Новые крафт-модули: `CampaignData.RECIPES` + ветка `match` в `Main._apply_campaign_effects()` по staged-иду.
+- Воздушный босс (корсар): волна %10 в `WaveManager._spawn_ace()` — тот же `RaiderCopter` с `is_ace`, фазы как у тягача; считается в `enemies_alive`.
+- Дневные моды: `CampaignData.DAILY_MODS` + `Campaign.daily_mods()` (сид = дата) + применение в `Main._apply_campaign_effects()` и/или `Campaign.price_of()`.
 
 ## Сборка под Android
 

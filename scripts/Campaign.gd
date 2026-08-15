@@ -153,9 +153,24 @@ func cargo_qty(res: String) -> int:
 
 
 ## --- Цены (с дневным джиттером) ---
+## Активные дневные модификаторы (1-2, детерминированно от даты).
+func daily_mods() -> Array:
+	var ids: Array = CampaignData.DAILY_MODS.keys()
+	var h1 := fposmod(sin(float(day_seed) * 57.31) * 43758.5453, 1.0)
+	var out: Array = [ids[int(h1 * ids.size()) % ids.size()]]
+	var h2 := fposmod(sin(float(day_seed) * 91.7) * 24634.6345, 1.0)
+	if h2 < 0.35:
+		var second: String = ids[(ids.find(out[0]) + 2) % ids.size()]
+		if not out.has(second):
+			out.append(second)
+	return out
+
+
 func price_of(res: String, city: String) -> int:
 	var base: float = CampaignData.RESOURCES[res]["price"]
 	var mod: float = CampaignData.CITIES[city]["mods"].get(res, 1.0)
+	if "fair" in daily_mods():
+		mod *= 0.8   # ярмарочный день — всё дешевле
 	var h := sin(float(day_seed) * 127.1 + float(res.hash() % 997) * 311.7 + float(city.hash() % 991) * 74.7) * 43758.5453
 	var jitter := 0.9 + 0.2 * (h - floorf(h))
 	return maxi(int(round(base * mod * jitter)), 1)

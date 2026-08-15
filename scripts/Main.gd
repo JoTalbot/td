@@ -157,6 +157,17 @@ func _apply_campaign_effects() -> void:
 		state.damage_mult = 1.12
 	if "convoy" in campaign.research_done:
 		waves.bonus_mult = 1.15
+	# Дневные модификаторы пустоши
+	for m in campaign.daily_mods():
+		match m:
+			"heat":
+				state.damage_kind_mult["flame"] = 1.3
+			"horde":
+				waves.extra_count = 2
+				waves.bonus_mult *= 1.1
+			"tailwind":
+				wasteland.speed_scale *= 1.15
+				abilities.cooldown_mult *= 0.8
 	for item in campaign.pop_pending():
 		match item:
 			"repair_kit":

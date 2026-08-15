@@ -22,6 +22,9 @@ var reward_mult := 1.0
 ## Множитель урона орудий (теха «Бронебойные» кампании).
 var damage_mult := 1.0
 
+## Множитель урона по видам снарядов (дневной мод «Жара»: flame → 1.3).
+var damage_kind_mult := {}
+
 var _heal_accum := 0.0
 var _invulnerable := 0.0
 

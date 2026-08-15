@@ -27,9 +27,13 @@ func _def() -> Dictionary:
 
 func stats() -> Dictionary:
 	var st: Dictionary = _def()["levels"][level].duplicate()
-	# Теха кампании усиливает урон
-	if state != null and state.damage_mult != 1.0:
-		st["damage"] = int(round(float(st["damage"]) * state.damage_mult))
+	if state != null:
+		var dm := float(state.damage_mult)
+		# Дневные моды: усиление по виду снаряда (например «Жара» — огонь)
+		if state.damage_kind_mult.has(_def()["kind"]):
+			dm *= float(state.damage_kind_mult[_def()["kind"]])
+		if dm != 1.0:
+			st["damage"] = int(round(float(st["damage"]) * dm))
 	return st
 
 

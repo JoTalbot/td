@@ -5,6 +5,10 @@ extends Node3D
 ## НЕ считается в WaveManager.enemies_alive — событийный бонус-враг.
 
 signal died(reward: int)
+## Корсар кричит о смене фазы (текст для HUD).
+signal phase_announced(text: String)
+## Корсар в отчаянии зовёт автожиры поменьше.
+signal spawn_minions(count: int)
 
 const Junk := preload("res://scripts/Junk.gd")
 
@@ -15,6 +19,9 @@ var bomb_damage := 6
 var crash_damage := 15
 var bombs_total := 3
 var is_dying := false
+## Босс-версия: корсар (больше, злее, с фазами).
+var is_ace := false
+var phase := 1
 
 var truck: Node3D = null
 var state: Node = null
@@ -77,6 +84,36 @@ func take_damage(amount: int, p_state: Node) -> void:
 	_wobble += 0.8   # трясёт от попаданий
 	if hp <= 0:
 		_shot_down(p_state)
+	elif is_ace:
+		_update_ace_phase()
+
+
+## Фазы корсара: 70% — ярость (бомбы чаще), 40% — зовёт эскорт и идёт на добивание.
+func _update_ace_phase() -> void:
+	var ratio := float(hp) / float(max_hp)
+	if phase == 1 and ratio <= 0.7:
+		_set_phase(2)
+	elif phase == 2 and ratio <= 0.4:
+		_set_phase(3)
+
+
+func _set_phase(p: int) -> void:
+	phase = p
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", Vector3.ONE * 1.2, 0.1)
+	tw.tween_property(_body, "scale", Vector3.ONE, 0.3)
+	if p == 2:
+		# Ярость: бомбовый удар чаще и мощнее
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.35, 0.1)
+		glow.light_energy = 1.5
+		glow.omni_range = 5.0
+		glow.position = Vector3(0, 0.6, 0)
+		_body.add_child(glow)
+		phase_announced.emit("🔥 Корсар ВЗБЕШЁН: бомбит вдвое чаще!")
+	elif p == 3:
+		spawn_minions.emit(2)
+		phase_announced.emit("☠ Корсар зовёт эскорт и готовится к добиванию!")
 
 
 func _shot_down(p_state: Node) -> void:
@@ -124,7 +161,8 @@ func _process(delta: float) -> void:
 				if _bombs_left > 0:
 					_drop_bomb()
 					_bombs_left -= 1
-					_bomb_timer = 3.5
+					# Ярость (фаза 2+): бомбит вдвое чаще
+					_bomb_timer = 3.5 if phase < 2 else 1.75
 				else:
 					_phase = FlyPhase.KAMIKAZE
 		FlyPhase.KAMIKAZE:
@@ -151,6 +189,7 @@ func _fly_toward(point: Vector3, speed: float, delta: float) -> void:
 func _drop_bomb() -> void:
 	var bomb := Bomb.new()
 	bomb.state = state
+	bomb.scale = Vector3.ONE * (1.25 if (is_ace and phase >= 2) else 1.0)
 	get_tree().current_scene.add_child(bomb)
 	bomb.global_position = global_position + Vector3(0, -0.4, 0)
 	# Лёгкий кабанчик при сбросе

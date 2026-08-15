@@ -116,7 +116,14 @@ func _refresh_top() -> void:
 	_loc_label.text = "%s %s" % [c["icon"], c["name"]]
 	_wallet_label.text = "⚙ %d" % campaign.wallet
 	_cargo_label.text = "📦 %d/%d" % [campaign.cargo_used(), campaign.cargo_cap()]
-	_day_label.text = "☀ День %d" % campaign.day
+	var mods_txt := ""
+	for m in campaign.daily_mods():
+		var d: Dictionary = CampaignData.DAILY_MODS[m]
+		mods_txt += "  %s%s" % [d["icon"], d["name"]]
+	_day_label.text = "☀ День %d%s" % [campaign.day, mods_txt]
+	_day_label.tooltip_text = ""
+	for m in campaign.daily_mods():
+		_day_label.tooltip_text += "%s: %s\n" % [CampaignData.DAILY_MODS[m]["name"], CampaignData.DAILY_MODS[m]["desc"]]
 
 
 func _build_map() -> void:

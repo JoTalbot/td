@@ -11,6 +11,7 @@ signal run_completed
 signal enemy_killed
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
+const CopterScript := preload("res://scripts/RaiderCopter.gd")
 
 var truck: Node3D
 var state: Node
@@ -24,8 +25,10 @@ var active := false
 var run_length := -1
 ## Множитель опасности маршрута (цифра дороги с карты).
 var danger := 1.0
-## Множитель награды за волну (теха «Конвойные схемы»).
+## Множитель награды за волну (теха «Конвойные схемы», дневной «Караван»).
 var bonus_mult := 1.0
+## Добавочные враги на волну (дневной мод «Караван»).
+var extra_count := 0
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -84,7 +87,7 @@ func _launch_wave() -> void:
 	_spawn_timer = 0.5
 	_spawn_queue.clear()
 
-	var count := 4 + wave_index + int((danger - 1.0) * 3.0)
+	var count := 4 + wave_index + int((danger - 1.0) * 3.0) + extra_count
 	var hp_scale := (1.0 + (wave_index - 1) * 0.2) * danger
 	for i in count:
 		var t := "buggy"
@@ -94,14 +97,22 @@ func _launch_wave() -> void:
 			t = "ram"
 		_spawn_queue.append({"type": t, "hp_scale": hp_scale})
 	if wave_index % 5 == 0:
-		_spawn_queue.append({"type": "boss", "hp_scale": hp_scale})
-		boss_event.emit("☠ БОСС-ТЯГАЧ на горизонте!")
+		if wave_index % 10 == 0:
+			# Каждая десятая волна — воздушный босс вместо тягача
+			_spawn_queue.append({"type": "ace", "hp_scale": hp_scale})
+			boss_event.emit("🚁 КОРСАР в небе! Берегите платформу!")
+		else:
+			_spawn_queue.append({"type": "boss", "hp_scale": hp_scale})
+			boss_event.emit("☠ БОСС-ТЯГАЧ на горизонте!")
 	wave_started.emit(wave_index)
 
 
 func _spawn(data: Dictionary) -> void:
-	var enemy: Node3D = EnemyScript.new()
 	var t: String = data["type"]
+	if t == "ace":
+		_spawn_ace(data)
+		return
+	var enemy: Node3D = EnemyScript.new()
 	if t == "boss":
 		enemy.enemy_type = "boss"
 		enemy.is_boss = true
@@ -136,6 +147,39 @@ func _spawn(data: Dictionary) -> void:
 	get_tree().current_scene.add_child(enemy)
 	# Появляются сзади в клубах пыли, чуть сбоку
 	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
+
+
+## Корсар: воздушный босс. Часть волны — считается в enemies_alive.
+func _spawn_ace(data: Dictionary) -> void:
+	var ace: Node3D = CopterScript.new()
+	ace.is_ace = true
+	ace.max_hp = int(300 * data["hp_scale"])
+	ace.reward = 110
+	ace.bomb_damage = 10
+	ace.crash_damage = 24
+	ace.bombs_total = 5
+	ace.truck = truck
+	ace.state = state
+	enemies_alive += 1
+	ace.died.connect(func(_r):
+		enemies_alive -= 1
+		bosses_down += 1
+		enemy_killed.emit())
+	ace.phase_announced.connect(func(text: String): boss_event.emit(text))
+	ace.spawn_minions.connect(_on_ace_escort)
+	get_tree().current_scene.add_child(ace)
+	ace.scale = Vector3.ONE * 1.5
+	ace.global_position = truck.global_position + Vector3(0, 15.0, -28.0)
+
+
+## Корсар зовёт два обычных автожира эскортом (волну не блокируют).
+func _on_ace_escort(count: int) -> void:
+	for i in count:
+		var c: Node3D = CopterScript.new()
+		c.truck = truck
+		c.state = state
+		get_tree().current_scene.add_child(c)
+		c.global_position = truck.global_position + Vector3(-4.0 + i * 8.0, 14.0, -24.0)
 
 
 ## Босс в отчаянии зовёт байкеров на подмогу.
