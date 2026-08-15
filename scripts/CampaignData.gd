@@ -118,6 +118,75 @@ const BUILDINGS := {
 	},
 }
 
+## Исследования: нужна Лаборатория нужного уровня, тикают по рейсам.
+## bp — цена в чертежах (мета-валюта из MetaProgress).
+const RESEARCH := {
+	"plating": {
+		"name": "Композитная броня", "icon": "🛡",
+		"desc": "+40 HP фуры с старта каждого рейса",
+		"lab": 1, "runs": 1, "bp": 1,
+		"cost": {"scrap": 80, "metal": 6},
+	},
+	"copper_heads": {
+		"name": "Бронебойные", "icon": "🔸",
+		"desc": "+12% урона орудий",
+		"lab": 1, "runs": 1, "bp": 2,
+		"cost": {"scrap": 90, "metal": 4, "ammo": 3},
+	},
+	"chemfuel": {
+		"name": "Химия топлива", "icon": "⚗️",
+		"desc": "Открывает крафт «Нитро-микс»",
+		"lab": 1, "runs": 1, "bp": 1,
+		"cost": {"scrap": 70, "fuel": 3},
+	},
+	"tradecraft": {
+		"name": "Торговые связи", "icon": "⚖️",
+		"desc": "Продажа ресурсов за 85% вместо 75%",
+		"lab": 2, "runs": 2, "bp": 2,
+		"cost": {"scrap": 120, "food": 3, "water": 3},
+	},
+	"convoy": {
+		"name": "Конвойные схемы", "icon": "🗺",
+		"desc": "+15% к награде за волну",
+		"lab": 2, "runs": 2, "bp": 3,
+		"cost": {"scrap": 140, "chips": 4},
+	},
+	"armory": {
+		"name": "Оружейные чертежи", "icon": "🗜",
+		"desc": "Открывает крафт «Комплект орудия»",
+		"lab": 3, "runs": 2, "bp": 4,
+		"cost": {"scrap": 200, "metal": 10, "chips": 5},
+	},
+}
+
+## Крафт-модули на рейс (расходники). research — какая теха открывает рецепт.
+const RECIPES := {
+	"repair_kit": {
+		"name": "Ремкомплект", "icon": "🧰",
+		"desc": "Раз за рейс: при HP < 25% автопочинка +35% HP",
+		"needs": {"metal": 4, "chips": 2},
+		"research": "",
+	},
+	"plate_kit": {
+		"name": "Набор брони", "icon": "🛡",
+		"desc": "На рейс: +30% к максимуму HP",
+		"needs": {"metal": 5},
+		"research": "",
+	},
+	"nitro_mix": {
+		"name": "Нитро-микс", "icon": "🔥",
+		"desc": "На рейс: кулдаун «Нитро» вдвое короче",
+		"needs": {"fuel": 3},
+		"research": "chemfuel",
+	},
+	"weapon_kit": {
+		"name": "Комплект орудия", "icon": "🗜",
+		"desc": "Рейс начинается с готовым Пулемётом ур.1",
+		"needs": {"metal": 6, "ammo": 4, "scrap": 40},
+		"research": "armory",
+	},
+}
+
 ## Шаблоны контрактов, которые раздают города.
 const CONTRACT_POOL := [
 	{"type": "deliver", "label": "Отвезти %d «%s» в %s", "qty_min": 2, "qty_max": 5, "pay_mult": 3.0},

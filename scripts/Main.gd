@@ -36,6 +36,8 @@ var battle_active := false
 var _destination := ""
 ## Лут, набранный в рейсе (в трюм попадёт по прибытии)
 var _run_loot: Dictionary = {}
+## Ремкомплект из крафта: раз за рейс автопочинка при HP < 25%
+var _repair_kit_ready := false
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -107,6 +109,7 @@ func _ready() -> void:
 	# Кампания: карта пустоши, экономика, контракты
 	campaign = Campaign.new()
 	campaign.name = "Campaign"
+	campaign.meta = meta
 	add_child(campaign)
 
 	map_screen = MapScreen.new()
@@ -142,7 +145,38 @@ func _on_travel(city_id: String) -> void:
 	hud.flash_message("🚚 Рейс: %s → %s" % [
 		CampaignData.CITIES[campaign.location]["name"],
 		CampaignData.CITIES[city_id]["name"]])
+	_apply_campaign_effects()
 	waves.start()
+
+
+## Постоянные техи и staged-модули применяются один раз на старте рейса.
+func _apply_campaign_effects() -> void:
+	if "plating" in campaign.research_done:
+		state.add_max_hp(40)
+	if "copper_heads" in campaign.research_done:
+		state.damage_mult = 1.12
+	if "convoy" in campaign.research_done:
+		waves.bonus_mult = 1.15
+	for item in campaign.pop_pending():
+		match item:
+			"repair_kit":
+				_repair_kit_ready = true
+			"plate_kit":
+				state.add_max_hp(int(state.max_hp * 0.3))
+			"nitro_mix":
+				abilities.cooldown_mult *= 0.5
+			"weapon_kit":
+				var slot := truck.weapons.size()  # первый свободный — поиск ниже
+				for i in truck.slot_nodes.size():
+					if not truck.weapons.has(i):
+						slot = i
+						break
+				if slot < truck.slot_nodes.size() and not truck.weapons.has(slot):
+					var w: Node3D = WeaponScript.new()
+					w.setup("mgun", state)
+					w.slot_index = slot
+					truck.mount_weapon(slot, w)
+				hud.flash_message("🗜 Комплект орудия смонтирован!")
 
 
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
@@ -360,6 +394,11 @@ func _on_truck_upgrade(id: String) -> void:
 func _process(delta: float) -> void:
 	if truck.repair_rate() > 0.0 and not state.is_game_over:
 		state.heal(truck.repair_rate() * delta)
+	# Ремкомплект: экстренная починка один раз за рейс
+	if _repair_kit_ready and battle_active and state.hp < state.max_hp * 0.25 and not state.is_game_over:
+		_repair_kit_ready = false
+		state.heal(float(state.max_hp) * 0.35)
+		hud.flash_message("🧰 Ремкомплект! +35% HP")
 
 
 func _on_restart_pressed() -> void:

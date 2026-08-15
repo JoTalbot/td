@@ -520,6 +520,14 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		pl.add_theme_font_size_override("font_size", 15)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(pl)
+	if str(summary.get("research", "")) != "":
+		var rd: Dictionary = CampaignData.RESEARCH[summary["research"]]
+		var rl := Label.new()
+		rl.text = "%s Исследование завершено: %s!" % [rd["icon"], rd["name"]]
+		rl.add_theme_font_size_override("font_size", 16)
+		rl.add_theme_color_override("font_color", Color(0.8, 0.85, 0.6))
+		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(rl)
 	for c in summary.get("done", []):
 		var cl := Label.new()
 		cl.text = "✅ Контракт закрыт: +⚙%d" % int(c["reward"])

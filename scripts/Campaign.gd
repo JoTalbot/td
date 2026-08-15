@@ -17,6 +17,13 @@ var contracts: Array = []          # активные контракты
 var offers: Dictionary = {}        # city -> контракты на доске
 var kills_total := 0
 var buildings: Dictionary = {}     # bld_id -> level
+var research_done: Array = []      # завершённые техи
+var research_active := ""          # текущее исследование (id), "" — свободно
+var research_left := 0             # сколько рейсов до завершения
+var inventory: Dictionary = {}     # item_id -> qty (скрафченные модули)
+var pending: Array = []            # модули, выданные в следующий рейс
+## Ссылка на мета-прогресс (чертежи). Ставится из Main.
+var meta: Node = null
 
 
 func _ready() -> void:
@@ -41,6 +48,11 @@ func load_campaign() -> void:
 	offers = data.get("offers", {})
 	kills_total = int(data.get("kills_total", 0))
 	buildings = data.get("buildings", {})
+	research_done = data.get("research_done", [])
+	research_active = data.get("research_active", "")
+	research_left = int(data.get("research_left", 0))
+	inventory = data.get("inventory", {})
+	pending = data.get("pending", [])
 
 
 func save_campaign() -> void:
@@ -56,6 +68,11 @@ func save_campaign() -> void:
 		"offers": offers,
 		"kills_total": kills_total,
 		"buildings": buildings,
+		"research_done": research_done,
+		"research_active": research_active,
+		"research_left": research_left,
+		"inventory": inventory,
+		"pending": pending,
 	}))
 
 ## --- База (только в родном городе) ---
@@ -158,10 +175,107 @@ func sell(res: String, qty: int) -> bool:
 	if int(cargo.get(res, 0)) < qty:
 		return false
 	take_cargo(res, qty)
-	# Скупают за 75% цены
-	wallet += int(price_of(res, location) * qty * 0.75)
+	# Скупают за 75% цены; с техой «Торговые связи» — за 85%
+	var rate := 0.85 if "tradecraft" in research_done else 0.75
+	wallet += int(price_of(res, location) * qty * rate)
 	save_campaign()
 	return true
+
+
+## --- Исследования (лаборатория, тикают рейсами как в EVE) ---
+func research_level_req_met(id: String) -> bool:
+	return bld_level("lab") >= int(CampaignData.RESEARCH[id]["lab"])
+
+
+func can_research(id: String) -> bool:
+	if research_active != "" or id in research_done or not research_level_req_met(id):
+		return false
+	var d: Dictionary = CampaignData.RESEARCH[id]
+	if meta != null and meta.blueprints < int(d["bp"]):
+		return false
+	for k in d["cost"]:
+		if k == "scrap":
+			if wallet < int(d["cost"][k]):
+				return false
+		elif cargo_qty(k) < int(d["cost"][k]):
+			return false
+	return true
+
+
+func start_research(id: String) -> bool:
+	if not can_research(id):
+		return false
+	var d: Dictionary = CampaignData.RESEARCH[id]
+	for k in d["cost"]:
+		if k == "scrap":
+			wallet -= int(d["cost"][k])
+		else:
+			take_cargo(k, int(d["cost"][k]))
+	if meta != null:
+		meta.blueprints -= int(d["bp"])
+		meta.save_meta()
+	research_active = id
+	research_left = int(d["runs"])
+	save_campaign()
+	return true
+
+
+## --- Крафт (рецепты-модули на один рейс) ---
+func can_craft(id: String) -> bool:
+	var d: Dictionary = CampaignData.RECIPES[id]
+	var req: String = d.get("research", "")
+	if req != "" and req not in research_done:
+		return false
+	var scrap_part := craft_scrap_cost(id)
+	if wallet < scrap_part:
+		return false
+	for k in d["needs"]:
+		if k == "scrap":
+			continue
+		if cargo_qty(k) < int(d["needs"][k]):
+			return false
+	return true
+
+
+## Ломовая часть крафта, режется Мастерской (-8%/ур.)
+func craft_scrap_cost(id: String) -> int:
+	var d: Dictionary = CampaignData.RECIPES[id]
+	var base := int(d["needs"].get("scrap", 0))
+	return int(base * (1.0 - 0.08 * bld_level("workshop")))
+
+
+func craft(id: String) -> bool:
+	if not can_craft(id):
+		return false
+	var d: Dictionary = CampaignData.RECIPES[id]
+	for k in d["needs"]:
+		if k == "scrap":
+			wallet -= craft_scrap_cost(id)
+		else:
+			take_cargo(k, int(d["needs"][k]))
+	inventory[id] = int(inventory.get(id, 0)) + 1
+	save_campaign()
+	return true
+
+
+## Отложить модуль в следующий рейс (по одному каждого вида).
+func stage_item(id: String) -> bool:
+	if int(inventory.get(id, 0)) < 1 or id in pending:
+		return false
+	inventory[id] -= 1
+	if inventory[id] <= 0:
+		inventory.erase(id)
+	pending.append(id)
+	save_campaign()
+	return true
+
+
+## Забирает staged-модули (вызывает Main при старте рейса).
+func pop_pending() -> Array:
+	var out := pending.duplicate()
+	pending.clear()
+	save_campaign()
+	return out
 
 
 ## --- Контракты ---
@@ -286,10 +400,18 @@ func arrive(city: String, run_scrap: int, loot: Dictionary) -> Dictionary:
 			var n2 := add_cargo("food", bld_level("greenshed") * 2)
 			if n2 > 0:
 				produced["food"] = n2
+	# Исследование тикает рейсом (как время скилла в EVE)
+	var research_finished := ""
+	if research_active != "":
+		research_left -= 1
+		if research_left <= 0:
+			research_done.append(research_active)
+			research_finished = research_active
+			research_active = ""
 	# Доска контрактов в новом городе обновляется
 	offers.erase(city)
 	save_campaign()
-	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced}
+	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced, "research": research_finished}
 
 
 ## Рейс провален: груз пополам, лом рейса сгорел.
@@ -300,4 +422,10 @@ func fail_run() -> void:
 		cargo[res] = int(cargo[res]) - loss
 		if int(cargo[res]) <= 0:
 			cargo.erase(res)
+	# Исследование тикает и в провале — лаборанты не виноваты
+	if research_active != "":
+		research_left -= 1
+		if research_left <= 0:
+			research_done.append(research_active)
+			research_active = ""
 	save_campaign()

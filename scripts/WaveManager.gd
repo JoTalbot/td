@@ -24,6 +24,8 @@ var active := false
 var run_length := -1
 ## Множитель опасности маршрута (цифра дороги с карты).
 var danger := 1.0
+## Множитель награды за волну (теха «Конвойные схемы»).
+var bonus_mult := 1.0
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -62,7 +64,7 @@ func _process(delta: float) -> void:
 			spawning = false
 	elif enemies_alive <= 0:
 		wave_cleared.emit(wave_index)
-		var bonus := int((25 + wave_index * 6) * danger)
+		var bonus := int((25 + wave_index * 6) * danger * bonus_mult)
 		if truck.upgrade_levels["engine"] > 0:
 			bonus = int(bonus * (1.0 + 0.25 * truck.upgrade_levels["engine"]))
 		state.earn(bonus)

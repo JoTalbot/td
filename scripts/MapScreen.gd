@@ -196,6 +196,9 @@ func _render_sheet() -> void:
 	elif _view == "base":
 		_sheet_title.text = "%s %s — БАЗА" % [c["icon"], c["name"]]
 		_render_base(is_here)
+	elif _view == "lab":
+		_sheet_title.text = "%s %s — ЛАБОРАТОРИЯ" % [c["icon"], c["name"]]
+		_render_lab(is_here)
 	else:
 		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
 		_render_info(c, is_here, route)
@@ -230,6 +233,11 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			bb.custom_minimum_size = Vector2(150, 52)
 			bb.pressed.connect(func(): _view = "base"; _render_sheet())
 			btns.add_child(bb)
+			var lb := _rusty_button("⚗️ Лаборатория" if campaign.bld_level("lab") > 0 else "⚗️ Лаборатория (нет)", Color(0.7, 0.8, 0.5))
+			lb.custom_minimum_size = Vector2(210, 52)
+			lb.disabled = campaign.bld_level("lab") == 0
+			lb.pressed.connect(func(): _view = "lab"; _render_sheet())
+			btns.add_child(lb)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
 		var go := _rusty_button("🚚 В РЕЙС: %d волн, опасность ★%.0f" % [waves_count, float(route[1])], Color(0.9, 0.5, 0.25))
@@ -347,6 +355,104 @@ func _render_base(is_here: bool) -> void:
 		var bid: String = id
 		b.pressed.connect(func(): campaign.build(bid); _render_sheet())
 		row.add_child(b)
+
+
+## Вид лаборатории: исследования, крафт, инвентарь модулей.
+func _render_lab(is_here: bool) -> void:
+	var back := _rusty_button("← К описанию")
+	back.custom_minimum_size = Vector2(170, 40)
+	back.pressed.connect(func(): _view = "info"; _render_sheet())
+	_sheet_body.add_child(back)
+	if not is_here:
+		var l := _mk_label(_sheet_body, 15, Color(0.7, 0.55, 0.4))
+		l.text = "Лаборанты работают только дома."
+		return
+
+	# Активное исследование
+	if campaign.research_active != "":
+		var d: Dictionary = CampaignData.RESEARCH[campaign.research_active]
+		var cur := _mk_label(_sheet_body, 15, Color(0.8, 0.85, 0.6))
+		cur.text = "⚗️ Идёт: %s %s — осталось рейсов: %d" % [d["icon"], d["name"], campaign.research_left]
+
+	# Список техов
+	for id in CampaignData.RESEARCH:
+		var d: Dictionary = CampaignData.RESEARCH[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(row)
+		var txt := _mk_label(row, 13, TEXT_DIM)
+		txt.custom_minimum_size = Vector2(440, 0)
+		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _rusty_button("", Color(0.7, 0.8, 0.5))
+		b.custom_minimum_size = Vector2(110, 38)
+		if id in campaign.research_done:
+			txt.text = "%s %s ✅ — %s" % [d["icon"], d["name"], d["desc"]]
+			b.visible = false
+		elif id == campaign.research_active:
+			txt.text = "%s %s ⏳ — %s" % [d["icon"], d["name"], d["desc"]]
+			b.visible = false
+		else:
+			var parts: Array = []
+			for k in d["cost"]:
+				if k == "scrap":
+					parts.append("⚙%d" % int(d["cost"][k]))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["cost"][k])])
+			parts.append("📐%d" % int(d["bp"]))
+			parts.append("🔬%dр" % int(d["runs"]))
+			var lab_ok: bool = campaign.research_level_req_met(id)
+			txt.text = "%s %s [лаб.%d] — %s  |  %s" % [d["icon"], d["name"], d["lab"], d["desc"], " ".join(parts)]
+			txt.modulate = Color(1, 1, 1) if lab_ok else Color(1, 1, 1, 0.45)
+			b.text = "Начать"
+			b.disabled = not campaign.can_research(id)
+			var rid: String = id
+			b.pressed.connect(func(): campaign.start_research(rid); _render_sheet())
+		row.add_child(txt)
+		row.add_child(b)
+
+	# Крафт-модули
+	var ct := _mk_label(_sheet_body, 16, ACCENT)
+	ct.text = "— Крафт-модули (на 1 рейс) —"
+	for id in CampaignData.RECIPES:
+		var d: Dictionary = CampaignData.RECIPES[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(row)
+		var txt := _mk_label(row, 13, TEXT_DIM)
+		txt.custom_minimum_size = Vector2(440, 0)
+		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var b := _rusty_button("", Color(0.85, 0.7, 0.4))
+		b.custom_minimum_size = Vector2(110, 38)
+		txt.text = "%s %s ×%d — %s" % [d["icon"], d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
+		var req: String = d.get("research", "")
+		if req != "" and req not in campaign.research_done:
+			b.text = "🔒"
+			b.disabled = true
+			txt.text += " [нужна теха «%s»]" % CampaignData.RESEARCH[req]["name"]
+			txt.modulate = Color(1, 1, 1, 0.45)
+		else:
+			var parts: Array = []
+			for k in d["needs"]:
+				if k == "scrap":
+					parts.append("⚙%d" % campaign.craft_scrap_cost(id))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["needs"][k])])
+			b.text = "Скрафтить"
+			b.disabled = not campaign.can_craft(id)
+			txt.text += "  |  " + " ".join(parts)
+			var cid: String = id
+			b.pressed.connect(func(): campaign.craft(cid); _render_sheet())
+		row.add_child(txt)
+		row.add_child(b)
+		# Модуль в следующий рейс
+		if int(campaign.inventory.get(id, 0)) > 0:
+			var taken: bool = campaign.pending.has(id)
+			var st := _rusty_button("В рейс" if not taken else "✅ взят", Color(0.9, 0.55, 0.25))
+			st.custom_minimum_size = Vector2(90, 38)
+			st.disabled = taken
+			var sid: String = id
+			st.pressed.connect(func(): campaign.stage_item(sid); _render_sheet())
+			row.add_child(st)
 
 
 ## Холст карты: рисует дороги между городами.

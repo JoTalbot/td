@@ -44,7 +44,7 @@
 | `scripts/WaveManager.gd` | Волны, чередование сторон спавна, босс каждые 5 волн, бонус волны ×движок |
 | `scripts/GameState.gd` | Металлолом, HP фуры (max_hp растёт от брони), ремонт дробным накоплением; `reward_mult` (мета), `weapon_range_mult` (события), неуязвимость (щит) |
 | `scripts/MetaProgress.gd` | Мета-прогрессия: чертежи с рейсов, 4 постоянных улучшения × 3 уровня, сейв JSON в `user://meta_progress.save` |
-| `scripts/CampaignData.gd` | Данные кампании: 5 городов пустоши, 6 ресурсов, дороги (расстояние/опасность), шаблоны контрактов, здания базы |
+| `scripts/CampaignData.gd` | Данные кампании: 5 городов пустоши, 6 ресурсов, дороги (расстояние/опасность), шаблоны контрактов, здания базы, техи RESEARCH, рецепты RECIPES |
 | `scripts/Campaign.gd` | Состояние кампании: кошелёк, трюм (вместимость), цены с дневным джиттером, контракты, `arrive()/fail_run()`; сейв `user://campaign.save` |
 | `scripts/MapScreen.gd` | Экран карты (CanvasLayer поверх боя): холст дорог, кнопки городов, рынок (купить/продать), доска контрактов; сигнал `travel_requested` в Main |
 | `scripts/HUD.gd` | UI кодом: верх (лом, HP-бар, волна), арсенал, ГАРАЖ (апгрейды фуры), панель орудия, game over |
@@ -64,6 +64,9 @@
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.2 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
 - Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
 - Новые мета-улучшения: `MetaProgress.DEFS` + метод бонуса, применяемый из `Main._ready()` при старте рейса. Магазин — в HUD game-over панели.
+- Новые здания базы: `CampaignData.BUILDINGS` + эффект в `Campaign` (например `cargo_cap()` или `arrive()`-производство).
+- Новые техи: `CampaignData.RESEARCH` + применение эффекта в `Main._apply_campaign_effects()`. Тикают рейсами (`arrive`/`fail_run`), цена = лом + ресурсы + чертежи (`bp`).
+- Новые крафт-модули: `CampaignData.RECIPES` + ветка `match` в `Main._apply_campaign_effects()` по staged-иду.
 
 ## Сборка под Android
 

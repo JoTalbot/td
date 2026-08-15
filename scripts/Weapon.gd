@@ -26,7 +26,11 @@ func _def() -> Dictionary:
 
 
 func stats() -> Dictionary:
-	return _def()["levels"][level]
+	var st: Dictionary = _def()["levels"][level].duplicate()
+	# Теха кампании усиливает урон
+	if state != null and state.damage_mult != 1.0:
+		st["damage"] = int(round(float(st["damage"]) * state.damage_mult))
+	return st
 
 
 func upgrade_cost() -> int:

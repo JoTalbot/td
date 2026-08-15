@@ -19,6 +19,9 @@ var weapon_range_mult := 1.0
 ## Множитель наград ломом (мета-улучшение «Скупщик хлама»).
 var reward_mult := 1.0
 
+## Множитель урона орудий (теха «Бронебойные» кампании).
+var damage_mult := 1.0
+
 var _heal_accum := 0.0
 var _invulnerable := 0.0
 
