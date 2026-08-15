@@ -13,6 +13,7 @@ var state: Node
 
 var wave_index := 0
 var enemies_alive := 0
+var bosses_down := 0
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -94,6 +95,7 @@ func _spawn(data: Dictionary) -> void:
 		enemy.attack_offset = Vector3(0, 0, -11.0)
 		enemy.phase_announced.connect(func(text: String): boss_event.emit(text))
 		enemy.spawn_minions.connect(_on_boss_spawn_minions)
+		enemy.died.connect(func(_r): bosses_down += 1)
 	else:
 		var tpl: Dictionary = TYPES[t]
 		enemy.enemy_type = t

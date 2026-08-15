@@ -7,15 +7,18 @@ signal sell_pressed
 signal truck_upgrade_pressed(id: String)
 signal restart_pressed
 signal ability_pressed(id: String)
+signal meta_upgrade_pressed(id: String)
 
 const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const AbilityData := preload("res://scripts/AbilityData.gd")
+const MetaProgress := preload("res://scripts/MetaProgress.gd")
 
 var state: Node
 var waves: Node
 var truck: Node3D
 var abilities: Node = null
+var meta: Node = null
 
 var _scrap_label: Label
 var _hp_label: Label
@@ -31,6 +34,9 @@ var _garage_buttons: Dictionary = {}
 var _garage_toggle: Button
 var _game_over_panel: CenterContainer
 var _ability_buttons: Dictionary = {}
+var _blueprints_label: Label
+var _earned_label: Label
+var _meta_buttons: Dictionary = {}
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
 const BORDER := Color(0.55, 0.4, 0.2)
@@ -388,7 +394,7 @@ func _build_game_over() -> void:
 	_game_over_panel.add_child(panel)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 16)
+	col.add_theme_constant_override("separation", 12)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(col)
 
@@ -406,6 +412,35 @@ func _build_game_over() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(subtitle)
 
+	_earned_label = Label.new()
+	_earned_label.add_theme_font_size_override("font_size", 20)
+	_earned_label.add_theme_color_override("font_color", ACCENT)
+	_earned_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(_earned_label)
+
+	# Мастерская: тратим чертежи на постоянные улучшения
+	var shop_title := Label.new()
+	shop_title.text = "🔧 МАСТЕРСКАЯ — постоянные улучшения"
+	shop_title.add_theme_font_size_override("font_size", 18)
+	shop_title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
+	shop_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(shop_title)
+
+	_blueprints_label = Label.new()
+	_blueprints_label.add_theme_font_size_override("font_size", 17)
+	_blueprints_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+	_blueprints_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(_blueprints_label)
+
+	for id in MetaProgress.DEFS:
+		var def: Dictionary = MetaProgress.DEFS[id]
+		var mbtn := _rusty_button("", Color(0.7, 0.85, 0.5))
+		mbtn.custom_minimum_size = Vector2(420, 46)
+		mbtn.add_theme_font_size_override("font_size", 15)
+		mbtn.pressed.connect(func(): meta_upgrade_pressed.emit(id))
+		col.add_child(mbtn)
+		_meta_buttons[id] = mbtn
+
 	var btn := _rusty_button("В новый рейс")
 	btn.custom_minimum_size = Vector2(220, 54)
 	btn.add_theme_font_size_override("font_size", 19)
@@ -413,7 +448,27 @@ func _build_game_over() -> void:
 	col.add_child(btn)
 
 
-func show_game_over(wave: int) -> void:
+func show_game_over(wave: int, earned: int = 0) -> void:
 	var subtitle := _game_over_panel.find_child("Subtitle", true, false) as Label
 	subtitle.text = "Вы отбились от %d волн рейдеров" % wave
+	_earned_label.text = "+ 📐 %d чертежей добыто из руин" % earned
+	refresh_meta_panel()
 	_game_over_panel.visible = true
+
+
+## Обновляет кнопки мастерской: уровни, цены, доступность.
+func refresh_meta_panel() -> void:
+	if meta == null:
+		return
+	_blueprints_label.text = "📐 Чертежей в наличии: %d" % meta.blueprints
+	for id in _meta_buttons:
+		var def: Dictionary = MetaProgress.DEFS[id]
+		var lvl: int = meta.level_of(id)
+		var cost: int = meta.cost_of(id)
+		var btn: Button = _meta_buttons[id]
+		if cost < 0:
+			btn.text = "%s %s [МАКС] — %s" % [def["icon"], def["name"], def["desc"]]
+			btn.disabled = true
+		else:
+			btn.text = "%s %s [ур.%d→%d, 📐%d] — %s" % [def["icon"], def["name"], lvl, lvl + 1, cost, def["desc"]]
+			btn.disabled = meta.blueprints < cost

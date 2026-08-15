@@ -41,7 +41,8 @@
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |
 | `scripts/Enemy.gd` | Рейдер: догоняет, пристраивается на `attack_offset`, таранит; типы buggy/biker/ram/boss; смерть — кувырок и отставание |
 | `scripts/WaveManager.gd` | Волны, чередование сторон спавна, босс каждые 5 волн, бонус волны ×движок |
-| `scripts/GameState.gd` | Металлолом, HP фуры (max_hp растёт от брони), ремонт дробным накоплением |
+| `scripts/GameState.gd` | Металлолом, HP фуры (max_hp растёт от брони), ремонт дробным накоплением; `reward_mult` (мета), `weapon_range_mult` (события), неуязвимость (щит) |
+| `scripts/MetaProgress.gd` | Мета-прогрессия: чертежи с рейсов, 4 постоянных улучшения × 3 уровня, сейв JSON в `user://meta_progress.save` |
 | `scripts/HUD.gd` | UI кодом: верх (лом, HP-бар, волна), арсенал, ГАРАЖ (апгрейды фуры), панель орудия, game over |
 
 ## Геймплейные соглашения
@@ -54,6 +55,7 @@
 - Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом.
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.2 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
 - Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
+- Новые мета-улучшения: `MetaProgress.DEFS` + метод бонуса, применяемый из `Main._ready()` при старте рейса. Магазин — в HUD game-over панели.
 
 ## Сборка под Android
 

@@ -12,6 +12,7 @@ const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const Abilities := preload("res://scripts/Abilities.gd")
 const RoadEvents := preload("res://scripts/RoadEvents.gd")
+const MetaProgress := preload("res://scripts/MetaProgress.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -21,7 +22,9 @@ var waves: WaveManager
 var hud: HUD
 var abilities: Abilities
 var events: RoadEvents
+var meta: MetaProgress
 var world_env: Environment
+var _earned_blueprints := 0
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -34,6 +37,15 @@ func _ready() -> void:
 	state = GameState.new()
 	state.name = "GameState"
 	add_child(state)
+
+	# Мета-прогрессия: загружаем чертежи и применяем постоянные бонусы
+	meta = MetaProgress.new()
+	meta.name = "MetaProgress"
+	add_child(meta)
+	state.reward_mult = meta.reward_mult()
+	state.max_hp += meta.bonus_start_hp()
+	state.hp = state.max_hp
+	state.scrap += meta.bonus_start_scrap()
 
 	wasteland = Wasteland.new()
 	wasteland.name = "Wasteland"
@@ -57,6 +69,7 @@ func _ready() -> void:
 	abilities = Abilities.new()
 	abilities.name = "Abilities"
 	abilities.setup(state, truck, wasteland)
+	abilities.cooldown_mult = meta.cooldown_mult()
 	add_child(abilities)
 
 	events = RoadEvents.new()
@@ -70,6 +83,7 @@ func _ready() -> void:
 	hud.waves = waves
 	hud.truck = truck
 	hud.abilities = abilities
+	hud.meta = meta
 	add_child(hud)
 
 	hud.weapon_selected.connect(_on_weapon_type_selected)
@@ -81,9 +95,24 @@ func _ready() -> void:
 	abilities.feedback.connect(hud.flash_message)
 	waves.boss_event.connect(hud.flash_message)
 	events.announced.connect(hud.flash_message)
-	state.game_over.connect(func(): hud.show_game_over(waves.wave_index))
+	hud.meta_upgrade_pressed.connect(_on_meta_upgrade)
+	state.game_over.connect(_on_game_over)
 
 	waves.start()
+
+
+## Конец рейса: начисляем чертежи за волны и убитых боссов.
+func _on_game_over() -> void:
+	_earned_blueprints = meta.finish_run(waves.wave_index, waves.bosses_down)
+	hud.show_game_over(waves.wave_index, _earned_blueprints)
+
+
+func _on_meta_upgrade(id: String) -> void:
+	if meta.buy(id):
+		hud.flash_message("%s улучшено до ур. %d!" % [MetaProgress.DEFS[id]["name"], meta.level_of(id)])
+	else:
+		hud.flash_message("Мало чертежей!")
+	hud.refresh_meta_panel()
 
 
 func _setup_environment() -> void:

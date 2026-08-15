@@ -11,6 +11,9 @@ var state: Node
 var truck: Node3D
 var wasteland: Node
 
+## Множитель кулдаунов (мета-улучшение «Ветераны экипажа»).
+var cooldown_mult := 1.0
+
 var _cooldowns: Dictionary = {}   # id -> осталось секунд
 
 var _shield_timer := 0.0
@@ -79,7 +82,7 @@ func try_activate(id: String) -> void:
 		if state != null and not state.is_game_over:
 			feedback.emit("%s ещё не готово!" % AbilityData.DEFS[id]["name"])
 		return
-	_cooldowns[id] = AbilityData.DEFS[id]["cooldown"]
+	_cooldowns[id] = float(AbilityData.DEFS[id]["cooldown"]) * cooldown_mult
 	match id:
 		"barrage":
 			_do_barrage()
