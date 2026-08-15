@@ -3,6 +3,8 @@ extends Node
 
 signal wave_started(index: int)
 signal wave_cleared(index: int)
+## Сообщения от боссов (смена фаз, появление босса) — для HUD.
+signal boss_event(text: String)
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
 
@@ -74,6 +76,7 @@ func _launch_wave() -> void:
 		_spawn_queue.append({"type": t, "hp_scale": hp_scale})
 	if wave_index % 5 == 0:
 		_spawn_queue.append({"type": "boss", "hp_scale": hp_scale})
+		boss_event.emit("☠ БОСС-ТЯГАЧ на горизонте!")
 	wave_started.emit(wave_index)
 
 
@@ -89,6 +92,8 @@ func _spawn(data: Dictionary) -> void:
 		enemy.attack_damage = 14
 		enemy.attack_interval = 2.5
 		enemy.attack_offset = Vector3(0, 0, -11.0)
+		enemy.phase_announced.connect(func(text: String): boss_event.emit(text))
+		enemy.spawn_minions.connect(_on_boss_spawn_minions)
 	else:
 		var tpl: Dictionary = TYPES[t]
 		enemy.enemy_type = t
@@ -109,6 +114,13 @@ func _spawn(data: Dictionary) -> void:
 	get_tree().current_scene.add_child(enemy)
 	# Появляются сзади в клубах пыли, чуть сбоку
 	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
+
+
+## Босс в отчаянии зовёт байкеров на подмогу.
+func _on_boss_spawn_minions(count: int) -> void:
+	var hp_scale := 1.0 + (wave_index - 1) * 0.2
+	for i in count:
+		_spawn({"type": "biker", "hp_scale": hp_scale})
 
 
 func time_to_next_wave() -> float:

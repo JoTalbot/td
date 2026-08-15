@@ -3,6 +3,10 @@ extends Node3D
 ## Типы: badger (багги), biker (мотоцикл), ram (тяжёлый таран), boss (военный тягач).
 
 signal died(reward: int)
+## Босс кричит о смене фазы (текст для HUD).
+signal phase_announced(text: String)
+## Босс в отчаянии зовёт байкеров на подмогу.
+signal spawn_minions(count: int)
 
 const Junk := preload("res://scripts/Junk.gd")
 
@@ -15,6 +19,13 @@ var attack_damage := 4
 var attack_interval := 1.6
 var is_boss := false
 var is_dying := false
+
+## Фаза босса: 1 — обычный, 2 — ярость, 3 — отчаяние (разгонные тараны).
+var phase := 1
+var _charge_timer := 0.0
+var _charge_mult := 1.0
+var _charging := false
+var _rage_light: OmniLight3D = null
 
 var truck: Node3D = null
 var state: Node = null
@@ -139,6 +150,40 @@ func take_damage(amount: int, p_state: Node) -> void:
 	_hp_mat.albedo_color = Color(1.0 - ratio * 0.7, ratio * 0.9, 0.15)
 	if hp <= 0:
 		_die(p_state)
+	elif is_boss:
+		_update_boss_phase(ratio)
+
+
+## Смена фаз по порогам HP: 70% — ярость, 40% — отчаяние.
+func _update_boss_phase(ratio: float) -> void:
+	if phase == 1 and ratio <= 0.7:
+		_set_phase(2)
+	elif phase == 2 and ratio <= 0.4:
+		_set_phase(3)
+
+
+func _set_phase(p: int) -> void:
+	phase = p
+	# Машина дёргается — видно, что босс «переключился»
+	var tw := create_tween()
+	tw.tween_property(_body, "scale", Vector3.ONE * 1.15, 0.1)
+	tw.tween_property(_body, "scale", Vector3.ONE, 0.3)
+	if p == 2:
+		# Ярость: быстрее едет и чаще бьёт, зловещий отсвет перегретого мотора
+		chase_speed *= 1.45
+		attack_interval = maxf(attack_interval * 0.7, 1.0)
+		_rage_light = OmniLight3D.new()
+		_rage_light.light_color = Color(1.0, 0.3, 0.1)
+		_rage_light.light_energy = 1.4
+		_rage_light.omni_range = 4.5
+		_rage_light.position = Vector3(0, 2.2, 1.5)
+		_body.add_child(_rage_light)
+		phase_announced.emit("😡 Босс в ЯРОСТИ: быстрее и злее!")
+	elif p == 3:
+		# Отчаяние: зовёт байкеров и идёт на разгонные тараны
+		spawn_minions.emit(2)
+		_charge_timer = 4.0
+		phase_announced.emit("💀 Босс обезумел: берегись разгона!")
 
 
 var _slow_mult := 1.0
@@ -192,6 +237,28 @@ func _process(delta: float) -> void:
 		if _attack_timer <= 0.0:
 			_attack()
 			_attack_timer = attack_interval
+		# Фаза 3: периодически откатывается и идёт на разгонный таран
+		if is_boss and phase == 3:
+			_charge_timer -= delta
+			if _charge_timer <= 0.0 and not _charging:
+				_start_charge()
+
+
+## Разгонный таран: босс откатывается назад, потом врубается с утроенной силой.
+func _start_charge() -> void:
+	_charging = true
+	attack_offset.z -= 9.0
+	var tw := create_tween()
+	tw.tween_interval(0.9)
+	tw.tween_callback(func() -> void:
+		if is_dying or not _charging:
+			return
+		_charging = false
+		attack_offset.z += 9.0
+		_charge_mult = 2.2
+		_attack_timer = 0.0   # удар сразу по прибытию
+		_charge_timer = 5.5
+	)
 
 
 func _attack() -> void:
@@ -202,7 +269,8 @@ func _attack() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "position:x", position.x - dir * 1.1, 0.12).set_ease(Tween.EASE_IN)
 	tw.tween_property(self, "position:x", position.x, 0.3).set_ease(Tween.EASE_OUT)
-	var dmg := int(round(attack_damage * truck.ram_damage_multiplier()))
+	var dmg := int(round(attack_damage * _charge_mult * truck.ram_damage_multiplier()))
+	_charge_mult = 1.0
 	state.damage_truck(maxi(dmg, 1))
 	# Шипы ранят атакующего
 	if truck.upgrade_levels["spikes"] > 0:

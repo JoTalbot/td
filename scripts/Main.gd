@@ -71,6 +71,7 @@ func _ready() -> void:
 	hud.restart_pressed.connect(_on_restart_pressed)
 	hud.ability_pressed.connect(abilities.try_activate)
 	abilities.feedback.connect(hud.flash_message)
+	waves.boss_event.connect(hud.flash_message)
 	state.game_over.connect(func(): hud.show_game_over(waves.wave_index))
 
 	waves.start()
