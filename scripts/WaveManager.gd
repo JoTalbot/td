@@ -139,7 +139,7 @@ func _spawn(data: Dictionary) -> void:
 		enemy.max_hp = int(350 * data["hp_scale"])
 		enemy.chase_speed = 6.5
 		enemy.reward = 70
-		enemy.attack_damage = 14
+		enemy.attack_damage = 12
 		enemy.attack_interval = 2.5
 		enemy.attack_offset = Vector3(0, 0, -11.0)
 		enemy.phase_announced.connect(func(text: String): boss_event.emit(text))

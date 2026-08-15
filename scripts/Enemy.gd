@@ -305,7 +305,7 @@ func _start_charge() -> void:
 			return
 		_charging = false
 		attack_offset.z += 9.0
-		_charge_mult = 2.2
+		_charge_mult = 2.0
 		_attack_timer = 0.0   # удар сразу по прибытию
 		_charge_timer = 5.5
 	)
