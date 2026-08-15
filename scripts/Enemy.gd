@@ -55,6 +55,8 @@ func _ready() -> void:
 		"biker": _build_biker()
 		"ram": _build_ram()
 		"boss": _build_boss()
+		"trainloko": _build_trainloko()
+		"traincar": _build_traincar()
 		_: _build_buggy()
 	_build_hp_bar()
 	Junk.dust_trail(self, Vector3(0, 0.1, -1.5), 30, 0.7)
@@ -100,6 +102,49 @@ func _build_ram() -> void:
 	for side in [-1.0, 1.0]:
 		_wheels.append(Junk.wheel(_body, 0.5, 0.4, Vector3(side * 1.0, 0.5, 1.0)))
 		_wheels.append(Junk.wheel(_body, 0.5, 0.4, Vector3(side * 1.0, 0.5, -1.0)))
+
+
+## Локомотив военного поезда: длинный котёл, дымовая труба, таранный плуг.
+func _build_trainloko() -> void:
+	# Длинная рама на больших колёсах
+	Junk.box(_body, Vector3(1.8, 0.35, 5.4), Vector3(0, 0.5, 0), Junk.metal(Color(0.18, 0.17, 0.15)))
+	for i in 6:
+		var side := -0.85 if i % 2 == 0 else 0.85
+		_wheels.append(Junk.wheel(_body, 0.5, 0.34, Vector3(side, 0.5, -1.9 + (i / 2) * 1.9)))
+	# Котёл
+	Junk.cyl(_body, 0.7, 3.4, Vector3(0, 1.25, 0.4), Junk.rust(_rng), Vector3(90, 0, 0))
+	# Будка машиниста
+	Junk.box(_body, Vector3(1.7, 1.1, 1.2), Vector3(0, 1.45, -1.9), Junk.rust(_rng))
+	Junk.box(_body, Vector3(1.5, 0.3, 0.1), Vector3(0, 1.9, -1.35), Junk.metal(Color(0.1, 0.12, 0.14)))
+	# Дымовая труба и фара
+	Junk.cyl(_body, 0.14, 0.9, Vector3(0, 2.15, 1.7), Junk.metal(Color(0.1, 0.1, 0.1), 0.6, 0.8))
+	Junk.cyl(_body, 0.18, 0.15, Vector3(0, 1.25, 2.15), Junk.metal(Color(0.95, 0.85, 0.4), 0.5, 0.9), Vector3(90, 0, 0))
+	# Таранный плуг спереди
+	var plow := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(1.9, 0.8, 1.0)
+	plow.mesh = pm
+	plow.position = Vector3(0, 0.6, 2.6)
+	plow.rotation_degrees = Vector3(0, 180, 0)
+	plow.material_override = Junk.rust(_rng)
+	_body.add_child(plow)
+	Junk.spike(_body, 0.1, 0.5, Vector3(-0.6, 1.0, 2.7), Vector3(90, 0, 0))
+	Junk.spike(_body, 0.1, 0.5, Vector3(0.6, 1.0, 2.7), Vector3(90, 0, 0))
+
+
+## Вагон военного поезда: бронекороб с турелью на крыше.
+func _build_traincar() -> void:
+	Junk.box(_body, Vector3(1.8, 0.35, 4.2), Vector3(0, 0.5, 0), Junk.metal(Color(0.18, 0.17, 0.15)))
+	for i in 4:
+		var side := -0.85 if i % 2 == 0 else 0.85
+		_wheels.append(Junk.wheel(_body, 0.5, 0.34, Vector3(side, 0.5, -1.5 + (i / 2) * 2.6)))
+	Junk.box(_body, Vector3(1.6, 0.95, 3.6), Vector3(0, 1.15, 0), Junk.rust(_rng))
+	# Бронелисты по бортам
+	Junk.box(_body, Vector3(0.08, 0.75, 3.2), Vector3(-0.84, 1.2, 0), Junk.rust(_rng), Vector3(0, 0, -5))
+	Junk.box(_body, Vector3(0.08, 0.75, 3.2), Vector3(0.84, 1.2, 0), Junk.rust(_rng), Vector3(0, 0, 5))
+	# Турель
+	Junk.cyl(_body, 0.3, 0.22, Vector3(0, 1.75, 0.9), Junk.metal(Color(0.28, 0.26, 0.22)))
+	Junk.cyl(_body, 0.05, 0.7, Vector3(0, 1.8, 1.35), Junk.metal(Color(0.15, 0.15, 0.15), 0.5, 0.85), Vector3(90, 0, 0))
 
 
 func _build_boss() -> void:

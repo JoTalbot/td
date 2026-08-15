@@ -218,6 +218,8 @@ const TROPHIES := {
 	"copter": {"name": "Автожир", "icon": "🚁", "chance": 0.10, "scrap_price": 35, "salvage": {"metal": 2, "chips": 1}},
 	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2}},
 	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3}},
+	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3}},
+	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2}},
 }
 
 ## Уровень репутации по очкам.

@@ -40,11 +40,15 @@ var countdown := 5.0
 var _spawn_queue: Array = []
 var _spawn_timer := 0.0
 var _side_toggle := 1.0
+var _train_cars: Array = []   # живые единицы военного поезда (для «фазы отцепки»)
 
 const TYPES := {
 	"buggy": {"hp": 40, "speed": 9.0, "reward": 9, "dmg": 4, "interval": 1.6},
 	"biker": {"hp": 24, "speed": 13.0, "reward": 11, "dmg": 3, "interval": 1.1},
 	"ram":   {"hp": 120, "speed": 7.0, "reward": 18, "dmg": 9, "interval": 2.2},
+	# Военный поезд (каждая 15-я волна): локомотив толкает сцеп вагонов в хвост фуры
+	"trainloko": {"hp": 230, "speed": 8.5, "reward": 60, "dmg": 10, "interval": 2.1},
+	"traincar":  {"hp": 110, "speed": 8.5, "reward": 26, "dmg": 5,  "interval": 2.0},
 }
 
 
@@ -101,7 +105,15 @@ func _launch_wave() -> void:
 			t = "ram"
 		_spawn_queue.append({"type": t, "hp_scale": hp_scale})
 	if wave_index % 5 == 0:
-		if wave_index % 10 == 0:
+		if wave_index % 15 == 0:
+			# Каждая пятнадцатая — Военный Поезд: локомотив + сцеп вагонов
+			_train_cars.clear()
+			var cars := 2 + int(wave_index / 30)
+			_spawn_queue.append({"type": "trainloko", "hp_scale": hp_scale})
+			for i in cars:
+				_spawn_queue.append({"type": "traincar", "hp_scale": hp_scale})
+			boss_event.emit("🚂 ВОЕННЫЙ ПОЕЗД! Разбейте каждый вагон!")
+		elif wave_index % 10 == 0:
 			# Каждая десятая волна — воздушный босс вместо тягача
 			_spawn_queue.append({"type": "ace", "hp_scale": hp_scale})
 			boss_event.emit("🚁 КОРСАР в небе! Берегите платформу!")
@@ -149,6 +161,11 @@ func _spawn(data: Dictionary) -> void:
 		if ally != null and is_instance_valid(ally) and not ally.is_dead and randf() < 0.35:
 			enemy.ally = ally
 			enemy.attack_offset = Vector3(randf_range(-2.5, 2.5), 0, randf_range(-2.5, 2.5))
+		# Военный поезд: сцеп выстраивается в хвост фуры, вагоны связаны отцепкой
+		if t == "trainloko" or t == "traincar":
+			enemy.attack_offset = Vector3(_side_toggle * randf_range(0.6, 1.6), 0, -4.5 - _train_cars.size() * 3.4)
+			_train_cars.append(enemy)
+			enemy.died.connect(func(_r): _on_train_car_died(enemy))
 
 	enemy.truck = truck
 	enemy.state = state
@@ -194,6 +211,18 @@ func _on_ace_escort(count: int) -> void:
 		c.died.connect(func(_r): enemy_killed.emit("copter"))
 		get_tree().current_scene.add_child(c)
 		c.global_position = truck.global_position + Vector3(-4.0 + i * 8.0, 14.0, -24.0)
+
+
+## Вагон поезда отцеплён: остаток сцепа наддаёт ходу (+22% скорости).
+func _on_train_car_died(car: Node3D) -> void:
+	_train_cars.erase(car)
+	var alive_train := false
+	for c in _train_cars:
+		if is_instance_valid(c) and not c.is_dying:
+			alive_train = true
+			c.chase_speed *= 1.22
+	if alive_train:
+		boss_event.emit("🚂 Вагон отцеплён — поезд наддал ходу!")
 
 
 ## Босс в отчаянии зовёт байкеров на подмогу.

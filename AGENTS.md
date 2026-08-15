@@ -79,6 +79,7 @@
 - Эскорт: шаблон «escort» в `CampaignData.CONTRACT_POOL`; фургон `scripts/AllyVan.gd` спавнится в `Main._spawn_escort_if_needed()` при рейсе в город-точку; враги перенацеливаются через `Enemy.ally` + `WaveManager.ally`; исход — `Campaign.resolve_escort()` в `Main._on_run_completed()` до `arrive()`.
 - Сезоны: `CampaignData.SEASONS` + `season_for(month, day)`; рантайм — `campaign.season()` (тестируется через `_season_override`); ценовые эффекты прямо в `price_of()/sell_rate()`, боевые — в `Main._apply_campaign_effects()`; шапка карты показывает сезон.
 - Легендарки: `CampaignData.LEGENDARY_RECIPES` (weapon+level+needs по трофеям) → `campaign.forge()` складывает в `pending` → ветка `leg_*` в `Main._apply_campaign_effects()` монтирует с `free_start` (за 0 при разборке). UI — секция «Кузня» в ангаре.
+- Военный Поезд: волны %15 в `_launch_wave()` (trainloko + traincar-и из `TYPES`), визуалы в `Enemy._build_trainloko/_build_traincar()`; «фаза отцепки» — `WaveManager._on_train_car_died()` (сцеп +22% скорости). Трофеи: TROPHIES["trainloko"/"traincar"].
 
 ## Сборка под Android
 
