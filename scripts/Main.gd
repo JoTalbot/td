@@ -8,6 +8,7 @@ const WaveManager := preload("res://scripts/WaveManager.gd")
 const HUD := preload("res://scripts/HUD.gd")
 const TowerScript := preload("res://scripts/Tower.gd")
 const TowerData := preload("res://scripts/TowerData.gd")
+const CityScape := preload("res://scripts/CityScape.gd")
 
 var board: Board
 var camera_rig: CameraRig
@@ -30,6 +31,10 @@ func _ready() -> void:
 	board = Board.new()
 	board.name = "Board"
 	add_child(board)
+
+	var city := CityScape.new()
+	city.name = "CityScape"
+	add_child(city)
 
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
@@ -59,22 +64,31 @@ func _ready() -> void:
 
 func _setup_environment() -> void:
 	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.008, 0.012, 0.035)
+	# Киберпанк: ночное небо мегаполиса с грязно-пурпурным заревом у горизонта.
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.01, 0.005, 0.03)
+	sky_mat.sky_horizon_color = Color(0.22, 0.04, 0.28)
+	sky_mat.ground_bottom_color = Color(0.02, 0.01, 0.05)
+	sky_mat.ground_horizon_color = Color(0.2, 0.05, 0.25)
+	sky_mat.sun_angle_max = 0.0
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.25, 0.3, 0.5)
-	env.ambient_light_energy = 0.6
+	env.ambient_light_color = Color(0.3, 0.2, 0.5)
+	env.ambient_light_energy = 0.55
 	env.glow_enabled = true
-	env.glow_intensity = 1.1
-	env.glow_bloom = 0.15
+	env.glow_intensity = 1.35
+	env.glow_bloom = 0.22
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 0.9
+	env.glow_hdr_threshold = 0.85
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.05, 0.1, 0.25)
-	env.fog_density = 0.012
+	env.fog_light_color = Color(0.16, 0.03, 0.22)
+	env.fog_density = 0.016
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.05
-	env.adjustment_saturation = 1.15
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.25
 
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
@@ -82,17 +96,19 @@ func _setup_environment() -> void:
 
 
 func _setup_lights() -> void:
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
-	sun.light_color = Color(0.7, 0.8, 1.0)
-	sun.light_energy = 0.7
-	sun.shadow_enabled = true
-	add_child(sun)
+	# Холодная "луна" мегаполиса — циановый ключевой свет.
+	var moon := DirectionalLight3D.new()
+	moon.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
+	moon.light_color = Color(0.5, 0.75, 1.0)
+	moon.light_energy = 0.55
+	moon.shadow_enabled = true
+	add_child(moon)
 
+	# Магента-заполнение снизу-сбоку: отсвет неоновых вывесок города.
 	var rim := DirectionalLight3D.new()
-	rim.rotation_degrees = Vector3(-30.0, 140.0, 0.0)
-	rim.light_color = Color(1.0, 0.3, 0.7)
-	rim.light_energy = 0.35
+	rim.rotation_degrees = Vector3(-25.0, 140.0, 0.0)
+	rim.light_color = Color(1.0, 0.15, 0.65)
+	rim.light_energy = 0.5
 	add_child(rim)
 
 

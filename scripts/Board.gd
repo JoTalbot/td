@@ -83,18 +83,22 @@ func _neon_material(albedo: Color, emission: Color, energy: float = 1.6) -> Stan
 	return m
 
 
+const GRID_SHADER := preload("res://shaders/ground_grid.gdshader")
+
+
 func _build_ground() -> void:
-	# Тёмное основание
+	# Огромная плита "мокрого асфальта" с анимированной неоновой сеткой —
+	# уходит под город и растворяется в тумане.
 	var base := MeshInstance3D.new()
 	var base_mesh := BoxMesh.new()
-	base_mesh.size = Vector3(GRID_W * CELL + 4.0, 0.5, GRID_H * CELL + 4.0)
+	base_mesh.size = Vector3(90.0, 0.5, 90.0)
 	base.mesh = base_mesh
 	base.position.y = -0.3
-	var base_mat := StandardMaterial3D.new()
-	base_mat.albedo_color = Color(0.03, 0.04, 0.09)
-	base_mat.metallic = 0.8
-	base_mat.roughness = 0.25
-	base.material_override = base_mat
+	var grid_mat := ShaderMaterial.new()
+	grid_mat.shader = GRID_SHADER
+	grid_mat.set_shader_parameter("cell_size", CELL)
+	grid_mat.set_shader_parameter("line_color", Color(1.0, 0.12, 0.75))
+	base.material_override = grid_mat
 	add_child(base)
 
 	# Плитки для строительства с лёгкой вариацией высоты и свечения
@@ -112,36 +116,49 @@ func _build_ground() -> void:
 			tile.position = cell_to_world(cell)
 			tile.position.y = 0.0
 			var shade := rng.randf_range(0.6, 1.0)
+			# Тёмный "мокрый бетон" с холодным циановым отсветом по кромке.
 			tile.material_override = _neon_material(
-				Color(0.05 * shade, 0.07 * shade, 0.14 * shade),
-				Color(0.05, 0.12, 0.3) * shade,
-				0.35
+				Color(0.05 * shade, 0.05 * shade, 0.1 * shade),
+				Color(0.03, 0.18, 0.28) * shade,
+				0.3
 			)
 			add_child(tile)
 
-	# Декоративные парящие кристаллы по краям
-	for i in 14:
-		var crystal := MeshInstance3D.new()
-		var prism := PrismMesh.new()
-		prism.size = Vector3(0.5, rng.randf_range(0.8, 2.2), 0.5)
-		crystal.mesh = prism
-		var angle := rng.randf_range(0.0, TAU)
-		var radius := rng.randf_range(14.0, 20.0)
-		crystal.position = Vector3(cos(angle) * radius, rng.randf_range(0.5, 3.0), sin(angle) * radius)
-		crystal.rotation_degrees = Vector3(rng.randf_range(-15, 15), rng.randf_range(0, 360), rng.randf_range(-15, 15))
-		var hue := rng.randf_range(0.5, 0.9)
-		crystal.material_override = _neon_material(
-			Color.from_hsv(hue, 0.8, 0.3),
-			Color.from_hsv(hue, 0.9, 1.0),
-			2.5
-		)
-		add_child(crystal)
+	# Уличные неон-пилоны по периметру поля (вместо кристаллов).
+	for i in 10:
+		var pylon := Node3D.new()
+		var angle := TAU * float(i) / 10.0 + rng.randf_range(-0.15, 0.15)
+		var radius := rng.randf_range(11.5, 14.0)
+		pylon.position = Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+
+		var pole := MeshInstance3D.new()
+		var pole_mesh := CylinderMesh.new()
+		pole_mesh.top_radius = 0.07
+		pole_mesh.bottom_radius = 0.1
+		pole_mesh.height = rng.randf_range(2.5, 4.0)
+		pole.mesh = pole_mesh
+		pole.position.y = pole_mesh.height * 0.5
+		pole.material_override = _neon_material(Color(0.05, 0.05, 0.08), Color(0.1, 0.1, 0.15), 0.3)
+		pylon.add_child(pole)
+
+		var tube := MeshInstance3D.new()
+		var tube_mesh := CylinderMesh.new()
+		tube_mesh.top_radius = 0.05
+		tube_mesh.bottom_radius = 0.05
+		tube_mesh.height = rng.randf_range(0.8, 1.5)
+		tube.mesh = tube_mesh
+		var neon := Color(1.0, 0.12, 0.75) if rng.randf() < 0.5 else Color(0.15, 0.95, 1.0)
+		tube.material_override = _neon_material(neon * 0.3, neon, 3.5)
+		tube.position.y = pole_mesh.height + tube_mesh.height * 0.4
+		tube.rotation_degrees = Vector3(rng.randf_range(-20, 20), 0, rng.randf_range(-20, 20))
+		pylon.add_child(tube)
+		add_child(pylon)
 
 
 func _build_path_visual() -> void:
 	var path_mesh := BoxMesh.new()
 	path_mesh.size = Vector3(CELL, 0.08, CELL)
-	var mat := _neon_material(Color(0.1, 0.05, 0.2), Color(0.5, 0.15, 1.0), 0.9)
+	var mat := _neon_material(Color(0.04, 0.1, 0.14), Color(0.1, 0.8, 1.0), 1.0)
 	for c in PATH_CELLS:
 		var seg := MeshInstance3D.new()
 		seg.mesh = path_mesh
@@ -153,7 +170,7 @@ func _build_path_visual() -> void:
 	# Светящиеся направляющие линии по центру пути
 	var line_mesh := BoxMesh.new()
 	line_mesh.size = Vector3(0.25, 0.1, 0.25)
-	var line_mat := _neon_material(Color(1, 1, 1), Color(0.8, 0.4, 1.0), 3.0)
+	var line_mat := _neon_material(Color(1, 1, 1), Color(0.4, 0.95, 1.0), 3.0)
 	for i in range(path_points.size() - 1):
 		var a := path_points[i]
 		var b := path_points[i + 1]
