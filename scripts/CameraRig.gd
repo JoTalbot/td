@@ -11,6 +11,12 @@ var _pitch := -52.0
 var _touches: Dictionary = {}
 var _last_pinch_dist := 0.0
 var _gesturing := false
+var _trauma := 0.0           # тряска камеры: 0..1, затухает сама
+
+
+## Встряхнуть камеру (таран, взрыв босса). Сила ~0.15..0.8.
+func add_trauma(a: float) -> void:
+	_trauma = minf(_trauma + a, 1.0)
 
 
 func _ready() -> void:
@@ -30,6 +36,18 @@ func focus_on(target: Vector3) -> void:
 
 func is_gesturing() -> bool:
 	return _gesturing
+
+
+## Тряска: оффсеты дрожат пропорционально квадрату trauma, затухают плавно.
+func _process(delta: float) -> void:
+	_trauma = maxf(_trauma - delta * 1.8, 0.0)
+	if _trauma > 0.0:
+		var p := _trauma * _trauma
+		camera.h_offset = randf_range(-0.24, 0.24) * p * 3.0
+		camera.v_offset = randf_range(-0.24, 0.24) * p * 3.0
+	elif camera.h_offset != 0.0 or camera.v_offset != 0.0:
+		camera.h_offset = 0.0
+		camera.v_offset = 0.0
 
 
 func _update_transform() -> void:

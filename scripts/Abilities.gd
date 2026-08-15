@@ -77,11 +77,12 @@ func _tick_nitro(delta: float) -> void:
 			wasteland.speed_scale = _nitro_base_scale
 
 
-func try_activate(id: String) -> void:
+## Возвращает true, если способность реально сработала (для звука в Main).
+func try_activate(id: String) -> bool:
 	if not is_ready(id):
 		if state != null and not state.is_game_over:
 			feedback.emit("%s ещё не готово!" % AbilityData.DEFS[id]["name"])
-		return
+		return false
 	_cooldowns[id] = float(AbilityData.DEFS[id]["cooldown"]) * cooldown_mult
 	match id:
 		"barrage":
@@ -90,6 +91,7 @@ func try_activate(id: String) -> void:
 			_do_shield()
 		"nitro":
 			_do_nitro()
+	return true
 
 
 func _do_barrage() -> void:

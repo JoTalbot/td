@@ -4,6 +4,7 @@ extends Node
 signal scrap_changed(value: int)
 signal hp_changed(hp: int, max_hp: int)
 signal game_over
+signal damaged(amount: int)   # только реальный урон (не лечение) — для тряски и звука
 
 const START_SCRAP := 150
 const START_HP := 100
@@ -27,6 +28,9 @@ var damage_kind_mult := {}
 
 var _heal_accum := 0.0
 var _invulnerable := 0.0
+
+## Синтезатор звука (Main ставит после создания). Может быть null в тестах.
+var sfx: Node = null
 
 
 func _process(delta: float) -> void:
@@ -61,6 +65,9 @@ func damage_truck(amount: int) -> void:
 		return
 	hp = maxi(hp - amount, 0)
 	hp_changed.emit(hp, max_hp)
+	damaged.emit(amount)
+	if sfx != null:
+		sfx.play("ram", 0.8)
 	if hp <= 0:
 		is_game_over = true
 		game_over.emit()

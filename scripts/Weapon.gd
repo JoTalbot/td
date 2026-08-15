@@ -201,6 +201,10 @@ func _find_target() -> Node3D:
 
 func _shoot(target: Node3D) -> void:
 	_flash.light_energy = 2.5
+	# Процедурный звук выстрела по виду снаряда
+	if state != null and state.sfx != null:
+		var kind_sound := {"bullet": "shot", "flame": "flame", "harpoon": "harpoon", "shell": "cannon", "mortar": "mortar", "zap": "zap"}
+		state.sfx.play(kind_sound.get(_def()["kind"], "shot"), 0.5, randf_range(0.94, 1.06))
 	if _def()["kind"] == "zap":
 		_zap(target)
 		return

@@ -21,6 +21,7 @@ var truck: Node3D
 var abilities: Node = null
 var meta: Node = null
 var campaign: Node = null
+var sfx: Node = null          # Main ставит синтезатор звука
 
 var _scrap_label: Label
 var _hp_label: Label
@@ -127,6 +128,7 @@ func _rusty_button(text: String, accent := ACCENT) -> Button:
 	btn.add_theme_stylebox_override("disabled", sb_d)
 	btn.add_theme_color_override("font_color", Color(0.95, 0.88, 0.7))
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.45, 0.38))
+	btn.pressed.connect(func(): if sfx != null: sfx.play("click", 0.35))
 	return btn
 
 
@@ -400,6 +402,7 @@ func _build_game_over() -> void:
 	_game_over_panel.add_child(panel)
 
 	var col := VBoxContainer.new()
+	col.name = "Col"
 	col.add_theme_constant_override("separation", 12)
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(col)
@@ -529,6 +532,20 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		rl.add_theme_color_override("font_color", Color(0.8, 0.85, 0.6))
 		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(rl)
+	if int(summary.get("blueprints", 0)) > 0:
+		var bl := Label.new()
+		bl.text = "📐 Чертежи за рейс: +%d" % int(summary["blueprints"])
+		bl.add_theme_font_size_override("font_size", 16)
+		bl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(bl)
+	if bool(summary.get("record", false)):
+		var rl2 := Label.new()
+		rl2.text = "🏆 НОВЫЙ РЕКОРД: %d волн!" % int(summary.get("best_wave", 0))
+		rl2.add_theme_font_size_override("font_size", 17)
+		rl2.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		rl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(rl2)
 	var tros: Dictionary = summary.get("trophies", {})
 	if not tros.is_empty():
 		var tl := Label.new()
@@ -574,6 +591,21 @@ func show_game_over(wave: int, earned: int = 0) -> void:
 	var subtitle := _game_over_panel.find_child("Subtitle", true, false) as Label
 	subtitle.text = "Вы отбились от %d волн рейдеров" % wave
 	_earned_label.text = "+ 📐 %d чертежей добыто из руин" % earned
+	# Рекорд волн — живёт в мета-сейве между сессиями
+	var record_label := _game_over_panel.find_child("Record", true, false) as Label
+	if record_label == null:
+		record_label = Label.new()
+		record_label.name = "Record"
+		record_label.add_theme_font_size_override("font_size", 18)
+		record_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_game_over_panel.find_child("Col", true, false).add_child(record_label)
+		_game_over_panel.find_child("Col", true, false).move_child(record_label, _earned_label.get_index() + 1)
+	if meta != null and meta.last_run_was_record and wave > 0:
+		record_label.text = "🏆 НОВЫЙ РЕКОРД: %d волн!" % meta.best_wave
+		record_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	elif meta != null:
+		record_label.text = "🏆 Рекорд: %d волн" % meta.best_wave
+		record_label.remove_theme_color_override("font_color")
 	refresh_meta_panel()
 	_game_over_panel.visible = true
 

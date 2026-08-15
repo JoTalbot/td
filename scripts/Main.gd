@@ -11,6 +11,7 @@ const WeaponScript := preload("res://scripts/Weapon.gd")
 const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const Abilities := preload("res://scripts/Abilities.gd")
+const SoundFX := preload("res://scripts/SoundFX.gd")
 const RoadEvents := preload("res://scripts/RoadEvents.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const Campaign := preload("res://scripts/Campaign.gd")
@@ -25,6 +26,7 @@ var waves: WaveManager
 var hud: HUD
 var abilities: Abilities
 var events: RoadEvents
+var sfx: SoundFX
 var meta: MetaProgress
 var campaign: Campaign
 var map_screen: MapScreen
@@ -51,6 +53,13 @@ func _ready() -> void:
 	state = GameState.new()
 	state.name = "GameState"
 	add_child(state)
+
+	# Процедурные звуки и тряска камеры
+	sfx = SoundFX.new()
+	sfx.name = "SoundFX"
+	add_child(sfx)
+	state.sfx = sfx
+	state.damaged.connect(_on_truck_damaged)
 
 	# Мета-прогрессия: загружаем чертежи и применяем постоянные бонусы
 	meta = MetaProgress.new()
@@ -105,7 +114,7 @@ func _ready() -> void:
 	hud.sell_pressed.connect(_on_sell_pressed)
 	hud.truck_upgrade_pressed.connect(_on_truck_upgrade)
 	hud.restart_pressed.connect(_on_restart_pressed)
-	hud.ability_pressed.connect(abilities.try_activate)
+	hud.ability_pressed.connect(func(a): if abilities.try_activate(a): sfx.play("ability", 0.8))
 	abilities.feedback.connect(hud.flash_message)
 	# Кампания: карта пустоши, экономика, контракты
 	campaign = Campaign.new()
@@ -126,6 +135,11 @@ func _ready() -> void:
 	state.game_over.connect(_on_game_over)
 	waves.run_completed.connect(_on_run_completed)
 	waves.enemy_killed.connect(_on_enemy_killed)
+	# Звуковая полировка: горн волны, рык босса
+	waves.wave_started.connect(func(_i): sfx.play("horn", 0.7))
+	waves.boss_event.connect(func(_t): sfx.play("boss", 0.85); camera_rig.add_trauma(0.3))
+	hud.sfx = sfx
+	map_screen.sfx = sfx
 
 	# Старт — на карте; бой начинается с выбора маршрута
 	hud.visible = false
@@ -211,6 +225,10 @@ func _apply_campaign_effects() -> void:
 func _on_run_completed() -> void:
 	battle_active = false
 	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
+	# Живой финиш тоже приносит чертежи и идёт в рекорды
+	summary["blueprints"] = meta.finish_run(waves.wave_index, waves.bosses_down)
+	summary["record"] = meta.last_run_was_record
+	summary["best_wave"] = meta.best_wave
 	hud.show_arrival(CampaignData.CITIES[_destination]["name"], summary)
 
 
@@ -219,11 +237,18 @@ func _on_enemy_killed(type: String) -> void:
 	var done: Array = campaign.note_kill()
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
+	# Звук взрыва и тряска: боссы гремят сильнее
+	if type == "boss" or type == "ace":
+		sfx.play("big_boom", 0.9)
+		camera_rig.add_trauma(0.5)
+	else:
+		sfx.play("explosion", 0.45, randf_range(0.9, 1.15))
 	# Угон: целая тачка выхвачена из-под обломков — в ангар по прибытии
 	var tpl: Dictionary = CampaignData.TROPHIES.get(type, {})
 	if not tpl.is_empty() and randf() < float(tpl["chance"]):
 		_run_trophies[type] = int(_run_trophies.get(type, 0)) + 1
 		hud.flash_message("🛻 Захвачен трофей: %s %s!" % [tpl["icon"], tpl["name"]])
+		sfx.play("earn", 0.8)
 	# Лут: 25% шанс на ресурс с убитого (металл чаще всего)
 	if randf() < 0.25:
 		var roll := randf()
@@ -244,6 +269,8 @@ func _on_enemy_killed(type: String) -> void:
 ## Конец рейса смертью фуры: чертежи капают, груз в трюме пополам.
 func _on_game_over() -> void:
 	battle_active = false
+	sfx.play("big_boom", 1.0)
+	camera_rig.add_trauma(1.0)
 	campaign.fail_run()
 	_earned_blueprints = meta.finish_run(waves.wave_index, waves.bosses_down)
 	hud.show_game_over(waves.wave_index, _earned_blueprints)
@@ -436,6 +463,12 @@ func _process(delta: float) -> void:
 		_repair_kit_ready = false
 		state.heal(float(state.max_hp) * 0.35)
 		hud.flash_message("🧰 Ремкомплект! +35% HP")
+		sfx.play("repair", 0.9)
+
+
+## Урон по фуре: тряска камеры пропорциональна влётушему урону.
+func _on_truck_damaged(amount: int) -> void:
+	camera_rig.add_trauma(clampf(float(amount) * 0.035, 0.15, 0.6))
 
 
 func _on_restart_pressed() -> void:

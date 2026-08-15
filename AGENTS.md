@@ -37,6 +37,7 @@
 | `scripts/AbilityData.gd` | Данные способностей экипажа: залп/щит/нитро, кулдауны, цвета |
 | `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
 | `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов, воздушная засада |
+| `scripts/SoundFX.gd` | Процедурный синтез звука (PCM, без файлов): `_build_samples()` — банк, `play(name, vol, pitch)`; полифония 8, headless-безопасен |
 | `scripts/RaiderCopter.gd` | Автожир рейдеров: парит над фурой, сбрасывает бомбы, потом камикадзе; в группе `enemies`, но НЕ в `enemies_alive` (не блокирует волну) |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |
@@ -73,6 +74,8 @@
 - Мета-стартовые орудия: уровни `MetaProgress.DEFS["arsenal"]` → списки в `MetaProgress.START_WEAPONS`, монтируются в `Main._apply_campaign_effects()` с метой `free_start` (продаются за 0, иначе фарм лома).
 - Репутация фракций: `CampaignData.REP_LEVELS` (пороги/титулы) + `Campaign.gain_rep()/rep_level()`, эффекты в `buy_price()`(−4%/ур., floor) и `sell_rate()`(+3%/ур.), награды контрактов ×(1+0.05·ур. заказчика) в `note_kill()`/`arrive()` (у контракта есть `origin`).
 - Трофейные тачки: шаблон в `CampaignData.TROPHIES` (chance/salvage/scrap_price) + `WaveManager.enemy_killed(type)` → захват в `Main._on_enemy_killed()` → `campaign.arrive(..., captured)`; ангар — `MapScreen._render_hangar()` («Разобрать» в ресурсы / «Продать» за лом).
+- Звук: только процедурный `SoundFX` (синтез в `_build_samples()`, полифония 8 голосов, push_frame покадрово — `push_frames` в 4.2 НЕТ). Крючки: `GameState.sfx` для орудий/таранов, `Main` для волн/боссов/способностей, `sfx` в HUD/MapScreen для кликов. Тряска камеры: `CameraRig.add_trauma()` (квадрат, затухает). Новые сэмплы балансируем громкостью в `play()`, ≤ 0.35 длины.
+- Рекорды волн: `MetaProgress.best_wave` + `last_run_was_record`, пишутся в обоих концах рейса (`_on_game_over` и `_on_run_completed`), показываются в панелях и шапке карты.
 
 ## Сборка под Android
 

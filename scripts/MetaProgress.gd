@@ -49,6 +49,8 @@ const START_WEAPONS := {
 
 var blueprints := 0
 var levels := {"frame": 0, "stash": 0, "dealer": 0, "crew": 0, "arsenal": 0}
+var best_wave := 0              # рекорд волн за рейс (между сессиями)
+var last_run_was_record := false
 
 
 func _ready() -> void:
@@ -65,6 +67,7 @@ func load_meta() -> void:
 	if typeof(data) != TYPE_DICTIONARY:
 		return
 	blueprints = int(data.get("blueprints", 0))
+	best_wave = int(data.get("best_wave", 0))
 	var lvls: Dictionary = data.get("levels", {})
 	for id in levels:
 		levels[id] = int(lvls.get(id, 0))
@@ -74,13 +77,15 @@ func save_meta() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"blueprints": blueprints, "levels": levels}))
+	f.store_string(JSON.stringify({"blueprints": blueprints, "levels": levels, "best_wave": best_wave}))
 
 
 ## Итоги рейса: чертёж за каждую достигнутую волну + по два за убитого босса.
 func finish_run(wave_index: int, bosses_down: int) -> int:
 	var earned := maxi(wave_index + bosses_down * 2, 1)
 	blueprints += earned
+	last_run_was_record = wave_index > best_wave
+	best_wave = maxi(best_wave, wave_index)
 	save_meta()
 	return earned
 

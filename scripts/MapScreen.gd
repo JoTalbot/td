@@ -7,6 +7,7 @@ signal travel_requested(city_id: String)
 const CampaignData := preload("res://scripts/CampaignData.gd")
 
 var campaign: Node = null
+var sfx: Node = null          # Main ставит синтезатор звука
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.96)
 const BORDER := Color(0.55, 0.4, 0.2)
@@ -73,6 +74,7 @@ func _rusty_button(text: String, accent := ACCENT) -> Button:
 	btn.add_theme_stylebox_override("disabled", sb_d)
 	btn.add_theme_color_override("font_color", Color(0.95, 0.88, 0.7))
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.45, 0.38))
+	btn.pressed.connect(func(): if sfx != null: sfx.play("click", 0.35))
 	return btn
 
 
@@ -120,7 +122,8 @@ func _refresh_top() -> void:
 	for m in campaign.daily_mods():
 		var d: Dictionary = CampaignData.DAILY_MODS[m]
 		mods_txt += "  %s%s" % [d["icon"], d["name"]]
-	_day_label.text = "☀ День %d%s" % [campaign.day, mods_txt]
+	var best: int = campaign.meta.best_wave if campaign.meta != null else 0
+	_day_label.text = "☀ День %d%s    🏆 %d" % [campaign.day, mods_txt, best]
 	_day_label.tooltip_text = ""
 	for m in campaign.daily_mods():
 		_day_label.tooltip_text += "%s: %s\n" % [CampaignData.DAILY_MODS[m]["name"], CampaignData.DAILY_MODS[m]["desc"]]
@@ -306,6 +309,12 @@ func _resolve_poi_at(city: String) -> void:
 	_sheet_body.move_child(box, 0)
 
 
+## Звон лома для сделок рынка (защита от null в smoke-тестах).
+func _play_earn() -> void:
+	if sfx != null:
+		sfx.play("earn", 0.7)
+
+
 func _render_market(is_here: bool) -> void:
 	var back := _rusty_button("← К описанию")
 	back.custom_minimum_size = Vector2(170, 40)
@@ -329,12 +338,12 @@ func _render_market(is_here: bool) -> void:
 		buy_b.custom_minimum_size = Vector2(110, 40)
 		buy_b.disabled = campaign.wallet < bp or campaign.cargo_space() < 1
 		var r: String = res
-		buy_b.pressed.connect(func(): campaign.buy(r, 1); _render_sheet())
+		buy_b.pressed.connect(func(): if campaign.buy(r, 1): _play_earn(); _render_sheet())
 		row.add_child(buy_b)
 		var sell_b := _rusty_button("Продать", Color(0.9, 0.6, 0.3))
 		sell_b.custom_minimum_size = Vector2(110, 40)
 		sell_b.disabled = campaign.cargo_qty(res) < 1
-		sell_b.pressed.connect(func(): campaign.sell(r, 1); _render_sheet())
+		sell_b.pressed.connect(func(): if campaign.sell(r, 1): _play_earn(); _render_sheet())
 		row.add_child(sell_b)
 
 
