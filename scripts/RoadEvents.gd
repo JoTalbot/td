@@ -3,6 +3,9 @@ extends Node
 ## Срабатывают по таймеру, пока идёт игра; анонсы улетают в HUD.
 
 signal announced(text: String)
+## Встреча на трассе в перерыве между волнами: HUD рисует модалку с вариантами.
+## options: [{label: String, cb: Callable}]
+signal encounter(title: String, desc: String, options: Array)
 
 const Junk := preload("res://scripts/Junk.gd")
 const Copter := preload("res://scripts/RaiderCopter.gd")
@@ -33,6 +36,12 @@ var _base_fog_density := 0.008
 var _base_fog_color := Color(0.87, 0.72, 0.5)
 var _rng := RandomNumberGenerator.new()
 
+## Встречи на трассе: шанс в каждом перерыве между волнами, не чаще 3 за рейс.
+const ENCOUNTER_CHANCE := 0.45
+const ENCOUNTER_MAX_PER_RUN := 3
+var _was_between := false
+var _encounters_done := 0
+
 
 func setup(p_state: Node, p_truck: Node3D, p_wasteland: Node, p_env: Environment) -> void:
 	state = p_state
@@ -59,11 +68,77 @@ func _process(delta: float) -> void:
 		_storm_timer -= delta
 		if _storm_timer <= 0.0:
 			_end_storm()
+	# Встречи на трассе — на фронте «волна закончилась»
+	var between: bool = waves != null and waves.active and waves.between_waves and not state.is_game_over
+	if between and not _was_between:
+		_maybe_encounter()
+	_was_between = between
 
 
 func _pick_event() -> String:
 	var ids := ["storm", "mines", "supply", "ambush"]
 	return ids[_rng.randi() % ids.size()]
+
+
+## --- Встречи на трассе (перерывы между волнами) ---
+
+## Дёргается на фронте «волна кончилась»; дальше — шанс и лимит на рейс.
+func _maybe_encounter() -> void:
+	if _encounters_done >= ENCOUNTER_MAX_PER_RUN:
+		return
+	if waves != null and waves.wave_index < 2:
+		return
+	if _rng.randf() > ENCOUNTER_CHANCE:
+		return
+	_encounters_done += 1
+	match _rng.randi_range(0, 2):
+		0:
+			_encounter_trader()
+		1:
+			_encounter_blockade()
+		_:
+			_encounter_pilgrim()
+
+
+## Кочующий торговец: ремонт или боевую смесь за лом.
+func _encounter_trader() -> void:
+	var opts: Array = [
+		{"label": "Починка +30% HP — ⚙35", "cb": func() -> void:
+			if state.spend(35):
+				state.heal(float(state.max_hp) * 0.3)
+				announced.emit("🛠 Торговец латанул броню!")},
+		{"label": "Топсмесь +10% урона — ⚙45", "cb": func() -> void:
+			if state.spend(45):
+				state.damage_mult *= 1.1
+				announced.emit("🔥 Топливо с душой: +10% урона до города!")},
+		{"label": "Уйти", "cb": func() -> void: pass},
+	]
+	encounter.emit("🚐 Кочующий торговец",
+		"Дымящийся фургон притормозил рядом. Хозяин стучит по борту: «Железо, микстуры — всё за лом, только быстро!»",
+		opts)
+
+
+## Блокпост в колее: принять жирную волну или объехать стороной.
+func _encounter_blockade() -> void:
+	var opts: Array = [
+		{"label": "На таран! (+4 рейдера, награда ×1.35)", "cb": func() -> void:
+			if waves != null:
+				waves.extra_count += 4
+				waves.bonus_mult *= 1.35
+			announced.emit("⚔ Засада принята: следующая волна жирнее!")},
+		{"label": "Объехать стороной", "cb": func() -> void: pass},
+	]
+	encounter.emit("🚧 Блокпост в колее",
+		"Впереди свежий блокпост рейдеров: спицы, бочки, чужие флаги. Можно взять их на таран — или свернуть в пыль.",
+		opts)
+
+
+## Паломник пустоши: бескорыстный дар воды и лома.
+func _encounter_pilgrim() -> void:
+	state.heal(float(state.max_hp) * 0.15)
+	var gift := _rng.randi_range(15, 30)
+	state.earn(gift)
+	announced.emit("🙏 Паломник поделился водой: +15% HP и ⚙%d" % gift)
 
 
 func trigger(id: String) -> void:

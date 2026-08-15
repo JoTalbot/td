@@ -65,6 +65,7 @@
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.0 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
 - Плотность старших волн: фланговые колонны планируются в `WaveManager._launch_wave()` (`_flank_plan`, триггер `_check_flanks()` по `_spawned_count`, спавн сбоку через `_spawn({flank: ±1})`); диверсанты — флаг `sab` в очереди с 8-й волны → `Enemy.sab` → первый удар эмитит `GameState.weapon_jam_requested` → `Main._on_weapon_jam_requested()` зовёт `Weapon.jam(3.5)`.
 - Мета «Бортмеханик»: `MetaProgress.DEFS.mechanic` → `mechanic_rate()` HP/сек; починка в `Main._process()` только при `waves.between_waves` (дроби копит `GameState.heal`).
+- Встречи на трассе: `RoadEvents.encounter(title, desc, options)` → модалка `HUD.show_encounter()` (кнопки через `_rusty_button`, cb из опций, старт волны прячет); гейтинг `_maybe_encounter()` на фронте `between_waves`, лимит `ENCOUNTER_MAX_PER_RUN`, сброс в `Main._on_travel()`. Старые кнопки — только `remove_child` + `queue_free`, иначе перехватывают тапы до конца кадра!
 - Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
 - Новые мета-улучшения: `MetaProgress.DEFS` + метод бонуса, применяемый из `Main._ready()` при старте рейса. Магазин — в HUD game-over панели.
 - Новые здания базы: `CampaignData.BUILDINGS` + эффект в `Campaign` (например `cargo_cap()` или `arrive()`-производство).

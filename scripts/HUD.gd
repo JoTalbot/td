@@ -55,6 +55,7 @@ func _ready() -> void:
 	_build_message()
 	_build_game_over()
 	_build_ability_bar()
+	_build_encounter()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -62,7 +63,8 @@ func _ready() -> void:
 		if waves.run_length > 0:
 			_wave_label.text = "Волна %d/%d" % [i, waves.run_length]
 		else:
-			_wave_label.text = "Волна %d" % i)
+			_wave_label.text = "Волна %d" % i
+		hide_encounter())   # встреча кончилась — волна пошла
 	waves.wave_cleared.connect(func(i): flash_message("Волна %d отбита!" % i))
 
 	_scrap_label.text = "⚙ %d" % state.scrap
@@ -361,6 +363,68 @@ func show_weapon_panel(weapon: Node3D) -> void:
 
 func hide_weapon_panel() -> void:
 	_weapon_panel.visible = false
+
+
+## --- Встреча на трассе: компактная модалка с вариантами (справа вверху) ---
+var _encounter_panel: PanelContainer
+var _encounter_title: Label
+var _encounter_desc: Label
+var _encounter_opts: VBoxContainer
+
+
+func _build_encounter() -> void:
+	_encounter_panel = PanelContainer.new()
+	_encounter_panel.add_theme_stylebox_override("panel", _styled_panel())
+	_encounter_panel.anchor_left = 1.0
+	_encounter_panel.anchor_right = 1.0
+	_encounter_panel.anchor_top = 0.17
+	_encounter_panel.anchor_bottom = 0.17
+	_encounter_panel.offset_left = -265
+	_encounter_panel.offset_right = -10
+	_encounter_panel.offset_top = 0
+	_encounter_panel.offset_bottom = 235
+	_encounter_panel.visible = false
+	add_child(_encounter_panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	_encounter_panel.add_child(col)
+	_encounter_title = Label.new()
+	_encounter_title.add_theme_font_size_override("font_size", 16)
+	_encounter_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
+	col.add_child(_encounter_title)
+	_encounter_desc = Label.new()
+	_encounter_desc.add_theme_font_size_override("font_size", 13)
+	_encounter_desc.add_theme_color_override("font_color", TEXT_DIM)
+	_encounter_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_encounter_desc)
+	_encounter_opts = VBoxContainer.new()
+	_encounter_opts.add_theme_constant_override("separation", 6)
+	col.add_child(_encounter_opts)
+
+
+## options: [{label: String, cb: Callable}] — выбор сразу прячет панель.
+func show_encounter(title: String, desc: String, options: Array) -> void:
+	_encounter_title.text = title
+	_encounter_desc.text = desc
+	for b in _encounter_opts.get_children():
+		_encounter_opts.remove_child(b)   # сразу убрать из дерева: старая кнопка не перехватит тап
+		b.queue_free()
+	for opt in options:
+		var btn := _rusty_button(String(opt["label"]))
+		btn.custom_minimum_size = Vector2(0, 42)
+		var cb: Callable = opt["cb"]
+		btn.pressed.connect(func() -> void:
+			cb.call()
+			hide_encounter()
+			sfx.play("click", 0.6))
+		_encounter_opts.add_child(btn)
+	_encounter_panel.visible = true
+
+
+func hide_encounter() -> void:
+	if _encounter_panel != null:
+		_encounter_panel.visible = false
 
 
 func _build_message() -> void:

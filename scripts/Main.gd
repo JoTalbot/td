@@ -135,6 +135,7 @@ func _ready() -> void:
 
 	waves.boss_event.connect(hud.flash_message)
 	events.announced.connect(hud.flash_message)
+	events.encounter.connect(hud.show_encounter)
 	hud.meta_upgrade_pressed.connect(_on_meta_upgrade)
 	state.game_over.connect(_on_game_over)
 	waves.run_completed.connect(_on_run_completed)
@@ -161,6 +162,7 @@ func _on_travel(city_id: String) -> void:
 	waves.danger = float(route[1])
 	_run_loot.clear()
 	_run_trophies.clear()
+	events._encounters_done = 0   # встречи на трассе — заново каждый рейс
 	map_screen.hide_screen()
 	hud.visible = true
 	battle_active = true
