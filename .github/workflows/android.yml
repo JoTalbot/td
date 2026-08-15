@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-apk:
-    name: Сборка APK (Godot ${{ env.GODOT_VERSION }})
+    name: Сборка APK
     runs-on: ubuntu-latest
 
     steps:
