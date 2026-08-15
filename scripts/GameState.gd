@@ -5,6 +5,7 @@ signal scrap_changed(value: int)
 signal hp_changed(hp: int, max_hp: int)
 signal game_over
 signal damaged(amount: int)   # только реальный урон (не лечение) — для тряски и звука
+signal weapon_jam_requested   # диверсант добрался до фуры: требуется заклинить случайное оружие
 
 const START_SCRAP := 150
 const START_HP := 100

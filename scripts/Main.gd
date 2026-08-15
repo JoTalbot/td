@@ -139,6 +139,7 @@ func _ready() -> void:
 	state.game_over.connect(_on_game_over)
 	waves.run_completed.connect(_on_run_completed)
 	waves.enemy_killed.connect(_on_enemy_killed)
+	state.weapon_jam_requested.connect(_on_weapon_jam_requested)
 	# Звуковая полировка: горн волны, рык босса
 	waves.wave_started.connect(func(_i): sfx.play("horn", 0.7))
 	waves.boss_event.connect(func(_t): sfx.play("boss", 0.85); camera_rig.add_trauma(0.3))
@@ -343,6 +344,17 @@ func _on_enemy_killed(type: String) -> void:
 		elif roll > 0.45:
 			res = "water"
 		_run_loot[res] = int(_run_loot.get(res, 0)) + 1
+
+
+## Диверсант добрался до фуры: случайное орудие заклинивает на 3.5 сек.
+func _on_weapon_jam_requested() -> void:
+	if truck.weapons.is_empty():
+		return
+	var slots: Array = truck.weapons.keys()
+	var w: Node = truck.weapons[slots[randi() % slots.size()]]
+	w.jam(3.5)
+	hud.flash_message("🔧 Диверсия! «%s» заклинило на несколько секунд!" % w.weapon_name())
+	sfx.play("jam", 0.8)
 
 
 ## Конец рейса смертью фуры: чертежи капают, груз в трюме пополам.

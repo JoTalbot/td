@@ -63,6 +63,7 @@
 - Новые апгрейды фуры: `TruckData.DEFS` + ветка в `Truck.apply_upgrade()` с обязательным видимым обвесом.
 - Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом.
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.0 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
+- Плотность старших волн: фланговые колонны планируются в `WaveManager._launch_wave()` (`_flank_plan`, триггер `_check_flanks()` по `_spawned_count`, спавн сбоку через `_spawn({flank: ±1})`); диверсанты — флаг `sab` в очереди с 8-й волны → `Enemy.sab` → первый удар эмитит `GameState.weapon_jam_requested` → `Main._on_weapon_jam_requested()` зовёт `Weapon.jam(3.5)`.
 - Новые события дороги: ветка в `RoadEvents.trigger()` + анонс через сигнал `announced`. Дальность орудий глушить через `GameState.weapon_range_mult`.
 - Новые мета-улучшения: `MetaProgress.DEFS` + метод бонуса, применяемый из `Main._ready()` при старте рейса. Магазин — в HUD game-over панели.
 - Новые здания базы: `CampaignData.BUILDINGS` + эффект в `Campaign` (например `cargo_cap()` или `arrive()`-производство).

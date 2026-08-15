@@ -11,6 +11,7 @@ var slot_index: int = -1
 var state: Node
 
 var _cooldown := 0.0
+var _jam_until := 0.0  # до этого момента (сек) оружие заклинено диверсантом
 var _turret: Node3D
 var _flash: OmniLight3D
 var _select_ring: MeshInstance3D
@@ -23,6 +24,11 @@ func setup(p_type: String, p_state: Node) -> void:
 
 func _def() -> Dictionary:
 	return WeaponData.DEFS[type_id]
+
+
+## Имя орудия для HUD («Пулемёт», «Гарпун»...).
+func weapon_name() -> String:
+	return String(_def()["name"])
 
 
 func stats() -> Dictionary:
@@ -168,6 +174,11 @@ func set_selected(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	_flash.light_energy = maxf(_flash.light_energy - delta * 10.0, 0.0)
+	if _jam_until > 0.0:
+		if Time.get_ticks_msec() / 1000.0 < _jam_until:
+			_turret.rotation.y += sin(Time.get_ticks_msec() / 55.0) * delta * 4.0  # дёргается, не стреляет
+			return
+		_jam_until = 0.0
 	_cooldown -= delta
 	if _cooldown > 0.0:
 		return
@@ -182,6 +193,12 @@ func _process(delta: float) -> void:
 		_turret.rotate_object_local(Vector3.UP, PI)  # стволы построены вдоль +Z
 	_shoot(target)
 	_cooldown = 1.0 / float(stats()["fire_rate"])
+
+
+## Диверсия: оружие заклинивает на duration секунд (волны с диверсантами).
+func jam(duration: float) -> void:
+	_jam_until = Time.get_ticks_msec() / 1000.0 + duration
+	_cooldown = maxf(_cooldown, duration)
 
 
 func _find_target() -> Node3D:

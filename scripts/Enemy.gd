@@ -30,6 +30,9 @@ var _rage_light: OmniLight3D = null
 var truck: Node3D = null
 var state: Node = null
 var ally: Node3D = null      # эскорт-фургон: если задан и жив — бьём его, а не фуру
+## Диверсант: первый удар по фуре заклинивает случайное оружие на несколько секунд.
+var sab := false
+var _sab_done := false
 
 ## Позиция "пристройки" рядом с грузовиком (смещение от его центра).
 var attack_offset := Vector3(4.0, 0, -2.0)
@@ -60,6 +63,15 @@ func _ready() -> void:
 		_: _build_buggy()
 	_build_hp_bar()
 	Junk.dust_trail(self, Vector3(0, 0.1, -1.5), 30, 0.7)
+	if sab:
+		_add_sab_hood()
+
+
+## Чёрный балахон диверсанта: заметен издалека — приоритетная цель.
+func _add_sab_hood() -> void:
+	Junk.box(_body, Vector3(0.42, 0.5, 0.42), Vector3(0, 1.35, -0.2),
+		Junk.metal(Color(0.08, 0.07, 0.09), 0.95, 0.0))
+	scale = Vector3.ONE * 1.05
 
 
 func _build_buggy() -> void:
@@ -333,6 +345,10 @@ func _attack() -> void:
 	var dmg := int(round(attack_damage * _charge_mult * truck.ram_damage_multiplier()))
 	_charge_mult = 1.0
 	state.damage_truck(maxi(dmg, 1))
+	# Диверсия: первый пробивший удар глушит орудия
+	if sab and not _sab_done:
+		_sab_done = true
+		state.weapon_jam_requested.emit()
 	# Шипы ранят атакующего
 	if truck.upgrade_levels["spikes"] > 0:
 		take_damage(3 * truck.upgrade_levels["spikes"], state)

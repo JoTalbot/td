@@ -41,6 +41,9 @@ var _spawn_queue: Array = []
 var _spawn_timer := 0.0
 var _side_toggle := 1.0
 var _train_cars: Array = []   # живые единицы военного поезда (для «фазы отцепки»)
+var _flank_plan: Array = []   # фланговые колонны волны: [{at, side, type, n, done}]
+var _spawned_count := 0       # сколько юнитов волны уже выехало (триггер фланговок)
+var _hp_scale := 1.0          # шкала HP текущей волны (нужна фланговым колоннам)
 
 const TYPES := {
 	"buggy": {"hp": 40, "speed": 9.0, "reward": 9, "dmg": 4, "interval": 1.6},
@@ -70,6 +73,8 @@ func _process(delta: float) -> void:
 		_spawn_timer -= delta
 		if _spawn_timer <= 0.0 and not _spawn_queue.is_empty():
 			_spawn(_spawn_queue.pop_front())
+			_spawned_count += 1
+			_check_flanks()
 			_spawn_timer = maxf(1.3 - wave_index * 0.05, 0.6)
 		if _spawn_queue.is_empty():
 			spawning = false
@@ -97,13 +102,31 @@ func _launch_wave() -> void:
 
 	var count := 4 + wave_index + int((danger - 1.0) * 3.0) + extra_count
 	var hp_scale := (1.0 + (wave_index - 1) * 0.2) * danger
+	_hp_scale = hp_scale
+	var sab_in_wave := false
 	for i in count:
 		var t := "buggy"
 		if wave_index >= 2 and i % 3 == 1:
 			t = "biker"
 		if wave_index >= 4 and i % 4 == 2:
 			t = "ram"
-		_spawn_queue.append({"type": t, "hp_scale": hp_scale})
+		var d := {"type": t, "hp_scale": hp_scale}
+		# С 8-й волны часть байкеров — диверсанты с зарядами против орудий
+		if t == "biker" and wave_index >= 8 and randf() < 0.25:
+			d["sab"] = true
+			sab_in_wave = true
+		_spawn_queue.append(d)
+	# Фланговые колонны: с 5-й волны подмога заходит сбоку в разгар боя
+	_flank_plan.clear()
+	_spawned_count = 0
+	if wave_index >= 5:
+		_flank_plan.append({"at": int(ceil(count * 0.35)), "side": 1.0,
+			"type": "biker" if wave_index >= 8 else "buggy",
+			"n": 3, "done": false})
+	if wave_index >= 9:
+		_flank_plan.append({"at": int(ceil(count * 0.7)), "side": -1.0,
+			"type": "ram" if wave_index >= 12 else "buggy",
+			"n": 2 if wave_index >= 12 else 3, "done": false})
 	if wave_index % 5 == 0:
 		if wave_index % 15 == 0:
 			# Каждая пятнадцатая — Военный Поезд: локомотив + сцеп вагонов
@@ -124,7 +147,25 @@ func _launch_wave() -> void:
 	if ambush_every > 0 and wave_index % ambush_every == 2:
 		_on_ace_escort(2)
 		boss_event.emit("🎃 Стая автожиров в ночном небе!")
+	if sab_in_wave:
+		boss_event.emit("⚠ В строю диверсанты — не подпускайте к фуре!")
 	wave_started.emit(wave_index)
+
+
+## Проверка триггеров фланговых колонн после каждого выехавшего юнита.
+func _check_flanks() -> void:
+	for f in _flank_plan:
+		if not f["done"] and _spawned_count >= int(f["at"]):
+			f["done"] = true
+			_spawn_flank(f)
+
+
+## Фланговая колонна: группа выходит сбоку в клубах пыли, анонс на HUD.
+func _spawn_flank(f: Dictionary) -> void:
+	var side := float(f["side"])
+	for i in int(f["n"]):
+		_spawn({"type": f["type"], "hp_scale": _hp_scale, "flank": side})
+	boss_event.emit("👈 Колонна слева!" if side < 0.0 else "👉 Колонна справа!")
 
 
 func _spawn(data: Dictionary) -> void:
@@ -153,10 +194,16 @@ func _spawn(data: Dictionary) -> void:
 		enemy.reward = tpl["reward"]
 		enemy.attack_damage = tpl["dmg"]
 		enemy.attack_interval = tpl["interval"]
-		_side_toggle *= -1.0
+		var side := _side_toggle
+		if data.has("flank"):
+			side = signf(float(data["flank"]))   # фланговики пристраиваются со своей стороны
+		else:
+			_side_toggle *= -1.0
 		var lane := 3.6 + randf() * 1.6
 		var depth := randf_range(-3.5, 3.0)
-		enemy.attack_offset = Vector3(_side_toggle * lane, 0, depth)
+		enemy.attack_offset = Vector3(side * lane, 0, depth)
+		if data.get("sab", false):
+			enemy.sab = true
 		# Эскорт: треть рейдеров валом валит на клиентский фургон
 		if ally != null and is_instance_valid(ally) and not ally.is_dead and randf() < 0.35:
 			enemy.ally = ally
@@ -174,8 +221,12 @@ func _spawn(data: Dictionary) -> void:
 		enemies_alive -= 1
 		enemy_killed.emit(enemy.enemy_type))
 	get_tree().current_scene.add_child(enemy)
-	# Появляются сзади в клубах пыли, чуть сбоку
-	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
+	if data.has("flank"):
+		# Фланговая колонна: выходят строго сбоку
+		enemy.global_position = truck.global_position + Vector3(signf(float(data["flank"])) * 38.0, 0, randf_range(-12.0, 4.0))
+	else:
+		# Появляются сзади в клубах пыли, чуть сбоку
+		enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
 
 
 ## Корсар: воздушный босс. Часть волны — считается в enemies_alive.
