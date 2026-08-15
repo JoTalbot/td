@@ -149,6 +149,7 @@ func _build_visual() -> void:
 	_flash.light_energy = 0.0
 	_flash.omni_range = 3.5
 	_flash.position = Vector3(0, 0.2, 0.8)
+	_flash.visible = false   # лампа вспышки горит только в момент выстрела
 	_turret.add_child(_flash)
 
 	_select_ring = MeshInstance3D.new()
@@ -174,6 +175,8 @@ func set_selected(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	_flash.light_energy = maxf(_flash.light_energy - delta * 10.0, 0.0)
+	if _flash.light_energy <= 0.0 and _flash.visible:
+		_flash.visible = false   # погасла — уходит из светового кластера мобильного рендерера
 	if _jam_until > 0.0:
 		if Time.get_ticks_msec() / 1000.0 < _jam_until:
 			_turret.rotation.y += sin(Time.get_ticks_msec() / 55.0) * delta * 4.0  # дёргается, не стреляет
@@ -218,6 +221,7 @@ func _find_target() -> Node3D:
 
 func _shoot(target: Node3D) -> void:
 	_flash.light_energy = 2.5
+	_flash.visible = true
 	# Процедурный звук выстрела по виду снаряда
 	if state != null and state.sfx != null:
 		var kind_sound := {"bullet": "shot", "flame": "flame", "harpoon": "harpoon", "shell": "cannon", "mortar": "mortar", "zap": "zap"}

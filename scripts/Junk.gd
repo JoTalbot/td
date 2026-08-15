@@ -1,6 +1,9 @@
 extends RefCounted
 ## Фабрика "ржавого железа": материалы и мелкие детали в стиле Безумного Макса.
 
+## Глобальный выключатель света вспышек взрывов (бюджет слабых устройств).
+static var perf_explosion_lights := true
+
 const RUST_TONES: Array[Color] = [
 	Color(0.42, 0.22, 0.1),   # ржавчина
 	Color(0.35, 0.3, 0.26),   # грязный металл
@@ -118,9 +121,13 @@ static func dust_trail(parent: Node3D, pos: Vector3, amount := 60, scale := 1.0)
 	return p
 
 
-## Взрыв: огонь + дым.
+## Взрыв: огонь + дым. Бюджет эффектов: на жирных волнах вспышки экономим.
 static func explosion(scene: Node, pos: Vector3, scale := 1.0) -> void:
+	var live: int = scene.get_tree().get_nodes_in_group("fx_explosion").size()
+	if live >= 8:
+		return   # волна и так в огне — лишний взрыв не строим вовсе
 	var p := GPUParticles3D.new()
+	p.add_to_group("fx_explosion")
 	p.amount = 26
 	p.lifetime = 0.6
 	p.one_shot = true
@@ -148,6 +155,12 @@ static func explosion(scene: Node, pos: Vector3, scale := 1.0) -> void:
 	scene.add_child(p)
 	p.global_position = pos
 	p.emitting = true
+	if live >= 4 or not perf_explosion_lights:
+		# Свет — самое дорогое на мобильном рендерере: дальше 4 вспышек только искры
+		var tw0 := p.create_tween()
+		tw0.tween_interval(0.9)
+		tw0.tween_callback(p.queue_free)
+		return
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.55, 0.15)
 	light.light_energy = 3.0 * scale

@@ -37,6 +37,7 @@ func configure(p_target: Node3D, st: Dictionary, p_color: Color, p_kind: String,
 
 
 func _ready() -> void:
+	add_to_group("projectiles")   # для бюджетов/замеров производительности
 	var mesh := MeshInstance3D.new()
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
