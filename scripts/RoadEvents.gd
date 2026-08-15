@@ -5,6 +5,7 @@ extends Node
 signal announced(text: String)
 
 const Junk := preload("res://scripts/Junk.gd")
+const Copter := preload("res://scripts/RaiderCopter.gd")
 
 var state: Node
 var truck: Node3D
@@ -57,7 +58,7 @@ func _process(delta: float) -> void:
 
 
 func _pick_event() -> String:
-	var ids := ["storm", "mines", "supply"]
+	var ids := ["storm", "mines", "supply", "ambush"]
 	return ids[_rng.randi() % ids.size()]
 
 
@@ -69,6 +70,22 @@ func trigger(id: String) -> void:
 			_do_mines()
 		"supply":
 			_do_supply()
+		"ambush":
+			_do_ambush()
+
+
+## Воздушная засада: автожиры рейдеров пикут с неба.
+func _do_ambush() -> void:
+	var count := 2 if _rng.randf() < 0.7 else 3
+	for i in count:
+		var copter: Node3D = Copter.new()
+		copter.truck = truck
+		copter.state = state
+		get_tree().current_scene.add_child(copter)
+		# Впархивают сверху-сзади, немного вразброд
+		copter.global_position = truck.global_position + Vector3(
+			_rng.randf_range(-10.0, 10.0), 16.0 + _rng.randf_range(0, 3.0), -26.0 - i * 5.0)
+	announced.emit("🚁 Воздушная засада: %d автожиров!" % count)
 
 
 func _do_storm() -> void:

@@ -36,7 +36,8 @@
 | `scripts/WeaponData.gd` | Данные орудий: 6 типов × 3 уровня (mgun/flamer/harpoon/cannon/tesla/mortar) |
 | `scripts/AbilityData.gd` | Данные способностей экипажа: залп/щит/нитро, кулдауны, цвета |
 | `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
-| `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов |
+| `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов, воздушная засада |
+| `scripts/RaiderCopter.gd` | Автожир рейдеров: парит над фурой, сбрасывает бомбы, потом камикадзе; в группе `enemies`, но НЕ в `enemies_alive` (не блокирует волну) |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |
 | `scripts/Enemy.gd` | Рейдер: догоняет, пристраивается на `attack_offset`, таранит; типы buggy/biker/ram/boss; смерть — кувырок и отставание |
