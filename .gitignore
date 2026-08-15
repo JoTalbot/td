@@ -1,0 +1,16 @@
+# Godot
+.godot/
+*.tmp
+export_presets.cfg
+
+# Сборки
+build/
+*.apk
+*.aab
+
+# Ключи
+*.keystore
+*.jks
+
+# Системное
+.DS_Store

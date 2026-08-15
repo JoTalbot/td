@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#1a2350"/>
+      <stop offset="100%" stop-color="#05070f"/>
+    </radialGradient>
+    <linearGradient id="tower" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4de1ff"/>
+      <stop offset="100%" stop-color="#1a6cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  <circle cx="64" cy="34" r="12" fill="#ff3d8c">
+    <animate attributeName="r" values="12;14;12" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="64" cy="34" r="18" fill="none" stroke="#ff3d8c" stroke-width="2" opacity="0.5"/>
+  <path d="M48 108 L54 56 L74 56 L80 108 Z" fill="url(#tower)"/>
+  <rect x="50" y="48" width="28" height="10" rx="3" fill="#7df3ff"/>
+  <rect x="44" y="104" width="40" height="8" rx="3" fill="#123" stroke="#4de1ff" stroke-width="1.5"/>
+  <line x1="64" y1="48" x2="64" y2="40" stroke="#ffe14d" stroke-width="3"/>
+</svg>
