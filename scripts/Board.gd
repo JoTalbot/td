@@ -1,17 +1,17 @@
 extends Node3D
 ## Игровое поле: сетка, извилистый путь врагов, процедурный неоновый ландшафт.
 
-const GRID_W := 12
-const GRID_H := 9
+const GRID_W := 9
+const GRID_H := 12
 const CELL := 2.0
 
-## Путь врагов в координатах сетки (змейка).
+## Путь врагов в координатах сетки (вертикальная змейка: вход сверху, выход снизу).
 const PATH_CELLS: Array[Vector2i] = [
-	Vector2i(0, 4), Vector2i(1, 4), Vector2i(2, 4), Vector2i(2, 3), Vector2i(2, 2),
-	Vector2i(3, 2), Vector2i(4, 2), Vector2i(5, 2), Vector2i(5, 3), Vector2i(5, 4),
-	Vector2i(5, 5), Vector2i(5, 6), Vector2i(6, 6), Vector2i(7, 6), Vector2i(8, 6),
-	Vector2i(8, 5), Vector2i(8, 4), Vector2i(8, 3), Vector2i(9, 3), Vector2i(10, 3),
-	Vector2i(10, 4), Vector2i(10, 5), Vector2i(11, 5),
+	Vector2i(4, 0), Vector2i(4, 1), Vector2i(4, 2), Vector2i(3, 2), Vector2i(2, 2),
+	Vector2i(2, 3), Vector2i(2, 4), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5),
+	Vector2i(5, 5), Vector2i(6, 5), Vector2i(6, 6), Vector2i(6, 7), Vector2i(6, 8),
+	Vector2i(5, 8), Vector2i(4, 8), Vector2i(3, 8), Vector2i(3, 9), Vector2i(3, 10),
+	Vector2i(4, 10), Vector2i(5, 10), Vector2i(5, 11),
 ]
 
 var towers: Dictionary = {}
@@ -168,11 +168,11 @@ func _build_path_visual() -> void:
 
 func _build_portals() -> void:
 	var entry := _make_portal(Color(1.0, 0.2, 0.4))
-	entry.position = path_points[0] + Vector3(-1.0, 1.2, 0.0)
+	entry.position = path_points[0] + Vector3(0.0, 1.2, -1.0)
 	add_child(entry)
 
 	var exit := _make_portal(Color(0.2, 0.9, 1.0))
-	exit.position = path_points[path_points.size() - 1] + Vector3(1.0, 1.2, 0.0)
+	exit.position = path_points[path_points.size() - 1] + Vector3(0.0, 1.2, 1.0)
 	add_child(exit)
 
 
@@ -182,7 +182,7 @@ func _make_portal(color: Color) -> MeshInstance3D:
 	torus.inner_radius = 0.9
 	torus.outer_radius = 1.3
 	portal.mesh = torus
-	portal.rotation_degrees = Vector3(0, 0, 90)
+	portal.rotation_degrees = Vector3(90, 0, 0)
 	portal.material_override = _neon_material(color * 0.3, color, 3.5)
 	var light := OmniLight3D.new()
 	light.light_color = color

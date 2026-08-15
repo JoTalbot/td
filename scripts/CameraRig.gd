@@ -4,9 +4,9 @@ extends Node3D
 var camera: Camera3D
 var _pivot: Node3D
 
-var _distance := 24.0
-var _yaw := -35.0
-var _pitch := -55.0
+var _distance := 30.0
+var _yaw := 0.0
+var _pitch := -68.0
 
 var _touches: Dictionary = {}
 var _last_pinch_dist := 0.0
@@ -17,7 +17,8 @@ func _ready() -> void:
 	_pivot = Node3D.new()
 	add_child(_pivot)
 	camera = Camera3D.new()
-	camera.fov = 55.0
+	camera.fov = 60.0
+	camera.keep_aspect = Camera3D.KEEP_WIDTH
 	_pivot.add_child(camera)
 	_update_transform()
 

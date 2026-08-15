@@ -76,7 +76,7 @@ func _build_top_bar() -> void:
 	add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 30)
+	row.add_theme_constant_override("separation", 22)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
 
@@ -103,10 +103,10 @@ func _build_bottom_bar() -> void:
 	panel.anchor_bottom = 1.0
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -320
-	panel.offset_right = 320
-	panel.offset_top = -96
-	panel.offset_bottom = -10
+	panel.offset_left = -300
+	panel.offset_right = 300
+	panel.offset_top = -100
+	panel.offset_bottom = -12
 	add_child(panel)
 
 	var row := HBoxContainer.new()
@@ -118,8 +118,8 @@ func _build_bottom_bar() -> void:
 		var def: Dictionary = TowerData.DEFS[id]
 		var btn := Button.new()
 		btn.text = "%s\n⬡ %d" % [def["name"], def["cost"]]
-		btn.custom_minimum_size = Vector2(140, 66)
-		btn.add_theme_font_size_override("font_size", 17)
+		btn.custom_minimum_size = Vector2(130, 70)
+		btn.add_theme_font_size_override("font_size", 16)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(def["color"].r * 0.2, def["color"].g * 0.2, def["color"].b * 0.2, 0.9)
 		sb.border_color = def["color"]

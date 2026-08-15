@@ -18,7 +18,7 @@
    ```
 3. `Project → Export → Add → Android`:
    - Package name: `com.neonbastion.td`
-   - Orientation: Landscape (уже задано в настройках проекта)
+   - Orientation: Portrait (уже задано в настройках проекта)
    - Architectures: `arm64-v8a` (+ `armeabi-v7a` при желании)
    - Keystore: путь к вашему keystore.
 

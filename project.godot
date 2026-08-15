@@ -7,16 +7,16 @@ config_version=5
 [application]
 
 config/name="Neon Bastion TD"
-config/description="Неоновый sci-fi tower defense для Android на Godot 4."
+config/description="Неоновый sci-fi tower defense для Android на Godot 4 (портретный режим)."
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.2", "Mobile")
 config/icon="res://icon.svg"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
-window/handheld/orientation=4
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/handheld/orientation=5
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

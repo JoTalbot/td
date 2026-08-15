@@ -25,7 +25,7 @@
 |---|---|
 | `scenes/Main.tscn` | Единственная сцена; всё собирается кодом из `Main.gd` |
 | `scripts/Main.gd` | Композиция: окружение, свет, менеджеры, обработка тапов, постройка/выбор башен |
-| `scripts/Board.gd` | Сетка 12×9, путь врагов (`PATH_CELLS`), процедурный ландшафт, порталы |
+| `scripts/Board.gd` | Сетка 9×12 (портрет), путь врагов (`PATH_CELLS`), процедурный ландшафт, порталы |
 | `scripts/CameraRig.gd` | Орбитальная камера: drag-орбита, pinch-зум, колесо мыши |
 | `scripts/GameState.gd` | Деньги, жизни, сигналы, game over |
 | `scripts/TowerData.gd` | Константы башен: 4 типа × 3 уровня (cost, damage, range, fire_rate, slow, chain) |
