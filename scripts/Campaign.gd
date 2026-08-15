@@ -25,6 +25,7 @@ var pending: Array = []            # модули, выданные в след�
 var poi_used: Array = []           # осмотренные находки: ключи "day_seed:city"
 var reputation: Dictionary = {}    # city -> очки репутации (0..100) у фракции
 var trophies: Dictionary = {}      # тип трофея -> кол-во (ездит с фурой)
+var leg_abilities: Array = []      # легендарные способности, выкованные навсегда (id из AbilityData)
 ## Ссылка на мета-прогресс (чертежи). Ставится из Main.
 var meta: Node = null
 
@@ -59,6 +60,7 @@ func load_campaign() -> void:
 	poi_used = data.get("poi_used", [])
 	reputation = data.get("reputation", {})
 	trophies = data.get("trophies", {})
+	leg_abilities = data.get("leg_abilities", [])
 	# Находки живут одни сутки: чистим метки прошлых дней
 	var today_prefix := "%d:" % day_seed
 	poi_used = poi_used.filter(func(k: Variant) -> bool: return str(k).begins_with(today_prefix))
@@ -85,6 +87,7 @@ func save_campaign() -> void:
 		"poi_used": poi_used,
 		"reputation": reputation,
 		"trophies": trophies,
+		"leg_abilities": leg_abilities,
 	}))
 
 ## --- База (только в родном городе) ---
@@ -533,6 +536,31 @@ func forge(id: String) -> bool:
 	for t in needs:
 		trophies[t] = int(trophies[t]) - int(needs[t])
 	pending.append(id)
+	save_campaign()
+	return true
+
+
+## --- Легендарная ковка способностей (трофеи → навсегда) ---
+func can_forge_ability(id: String) -> bool:
+	if not CampaignData.LEGENDARY_ABILITY_RECIPES.has(id):
+		return false
+	if leg_abilities.has(String(CampaignData.LEGENDARY_ABILITY_RECIPES[id]["ability"])):
+		return false   # уже выкована навсегда
+	var needs: Dictionary = CampaignData.LEGENDARY_ABILITY_RECIPES[id]["needs"]
+	for t in needs:
+		if int(trophies.get(t, 0)) < int(needs[t]):
+			return false
+	return true
+
+
+## Сковать способность: трофеи в печь, id способности — в постоянный арсенал.
+func forge_ability(id: String) -> bool:
+	if not can_forge_ability(id):
+		return false
+	var needs: Dictionary = CampaignData.LEGENDARY_ABILITY_RECIPES[id]["needs"]
+	for t in needs:
+		trophies[t] = int(trophies[t]) - int(needs[t])
+	leg_abilities.append(String(CampaignData.LEGENDARY_ABILITY_RECIPES[id]["ability"]))
 	save_campaign()
 	return true
 

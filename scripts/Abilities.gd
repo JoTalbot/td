@@ -14,6 +14,15 @@ var wasteland: Node
 ## Множитель кулдаунов (мета-улучшение «Ветераны экипажа»).
 var cooldown_mult := 1.0
 
+## id легендарных способностей, выкованных навсегда (кузня трофеев).
+var unlocked_legendary: Array = []
+
+var _magnet_timer := 0.0
+var _magnet_node: Node3D = null
+
+var _last_stand_timer := 0.0
+var _last_stand_light: OmniLight3D = null
+
 var _cooldowns: Dictionary = {}   # id -> осталось секунд
 
 var _shield_timer := 0.0
@@ -46,6 +55,8 @@ func _process(delta: float) -> void:
 			_cooldowns[id] = maxf(_cooldowns[id] - delta, 0.0)
 	_tick_shield(delta)
 	_tick_nitro(delta)
+	_tick_magnet(delta)
+	_tick_last_stand(delta)
 
 
 func _tick_shield(delta: float) -> void:
@@ -79,11 +90,15 @@ func _tick_nitro(delta: float) -> void:
 
 ## Возвращает true, если способность реально сработала (для звука в Main).
 func try_activate(id: String) -> bool:
+	var def: Dictionary = AbilityData.DEFS[id]
+	if bool(def.get("legendary", false)) and not unlocked_legendary.has(id):
+		feedback.emit("«%s» — легендарка! Выкуйте в кузне трофеев." % def["name"])
+		return false
 	if not is_ready(id):
 		if state != null and not state.is_game_over:
-			feedback.emit("%s ещё не готово!" % AbilityData.DEFS[id]["name"])
+			feedback.emit("%s ещё не готово!" % def["name"])
 		return false
-	_cooldowns[id] = float(AbilityData.DEFS[id]["cooldown"]) * cooldown_mult
+	_cooldowns[id] = float(def["cooldown"]) * cooldown_mult
 	match id:
 		"barrage":
 			_do_barrage()
@@ -91,6 +106,10 @@ func try_activate(id: String) -> bool:
 			_do_shield()
 		"nitro":
 			_do_nitro()
+		"magnet":
+			_do_magnet()
+		"last_stand":
+			_do_last_stand()
 	return true
 
 
@@ -183,3 +202,82 @@ func _do_nitro() -> void:
 		feedback.emit("🔥 Нитро! %d машин отстают!" % count)
 	else:
 		feedback.emit("🔥 Нитро!")
+
+
+## --- Легендарные способности (выковываются навсегда в кузне трофеев) ---
+
+## «Хламный магнит»: воющее кольцо тянет лом — +50% лома за всё, пока воет.
+func _do_magnet() -> void:
+	state.loot_magnet = AbilityData.MAGNET_DURATION
+	_magnet_timer = AbilityData.MAGNET_DURATION
+	if _magnet_node == null:
+		_magnet_node = _build_magnet_ring()
+		truck.add_child(_magnet_node)
+	_magnet_node.visible = true
+	feedback.emit("🧲 Магнит воет: +50%% лома %.0f сек!" % AbilityData.MAGNET_DURATION)
+
+
+func _build_magnet_ring() -> Node3D:
+	var ring_root := Node3D.new()
+	ring_root.name = "LootMagnet"
+	var tor := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.14
+	tm.outer_radius = 6.2
+	tor.mesh = tm
+	tor.rotation_degrees.x = 90.0
+	tor.position.y = 0.3
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.5, 0.75, 1.0, 0.35)
+	m.emission_enabled = true
+	m.emission = Color(0.4, 0.65, 1.0)
+	m.emission_energy_multiplier = 0.8
+	tor.material_override = m
+	ring_root.add_child(tor)
+	# Летающий хлам по орбите
+	for i in 8:
+		Junk.spike(ring_root, 0.09, 0.5,
+			Vector3(cos(float(i) * TAU / 8.0) * 6.2, 0.32, sin(float(i) * TAU / 8.0) * 6.2))
+	ring_root.visible = false
+	return ring_root
+
+
+func _tick_magnet(delta: float) -> void:
+	if _magnet_timer <= 0.0:
+		return
+	_magnet_timer -= delta
+	if _magnet_node != null:
+		_magnet_node.rotation.y += delta * 2.2
+		var s := 1.0 + sin(_magnet_timer * 6.0) * 0.06
+		_magnet_node.scale = Vector3(s, 1.0, s)
+		if _magnet_timer <= 0.0:
+			_magnet_node.visible = false
+
+
+## «Последний рубеж»: боевое безумие — темп всех орудий удваивается.
+func _do_last_stand() -> void:
+	state.fire_rate_mult = AbilityData.LAST_STAND_MULT
+	_last_stand_timer = AbilityData.LAST_STAND_DURATION
+	if _last_stand_light == null:
+		_last_stand_light = OmniLight3D.new()
+		_last_stand_light.light_color = Color(1.0, 0.3, 0.2)
+		_last_stand_light.light_energy = 0.0
+		_last_stand_light.omni_range = 7.0
+		_last_stand_light.position = Vector3(0, 3.0, 0.0)
+		truck.add_child(_last_stand_light)
+	_last_stand_light.visible = true
+	feedback.emit("🪓 Последний рубеж! Орудия палят вдвое чаще!")
+
+
+func _tick_last_stand(delta: float) -> void:
+	if _last_stand_timer <= 0.0:
+		return
+	_last_stand_timer -= delta
+	if _last_stand_light != null:
+		_last_stand_light.light_energy = 1.6 + sin(_last_stand_timer * 10.0) * 0.7
+	if _last_stand_timer <= 0.0:
+		state.fire_rate_mult = 1.0
+		if _last_stand_light != null:
+			_last_stand_light.visible = false

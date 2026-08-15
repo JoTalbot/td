@@ -146,6 +146,7 @@ func _ready() -> void:
 	waves.boss_event.connect(func(_t): sfx.play("boss", 0.85); camera_rig.add_trauma(0.3))
 	hud.sfx = sfx
 	map_screen.sfx = sfx
+	_sync_legendary_abilities()
 
 	# Старт — на карте; бой начинается с выбора маршрута
 	hud.visible = false
@@ -171,6 +172,7 @@ func _on_travel(city_id: String) -> void:
 		CampaignData.CITIES[city_id]["name"]])
 	_apply_campaign_effects()
 	_spawn_escort_if_needed(city_id)
+	_sync_legendary_abilities()
 	waves.start()
 
 
@@ -224,6 +226,8 @@ func _apply_campaign_effects() -> void:
 	# Сброс на рейс (для повторных тестовых применений)
 	_loot_chance = 0.25
 	waves.ambush_every = 0
+	state.loot_magnet = 0.0     # легендарные способности не переезжают между рейсами
+	state.fire_rate_mult = 1.0
 	# Сезонные события календаря
 	match campaign.season():
 		"witch_night":
@@ -346,6 +350,13 @@ func _on_enemy_killed(type: String) -> void:
 		elif roll > 0.45:
 			res = "water"
 		_run_loot[res] = int(_run_loot.get(res, 0)) + 1
+
+
+## Раздать выкованные легендарные способности: Abilities (гейтинг) + HUD (кнопки).
+func _sync_legendary_abilities() -> void:
+	abilities.unlocked_legendary = campaign.leg_abilities.duplicate()
+	hud.leg_abilities = campaign.leg_abilities.duplicate()
+	hud.rebuild_ability_bar()
 
 
 ## Диверсант добрался до фуры: случайное орудие заклинивает на 3.5 сек.

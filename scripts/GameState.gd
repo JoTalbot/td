@@ -34,9 +34,17 @@ var _invulnerable := 0.0
 var sfx: Node = null
 
 
+## Способность «Магнит»: оставшиеся секунды ломового бонуса (не сохраняется).
+var loot_magnet := 0.0
+## Способность «Последний рубеж»: множитель темпа орудий (читается Weapon).
+var fire_rate_mult := 1.0
+
+
 func _process(delta: float) -> void:
 	if _invulnerable > 0.0:
 		_invulnerable = maxf(_invulnerable - delta, 0.0)
+	if loot_magnet > 0.0:
+		loot_magnet = maxf(loot_magnet - delta, 0.0)
 
 
 ## Временная неуязвимость фуры (способность «Щит»).
@@ -57,7 +65,10 @@ func spend(amount: int) -> bool:
 
 
 func earn(amount: int) -> void:
-	scrap += int(round(amount * reward_mult))
+	var mult := reward_mult
+	if loot_magnet > 0.0:
+		mult *= 1.5   # «Хламный магнит» тянет и лом
+	scrap += int(round(amount * mult))
 	scrap_changed.emit(scrap)
 
 

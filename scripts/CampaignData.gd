@@ -268,6 +268,12 @@ const LEGENDARY_RECIPES := {
 	"leg_stena": {"name": "«Стена»", "icon": "🧱", "weapon": "cannon", "level": 2, "needs": {"boss": 1, "ram": 1}, "desc": "Пушка ур.3 в следующий рейс"},
 }
 
+## Легендарная ковка способностей: сгорают трофеи — способность открыта НАВСЕГДА.
+const LEGENDARY_ABILITY_RECIPES := {
+	"ab_magnet": {"name": "«Магнит»", "icon": "🧲", "ability": "magnet", "needs": {"buggy": 3, "biker": 2}, "desc": "Навсегда: «Хламный магнит» — +50% лома 10 сек"},
+	"ab_last_stand": {"name": "«Рубеж»", "icon": "🪓", "ability": "last_stand", "needs": {"trainloko": 1}, "desc": "Навсегда: «Последний рубеж» — темп орудий ×2 на 6 сек"},
+}
+
 ## Сезон по реальной дате (месяц, день); "" если обычный день.
 static func season_for(month: int, day: int) -> String:
 	var md := month * 100 + day

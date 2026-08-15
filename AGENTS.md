@@ -61,7 +61,7 @@
 - Шипы: `ram_damage_multiplier = 1 - 0.3*ур.` и ранят атакующего; дрон: `1.5*ур.` HP/с.
 - Новые орудия: `WeaponData.DEFS` + ветка в `Weapon._build_visual()` + при необходимости вид снаряда в `Projectile`.
 - Новые апгрейды фуры: `TruckData.DEFS` + ветка в `Truck.apply_upgrade()` с обязательным видимым обвесом.
-- Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом.
+- Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом. Легендарная способность: `"legendary": true` в DEFS + рецепт в `CampaignData.LEGENDARY_ABILITY_RECIPES` + `Campaign.forge_ability()` (вечный анлок в `leg_abilities`, сейвится) + `Main._sync_legendary_abilities()` (гейтинг и кнопки). ВНИМАНИЕ: голый `%` в format-строках feedback — только `%%`.
 - Фазы босса в `Enemy._set_phase()`: 2 — ярость (быстрее/чаще бьёт), 3 — зовёт байкеров (`spawn_minions`) и ходит в разгонные тараны (×2.0 урона). Анонсы идут через `WaveManager.boss_event` в HUD.
 - Плотность старших волн: фланговые колонны планируются в `WaveManager._launch_wave()` (`_flank_plan`, триггер `_check_flanks()` по `_spawned_count`, спавн сбоку через `_spawn({flank: ±1})`); диверсанты — флаг `sab` в очереди с 8-й волны → `Enemy.sab` → первый удар эмитит `GameState.weapon_jam_requested` → `Main._on_weapon_jam_requested()` зовёт `Weapon.jam(3.5)`.
 - Перф-бюджеты: взрывы в группе `fx_explosion` (≥8 — не спавнить, ≥4 — без OmniLight), лампа `Weapon._flash` visible только при выстреле, снаряды в группе `projectiles`; бенч — docs/PERF.md.

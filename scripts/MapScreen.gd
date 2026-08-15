@@ -419,6 +419,34 @@ func _render_hangar(is_here: bool) -> void:
 			_play_earn()
 			_render_sheet())
 		frow.add_child(fb)
+	# Кузня легендарных способностей: дороже, зато навсегда
+	var ahead := _mk_label(_sheet_body, 16, Color(0.55, 0.75, 1.0))
+	ahead.text = "⚒ КУЗНЯ СПОСОБНОСТЕЙ (навсегда)"
+	_sheet_body.add_child(ahead)
+	for aid in CampaignData.LEGENDARY_ABILITY_RECIPES:
+		var ad: Dictionary = CampaignData.LEGENDARY_ABILITY_RECIPES[aid]
+		var arow := HBoxContainer.new()
+		arow.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(arow)
+		var aneeds: Array = []
+		for t in ad["needs"]:
+			var td3: Dictionary = CampaignData.TROPHIES[t]
+			aneeds.append("%s %d/%d" % [td3["icon"], int(campaign.trophies.get(t, 0)), int(ad["needs"][t])])
+		var alab := _mk_label(arow, 14, TEXT_DIM)
+		alab.custom_minimum_size = Vector2(440, 0)
+		alab.text = "%s %s — %s  [нужно: %s]" % [ad["icon"], ad["name"], ad["desc"], " ".join(aneeds)]
+		var ab := _rusty_button("Сковать", Color(0.55, 0.75, 1.0))
+		ab.custom_minimum_size = Vector2(120, 40)
+		var already: bool = campaign.leg_abilities.has(String(ad["ability"]))
+		ab.disabled = already or not campaign.can_forge_ability(aid)
+		if already:
+			ab.text = "В арсенале ✓"
+		var aaid: String = aid
+		ab.pressed.connect(func():
+			campaign.forge_ability(aaid)
+			_play_earn()
+			_render_sheet())
+		arow.add_child(ab)
 
 
 func _render_contracts(is_here: bool) -> void:

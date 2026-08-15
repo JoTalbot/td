@@ -195,7 +195,9 @@ func _process(delta: float) -> void:
 		_turret.look_at(flat, Vector3.UP)
 		_turret.rotate_object_local(Vector3.UP, PI)  # стволы построены вдоль +Z
 	_shoot(target)
-	_cooldown = 1.0 / float(stats()["fire_rate"])
+	# «Последний рубеж» (легендарная способность) ускоряет темп всех орудий
+	var fm: float = state.fire_rate_mult if state != null else 1.0
+	_cooldown = 1.0 / (float(stats()["fire_rate"]) * fm)
 
 
 ## Диверсия: оружие заклинивает на duration секунд (волны с диверсантами).

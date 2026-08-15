@@ -37,6 +37,9 @@ var _garage_buttons: Dictionary = {}
 var _garage_toggle: Button
 var _game_over_panel: CenterContainer
 var _ability_buttons: Dictionary = {}
+var _ability_panel: PanelContainer = null
+## id выкованных легендарных способностей (Main синхронизирует с кампанией).
+var leg_abilities: Array = []
 var _blueprints_label: Label
 var _earned_label: Label
 var _meta_buttons: Dictionary = {}
@@ -225,21 +228,22 @@ func _build_bottom_bar() -> void:
 
 ## Вертикальная колонка способностей экипажа слева по центру экрана.
 func _build_ability_bar() -> void:
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _styled_panel())
-	panel.anchor_left = 0.0
-	panel.anchor_right = 0.0
-	panel.anchor_top = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = 10
-	panel.offset_right = 148
-	panel.offset_top = -126
-	panel.offset_bottom = 126
-	add_child(panel)
+	_ability_buttons.clear()
+	_ability_panel = PanelContainer.new()
+	_ability_panel.add_theme_stylebox_override("panel", _styled_panel())
+	_ability_panel.anchor_left = 0.0
+	_ability_panel.anchor_right = 0.0
+	_ability_panel.anchor_top = 0.5
+	_ability_panel.anchor_bottom = 0.5
+	_ability_panel.offset_left = 10
+	_ability_panel.offset_right = 148
+	_ability_panel.offset_top = -126
+	_ability_panel.offset_bottom = 126
+	add_child(_ability_panel)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
-	panel.add_child(col)
+	_ability_panel.add_child(col)
 
 	var title := Label.new()
 	title.text = "ЭКИПАЖ"
@@ -250,6 +254,9 @@ func _build_ability_bar() -> void:
 
 	for id in AbilityData.DEFS:
 		var def: Dictionary = AbilityData.DEFS[id]
+		# Легендарные кнопки появляются только после ковки в кузне трофеев
+		if bool(def.get("legendary", false)) and not leg_abilities.has(id):
+			continue
 		var btn := _rusty_button("%s %s" % [def["icon"], def["name"]], def["color"])
 		btn.custom_minimum_size = Vector2(112, 56)
 		btn.add_theme_font_size_override("font_size", 16)
@@ -257,6 +264,14 @@ func _build_ability_bar() -> void:
 		btn.pressed.connect(func(): ability_pressed.emit(id))
 		col.add_child(btn)
 		_ability_buttons[id] = btn
+
+
+## Пересобрать панель экипажа — после ковки добавить легендарные кнопки.
+func rebuild_ability_bar() -> void:
+	if _ability_panel != null:
+		remove_child(_ability_panel)
+		_ability_panel.queue_free()
+	_build_ability_bar()
 
 
 func _build_garage() -> void:
