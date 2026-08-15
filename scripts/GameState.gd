@@ -13,6 +13,23 @@ var hp: int = START_HP
 var max_hp: int = START_HP
 var is_game_over: bool = false
 
+var _heal_accum := 0.0
+var _invulnerable := 0.0
+
+
+func _process(delta: float) -> void:
+	if _invulnerable > 0.0:
+		_invulnerable = maxf(_invulnerable - delta, 0.0)
+
+
+## Временная неуязвимость фуры (способность «Щит»).
+func grant_invulnerability(seconds: float) -> void:
+	_invulnerable = maxf(_invulnerable, seconds)
+
+
+func is_invulnerable() -> bool:
+	return _invulnerable > 0.0
+
 
 func spend(amount: int) -> bool:
 	if amount > scrap:
@@ -28,7 +45,7 @@ func earn(amount: int) -> void:
 
 
 func damage_truck(amount: int) -> void:
-	if is_game_over:
+	if is_game_over or is_invulnerable():
 		return
 	hp = maxi(hp - amount, 0)
 	hp_changed.emit(hp, max_hp)
@@ -36,8 +53,6 @@ func damage_truck(amount: int) -> void:
 		is_game_over = true
 		game_over.emit()
 
-
-var _heal_accum := 0.0
 
 func heal(amount: float) -> void:
 	if is_game_over:

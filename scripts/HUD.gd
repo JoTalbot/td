@@ -6,13 +6,16 @@ signal upgrade_pressed
 signal sell_pressed
 signal truck_upgrade_pressed(id: String)
 signal restart_pressed
+signal ability_pressed(id: String)
 
 const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
+const AbilityData := preload("res://scripts/AbilityData.gd")
 
 var state: Node
 var waves: Node
 var truck: Node3D
+var abilities: Node = null
 
 var _scrap_label: Label
 var _hp_label: Label
@@ -27,6 +30,7 @@ var _garage_panel: PanelContainer
 var _garage_buttons: Dictionary = {}
 var _garage_toggle: Button
 var _game_over_panel: CenterContainer
+var _ability_buttons: Dictionary = {}
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
 const BORDER := Color(0.55, 0.4, 0.2)
@@ -41,6 +45,7 @@ func _ready() -> void:
 	_build_garage()
 	_build_message()
 	_build_game_over()
+	_build_ability_bar()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -61,6 +66,17 @@ func _process(_delta: float) -> void:
 			_wave_label.text = "Волна %d через %.0f" % [waves.wave_index + 1, ceilf(t)]
 	for id in _build_buttons:
 		(_build_buttons[id] as Button).disabled = state.scrap < WeaponData.DEFS[id]["cost"]
+	if abilities != null:
+		for id in _ability_buttons:
+			var btn: Button = _ability_buttons[id]
+			var def: Dictionary = AbilityData.DEFS[id]
+			var left: float = abilities.cooldown_left(id)
+			if state.is_game_over or left > 0.0:
+				btn.disabled = true
+				btn.text = "%s %.0f с" % [def["icon"], left] if not state.is_game_over else "%s %s" % [def["icon"], def["name"]]
+			else:
+				btn.disabled = false
+				btn.text = "%s %s" % [def["icon"], def["name"]]
 
 
 func _on_hp_changed(hp: int, max_hp: int) -> void:
@@ -189,6 +205,42 @@ func _build_bottom_bar() -> void:
 	_garage_toggle.add_theme_font_size_override("font_size", 16)
 	_garage_toggle.pressed.connect(_toggle_garage)
 	row.add_child(_garage_toggle)
+
+
+## Вертикальная колонка способностей экипажа слева по центру экрана.
+func _build_ability_bar() -> void:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _styled_panel())
+	panel.anchor_left = 0.0
+	panel.anchor_right = 0.0
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = 10
+	panel.offset_right = 148
+	panel.offset_top = -126
+	panel.offset_bottom = 126
+	add_child(panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	panel.add_child(col)
+
+	var title := Label.new()
+	title.text = "ЭКИПАЖ"
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", TEXT_DIM)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+
+	for id in AbilityData.DEFS:
+		var def: Dictionary = AbilityData.DEFS[id]
+		var btn := _rusty_button("%s %s" % [def["icon"], def["name"]], def["color"])
+		btn.custom_minimum_size = Vector2(112, 56)
+		btn.add_theme_font_size_override("font_size", 16)
+		btn.tooltip_text = def["desc"]
+		btn.pressed.connect(func(): ability_pressed.emit(id))
+		col.add_child(btn)
+		_ability_buttons[id] = btn
 
 
 func _build_garage() -> void:

@@ -10,6 +10,7 @@ const HUD := preload("res://scripts/HUD.gd")
 const WeaponScript := preload("res://scripts/Weapon.gd")
 const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
+const Abilities := preload("res://scripts/Abilities.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -17,6 +18,7 @@ var camera_rig: CameraRig
 var state: GameState
 var waves: WaveManager
 var hud: HUD
+var abilities: Abilities
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -49,11 +51,17 @@ func _ready() -> void:
 	waves.state = state
 	add_child(waves)
 
+	abilities = Abilities.new()
+	abilities.name = "Abilities"
+	abilities.setup(state, truck, wasteland)
+	add_child(abilities)
+
 	hud = HUD.new()
 	hud.name = "HUD"
 	hud.state = state
 	hud.waves = waves
 	hud.truck = truck
+	hud.abilities = abilities
 	add_child(hud)
 
 	hud.weapon_selected.connect(_on_weapon_type_selected)
@@ -61,6 +69,8 @@ func _ready() -> void:
 	hud.sell_pressed.connect(_on_sell_pressed)
 	hud.truck_upgrade_pressed.connect(_on_truck_upgrade)
 	hud.restart_pressed.connect(_on_restart_pressed)
+	hud.ability_pressed.connect(abilities.try_activate)
+	abilities.feedback.connect(hud.flash_message)
 	state.game_over.connect(func(): hud.show_game_over(waves.wave_index))
 
 	waves.start()

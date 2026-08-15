@@ -34,6 +34,8 @@
 | `scripts/Truck.gd` | Грузовик: кабина+цистерна+платформа, 8 слотов, колёса/тряска/выхлоп; Crossout-апгрейды с видимыми обвесами (`apply_upgrade`) |
 | `scripts/TruckData.gd` | Данные апгрейдов фуры: armor/spikes/engine/drone, по 3 уровня |
 | `scripts/WeaponData.gd` | Данные орудий: 4 типа × 3 уровня (mgun/flamer/harpoon/cannon) |
+| `scripts/AbilityData.gd` | Данные способностей экипажа: залп/щит/нитро, кулдауны, цвета |
+| `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |
 | `scripts/Enemy.gd` | Рейдер: догоняет, пристраивается на `attack_offset`, таранит; типы buggy/biker/ram/boss; смерть — кувырок и отставание |
@@ -48,6 +50,7 @@
 - Шипы: `ram_damage_multiplier = 1 - 0.3*ур.` и ранят атакующего; дрон: `1.5*ур.` HP/с.
 - Новые орудия: `WeaponData.DEFS` + ветка в `Weapon._build_visual()` + при необходимости вид снаряда в `Projectile`.
 - Новые апгрейды фуры: `TruckData.DEFS` + ветка в `Truck.apply_upgrade()` с обязательным видимым обвесом.
+- Новые способности экипажа: `AbilityData.DEFS` + ветка в `Abilities.try_activate()` с процедурным визуалом.
 
 ## Сборка под Android
 
