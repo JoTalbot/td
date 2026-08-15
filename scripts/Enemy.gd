@@ -29,6 +29,7 @@ var _rage_light: OmniLight3D = null
 
 var truck: Node3D = null
 var state: Node = null
+var ally: Node3D = null      # эскорт-фургон: если задан и жив — бьём его, а не фуру
 
 ## Позиция "пристройки" рядом с грузовиком (смещение от его центра).
 var attack_offset := Vector3(4.0, 0, -2.0)
@@ -222,7 +223,11 @@ func _process(delta: float) -> void:
 	_bob += delta * 11.0
 	_body.position.y = sin(_bob) * 0.04
 
-	var target_pos: Vector3 = truck.global_position + attack_offset
+	# Цель: союзный фургон, если метим в него, иначе фура
+	var anchor: Node3D = truck
+	if ally != null and is_instance_valid(ally) and not ally.is_dead:
+		anchor = ally
+	var target_pos: Vector3 = anchor.global_position + attack_offset
 	var to_target := target_pos - global_position
 	to_target.y = 0.0
 	if to_target.length() > 0.4:
@@ -263,6 +268,17 @@ func _start_charge() -> void:
 
 func _attack() -> void:
 	if state == null or truck == null:
+		return
+	# Эскорт: эта пташка бьёт клиентский фургон
+	if ally != null and is_instance_valid(ally) and not ally.is_dead:
+		var dir2 := signf(global_position.x - ally.global_position.x)
+		if dir2 == 0.0:
+			dir2 = 1.0
+		var tw2 := create_tween()
+		tw2.tween_property(self, "position:x", position.x - dir2 * 1.1, 0.12).set_ease(Tween.EASE_IN)
+		tw2.tween_property(self, "position:x", position.x, 0.3).set_ease(Tween.EASE_OUT)
+		ally.take_damage(maxi(int(round(attack_damage * _charge_mult)), 1))
+		_charge_mult = 1.0
 		return
 	# Рывок-таран в сторону грузовика
 	var dir := signf(global_position.x - truck.global_position.x)

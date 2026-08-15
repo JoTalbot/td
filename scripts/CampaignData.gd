@@ -247,7 +247,37 @@ const CONTRACT_POOL := [
 	{"type": "deliver", "label": "Отвезти %d «%s» в %s", "qty_min": 2, "qty_max": 5, "pay_mult": 3.0},
 	{"type": "bounty", "label": "Перебить %d рейдеров в рейсах", "qty_min": 10, "qty_max": 20, "pay_min": 60, "pay_max": 120},
 	{"type": "reach", "label": "Доехать до %s живым", "pay_min": 50, "pay_max": 90},
+	{"type": "escort", "label": "Сопроводить броневик до %s", "pay_min": 120, "pay_max": 200},
 ]
+
+## Сезонные даты пустоши (реальный календарь): особые правила на пару дней.
+const SEASONS := {
+	"witch_night": {"name": "Ночь Ведьм", "icon": "🎃", "desc": "автожиры каждые 3 волны, награды +25%", "from": Vector2i(10, 30), "to": Vector2i(11, 1)},
+	"founding": {"name": "День Основания", "icon": "🏁", "desc": "лут с рейдеров вдвое щедрее", "from": Vector2i(8, 15), "to": Vector2i(8, 17)},
+	"barter_fair": {"name": "Великая Ярмарка", "icon": "🎪", "desc": "цены −30%, скупка +10% к доле", "from": Vector2i(5, 1), "to": Vector2i(5, 3)},
+}
+
+## Легендарная ковка из трофеев: орудие заданного уровня в следующий рейс.
+## level — индекс уровня (0-based): 1 = ур.2, 2 = ур.3.
+const LEGENDARY_RECIPES := {
+	"leg_shkval": {"name": "«Шквал»", "icon": "🌪", "weapon": "mgun", "level": 1, "needs": {"biker": 2, "buggy": 1}, "desc": "Пулемёт ур.2 в следующий рейс"},
+	"leg_rychag": {"name": "«Рычаг»", "icon": "🪝", "weapon": "harpoon", "level": 2, "needs": {"ram": 2}, "desc": "Гарпун ур.3 в следующий рейс"},
+	"leg_groza": {"name": "«Гроза»", "icon": "⛈", "weapon": "tesla", "level": 1, "needs": {"ace": 1, "copter": 2}, "desc": "Тесла ур.2 в следующий рейс"},
+	"leg_stena": {"name": "«Стена»", "icon": "🧱", "weapon": "cannon", "level": 2, "needs": {"boss": 1, "ram": 1}, "desc": "Пушка ур.3 в следующий рейс"},
+}
+
+## Сезон по реальной дате (месяц, день); "" если обычный день.
+static func season_for(month: int, day: int) -> String:
+	var md := month * 100 + day
+	for id in SEASONS:
+		var f: Vector2i = SEASONS[id]["from"]
+		var t: Vector2i = SEASONS[id]["to"]
+		var fmd: int = f.x * 100 + f.y
+		var tmd: int = t.x * 100 + t.y
+		var inside: bool = (md >= fmd and md <= tmd) if fmd <= tmd else (md >= fmd or md <= tmd)
+		if inside:
+			return id
+	return ""
 
 
 ## Какая находка ждёт у города сегодня: {} если пусто.

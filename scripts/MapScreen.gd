@@ -122,9 +122,15 @@ func _refresh_top() -> void:
 	for m in campaign.daily_mods():
 		var d: Dictionary = CampaignData.DAILY_MODS[m]
 		mods_txt += "  %s%s" % [d["icon"], d["name"]]
+	var season_id: String = campaign.season()
+	var season_tip := ""
+	if season_id != "":
+		var sd: Dictionary = CampaignData.SEASONS[season_id]
+		mods_txt += "  %s %s" % [sd["icon"], sd["name"]]
+		season_tip = "%s %s: %s\n" % [sd["icon"], sd["name"], sd["desc"]]
 	var best: int = campaign.meta.best_wave if campaign.meta != null else 0
 	_day_label.text = "☀ День %d%s    🏆 %d" % [campaign.day, mods_txt, best]
-	_day_label.tooltip_text = ""
+	_day_label.tooltip_text = season_tip
 	for m in campaign.daily_mods():
 		_day_label.tooltip_text += "%s: %s\n" % [CampaignData.DAILY_MODS[m]["name"], CampaignData.DAILY_MODS[m]["desc"]]
 
@@ -388,6 +394,31 @@ func _render_hangar(is_here: bool) -> void:
 		sel.custom_minimum_size = Vector2(90, 40)
 		sel.pressed.connect(func(): campaign.sell_trophy(tid); _render_sheet())
 		row.add_child(sel)
+	# Кузня легендарок: трофеи плавим в орудия на следующий рейс
+	var fhead := _mk_label(_sheet_body, 16, Color(1.0, 0.8, 0.4))
+	fhead.text = "⚒ КУЗНЯ ТРОФЕЕВ"
+	_sheet_body.add_child(fhead)
+	for fid in CampaignData.LEGENDARY_RECIPES:
+		var ld: Dictionary = CampaignData.LEGENDARY_RECIPES[fid]
+		var frow := HBoxContainer.new()
+		frow.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(frow)
+		var needs: Array = []
+		for t in ld["needs"]:
+			var td2: Dictionary = CampaignData.TROPHIES[t]
+			needs.append("%s %d/%d" % [td2["icon"], int(campaign.trophies.get(t, 0)), int(ld["needs"][t])])
+		var flab := _mk_label(frow, 14, TEXT_DIM)
+		flab.custom_minimum_size = Vector2(440, 0)
+		flab.text = "%s %s — %s  [нужно: %s]" % [ld["icon"], ld["name"], ld["desc"], " ".join(needs)]
+		var fb := _rusty_button("Сковать", Color(1.0, 0.8, 0.4))
+		fb.custom_minimum_size = Vector2(120, 40)
+		fb.disabled = not campaign.can_forge(fid)
+		var ffid: String = fid
+		fb.pressed.connect(func():
+			campaign.forge(ffid)
+			_play_earn()
+			_render_sheet())
+		frow.add_child(fb)
 
 
 func _render_contracts(is_here: bool) -> void:

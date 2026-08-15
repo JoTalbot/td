@@ -76,6 +76,9 @@
 - Трофейные тачки: шаблон в `CampaignData.TROPHIES` (chance/salvage/scrap_price) + `WaveManager.enemy_killed(type)` → захват в `Main._on_enemy_killed()` → `campaign.arrive(..., captured)`; ангар — `MapScreen._render_hangar()` («Разобрать» в ресурсы / «Продать» за лом).
 - Звук: только процедурный `SoundFX` (синтез в `_build_samples()`, полифония 8 голосов, push_frame покадрово — `push_frames` в 4.2 НЕТ). Крючки: `GameState.sfx` для орудий/таранов, `Main` для волн/боссов/способностей, `sfx` в HUD/MapScreen для кликов. Тряска камеры: `CameraRig.add_trauma()` (квадрат, затухает). Новые сэмплы балансируем громкостью в `play()`, ≤ 0.35 длины.
 - Рекорды волн: `MetaProgress.best_wave` + `last_run_was_record`, пишутся в обоих концах рейса (`_on_game_over` и `_on_run_completed`), показываются в панелях и шапке карты.
+- Эскорт: шаблон «escort» в `CampaignData.CONTRACT_POOL`; фургон `scripts/AllyVan.gd` спавнится в `Main._spawn_escort_if_needed()` при рейсе в город-точку; враги перенацеливаются через `Enemy.ally` + `WaveManager.ally`; исход — `Campaign.resolve_escort()` в `Main._on_run_completed()` до `arrive()`.
+- Сезоны: `CampaignData.SEASONS` + `season_for(month, day)`; рантайм — `campaign.season()` (тестируется через `_season_override`); ценовые эффекты прямо в `price_of()/sell_rate()`, боевые — в `Main._apply_campaign_effects()`; шапка карты показывает сезон.
+- Легендарки: `CampaignData.LEGENDARY_RECIPES` (weapon+level+needs по трофеям) → `campaign.forge()` складывает в `pending` → ветка `leg_*` в `Main._apply_campaign_effects()` монтирует с `free_start` (за 0 при разборке). UI — секция «Кузня» в ангаре.
 
 ## Сборка под Android
 

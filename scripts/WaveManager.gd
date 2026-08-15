@@ -29,6 +29,10 @@ var danger := 1.0
 var bonus_mult := 1.0
 ## Добавочные враги на волну (дневной мод «Караван»).
 var extra_count := 0
+## Союзный фургон эскорта: часть рейдеров целится в него. null — эскорта нет.
+var ally: Node3D = null
+## Сезон «Ночь Ведьм»: автожиры каждые N волн. 0 — отключено.
+var ambush_every := 0
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -104,6 +108,10 @@ func _launch_wave() -> void:
 		else:
 			_spawn_queue.append({"type": "boss", "hp_scale": hp_scale})
 			boss_event.emit("☠ БОСС-ТЯГАЧ на горизонте!")
+	# «Ночь Ведьм»: стая автожиров каждые N волн (волну не блокируют)
+	if ambush_every > 0 and wave_index % ambush_every == 2:
+		_on_ace_escort(2)
+		boss_event.emit("🎃 Стая автожиров в ночном небе!")
 	wave_started.emit(wave_index)
 
 
@@ -137,6 +145,10 @@ func _spawn(data: Dictionary) -> void:
 		var lane := 3.6 + randf() * 1.6
 		var depth := randf_range(-3.5, 3.0)
 		enemy.attack_offset = Vector3(_side_toggle * lane, 0, depth)
+		# Эскорт: треть рейдеров валом валит на клиентский фургон
+		if ally != null and is_instance_valid(ally) and not ally.is_dead and randf() < 0.35:
+			enemy.ally = ally
+			enemy.attack_offset = Vector3(randf_range(-2.5, 2.5), 0, randf_range(-2.5, 2.5))
 
 	enemy.truck = truck
 	enemy.state = state

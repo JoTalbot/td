@@ -514,6 +514,18 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		sl.add_theme_font_size_override("font_size", 15)
 		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(sl)
+	var escort_pay: int = summary.get("escort", 0)
+	if escort_pay != 0:
+		var el := Label.new()
+		if escort_pay > 0:
+			el.text = "🛡 Эскорт доведён живым! +⚙%d" % escort_pay
+			el.add_theme_color_override("font_color", Color(0.7, 0.95, 0.5))
+		else:
+			el.text = "💥 Клиентский броневик не доехал…"
+			el.add_theme_color_override("font_color", Color(1.0, 0.45, 0.3))
+		el.add_theme_font_size_override("font_size", 16)
+		el.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(el)
 	var produced: Dictionary = summary.get("produced", {})
 	if not produced.is_empty():
 		var pl := Label.new()

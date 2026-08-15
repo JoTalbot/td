@@ -12,6 +12,7 @@ const WeaponData := preload("res://scripts/WeaponData.gd")
 const TruckData := preload("res://scripts/TruckData.gd")
 const Abilities := preload("res://scripts/Abilities.gd")
 const SoundFX := preload("res://scripts/SoundFX.gd")
+const AllyVan := preload("res://scripts/AllyVan.gd")
 const RoadEvents := preload("res://scripts/RoadEvents.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const Campaign := preload("res://scripts/Campaign.gd")
@@ -41,6 +42,9 @@ var _run_loot: Dictionary = {}
 var _run_trophies: Dictionary = {}
 ## Ремкомплект из крафта: раз за рейс автопочинка при HP < 25%
 var _repair_kit_ready := false
+var _ally: Node3D = null          # действующий эскорт-фургон (null — не нанимали)
+var _ally_warned := false
+var _loot_chance := 0.25          # сезон «День Основания» поднимает до 0.5
 
 var selected_weapon_type: String = ""
 var selected_weapon: Node3D = null
@@ -163,7 +167,33 @@ func _on_travel(city_id: String) -> void:
 		CampaignData.CITIES[campaign.location]["name"],
 		CampaignData.CITIES[city_id]["name"]])
 	_apply_campaign_effects()
+	_spawn_escort_if_needed(city_id)
 	waves.start()
+
+
+## Эскорт: если едем в город активного эскорт-контракта — цепляем фургон.
+func _spawn_escort_if_needed(city_id: String) -> void:
+	waves.ally = null
+	_ally = null
+	if campaign.active_escort_for(city_id).is_empty():
+		return
+	_ally = AllyVan.new()
+	_ally.truck = truck
+	add_child(_ally)
+	_ally.global_position = truck.global_position + Vector3(-6.5, 0, -5.0)
+	waves.ally = _ally
+	_ally_warned = false
+	_ally.damaged.connect(func(_hp, _mhp):
+		if not _ally_warned and float(_hp) < float(_mhp) * 0.5:
+			_ally_warned = true
+			hud.flash_message("🛡 Клиентский фургон наполовину бит!"))
+	_ally.destroyed.connect(func():
+		hud.flash_message("💥 Броневик клиента уничтожен!")
+		sfx.play("big_boom", 0.8)
+		camera_rig.add_trauma(0.45)
+		waves.ally = null)
+	hud.flash_message("🛡 Эскорт: доведите броневик живым!")
+	sfx.play("horn", 0.8, 1.2)
 
 
 ## Постоянные техи и staged-модули применяются один раз на старте рейса.
@@ -188,6 +218,16 @@ func _apply_campaign_effects() -> void:
 			fw.set_meta("free_start", true)
 			truck.mount_weapon(slot, fw)
 			hud.flash_message("🗃 Кладовая: %s на борту" % WeaponData.DEFS[wtype]["name"])
+	# Сброс на рейс (для повторных тестовых применений)
+	_loot_chance = 0.25
+	waves.ambush_every = 0
+	# Сезонные события календаря
+	match campaign.season():
+		"witch_night":
+			waves.bonus_mult *= 1.25
+			waves.ambush_every = 3
+		"founding":
+			_loot_chance = 0.5
 	# Дневные модификаторы пустоши
 	for m in campaign.daily_mods():
 		match m:
@@ -200,6 +240,10 @@ func _apply_campaign_effects() -> void:
 				wasteland.speed_scale *= 1.15
 				abilities.cooldown_mult *= 0.8
 	for item in campaign.pop_pending():
+		# Легендарки из кузни трофеев: орудие заданного уровня, продаётся за 0
+		if item.begins_with("leg_"):
+			_mount_legendary(item)
+			continue
 		match item:
 			"repair_kit":
 				_repair_kit_ready = true
@@ -221,10 +265,45 @@ func _apply_campaign_effects() -> void:
 				hud.flash_message("🗜 Комплект орудия смонтирован!")
 
 
+## Смонтировать выкованную легендарку в первый свободный слот.
+func _mount_legendary(item: String) -> void:
+	var ld: Dictionary = CampaignData.LEGENDARY_RECIPES.get(item, {})
+	if ld.is_empty():
+		return
+	var slot := -1
+	for i in truck.slot_nodes.size():
+		if not truck.weapons.has(i):
+			slot = i
+			break
+	if slot < 0:
+		hud.flash_message("❌ Фура набита — %s ушло обратно в ангар!" % ld["name"])
+		return
+	var w: Node3D = WeaponScript.new()
+	w.setup(String(ld["weapon"]), state)
+	w.slot_index = slot
+	truck.mount_weapon(slot, w)
+	for i in int(ld["level"]):
+		w.upgrade()
+	w.set_meta("free_start", true)
+	hud.flash_message("%s %s на борту, гроза выжженых земель!" % [ld["icon"], ld["name"]])
+	sfx.play("ability", 0.9, 0.75)
+
+
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
 func _on_run_completed() -> void:
 	battle_active = false
+	# Эскорт решается ДО arrive: фургон жив — фракция платит щедро
+	var escort_pay := 0
+	if not campaign.active_escort_for(_destination).is_empty():
+		var survived: bool = _ally != null and is_instance_valid(_ally) and not _ally.is_dead
+		escort_pay = campaign.resolve_escort(_destination, survived)
+		if escort_pay > 0:
+			sfx.play("earn", 1.0)
+		else:
+			sfx.play("boss", 0.7)
 	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
+	summary["escort"] = escort_pay
+	waves.ally = null
 	# Живой финиш тоже приносит чертежи и идёт в рекорды
 	summary["blueprints"] = meta.finish_run(waves.wave_index, waves.bosses_down)
 	summary["record"] = meta.last_run_was_record
@@ -249,8 +328,8 @@ func _on_enemy_killed(type: String) -> void:
 		_run_trophies[type] = int(_run_trophies.get(type, 0)) + 1
 		hud.flash_message("🛻 Захвачен трофей: %s %s!" % [tpl["icon"], tpl["name"]])
 		sfx.play("earn", 0.8)
-	# Лут: 25% шанс на ресурс с убитого (металл чаще всего)
-	if randf() < 0.25:
+	# Лут с убитого (металл чаще всего); «День Основания» удваивает шанс
+	if randf() < _loot_chance:
 		var roll := randf()
 		var res := "metal"
 		if roll > 0.93:

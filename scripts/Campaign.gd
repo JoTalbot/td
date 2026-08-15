@@ -178,11 +178,24 @@ func daily_mods() -> Array:
 	return out
 
 
+## Активный сезон по реальному календарю ("" — обычный день пустоши).
+var _season_override := ""   # для смок-тестов
+
+
+func season() -> String:
+	if _season_override != "":
+		return _season_override
+	var d: Dictionary = Time.get_datetime_dict_from_system()
+	return CampaignData.season_for(int(d["month"]), int(d["day"]))
+
+
 func price_of(res: String, city: String) -> int:
 	var base: float = CampaignData.RESOURCES[res]["price"]
 	var mod: float = CampaignData.CITIES[city]["mods"].get(res, 1.0)
 	if "fair" in daily_mods():
 		mod *= 0.8   # ярмарочный день — всё дешевле
+	if season() == "barter_fair":
+		mod *= 0.7   # Великая Ярмарка — распродажа века
 	var h := sin(float(day_seed) * 127.1 + float(res.hash() % 997) * 311.7 + float(city.hash() % 991) * 74.7) * 43758.5453
 	var jitter := 0.9 + 0.2 * (h - floorf(h))
 	return maxi(int(round(base * mod * jitter)), 1)
@@ -216,6 +229,8 @@ func buy_price(res: String, city: String) -> int:
 ## Доля цены при продаже: +3% за уровень репутации (потолок 95%).
 func sell_rate(city: String) -> float:
 	var rate := 0.85 if "tradecraft" in research_done else 0.75
+	if season() == "barter_fair":
+		rate += 0.10   # на ярмарке скупают не глядя
 	return minf(rate + 0.03 * float(rep_level(city)), 0.95)
 
 
@@ -412,6 +427,10 @@ func _generate_offers(city: String) -> Array:
 				var dests2 := CampaignData.neighbors(city)
 				c["dest"] = dests2[rng.randi() % dests2.size()]
 				c["reward"] = rng.randi_range(int(tpl["pay_min"]), int(tpl["pay_max"]))
+			"escort":
+				var dests3 := CampaignData.neighbors(city)
+				c["dest"] = dests3[rng.randi() % dests3.size()]
+				c["reward"] = rng.randi_range(int(tpl["pay_min"]), int(tpl["pay_max"]))
 		out.append(c)
 	return out
 
@@ -461,7 +480,61 @@ func contract_text(c: Dictionary) -> String:
 		"reach":
 			var dn2: String = CampaignData.CITIES.get(c["dest"], {}).get("name", "?")
 			return "🏁 Доехать до %s живым (награда ⚙%d)" % [dn2, c["reward"]]
+		"escort":
+			var dn3: String = CampaignData.CITIES.get(c["dest"], {}).get("name", "?")
+			return "🛡 Сопроводить броневик до %s (награда ⚙%d)" % [dn3, c["reward"]]
 	return "?"
+
+
+## Есть ли активный эскорт-контракт на этот город.
+func active_escort_for(city: String) -> Dictionary:
+	for c in contracts:
+		if c["type"] == "escort" and c["dest"] == city:
+			return c
+	return {}
+
+
+## Исход эскорта по прибытии: survived — довезли живым.
+## Возвращает награду (>0), 0 — контракта нет, -1 — фургон погиб.
+func resolve_escort(city: String, survived: bool) -> int:
+	for i in range(contracts.size() - 1, -1, -1):
+		var c: Dictionary = contracts[i]
+		if c["type"] == "escort" and c["dest"] == city:
+			contracts.remove_at(i)
+			if not survived:
+				save_campaign()
+				return -1
+			var origin: String = c.get("origin", "")
+			var pay: int = int(int(c["reward"]) * (1.0 + 0.05 * float(rep_level(origin))))
+			wallet += pay
+			if origin != "":
+				gain_rep(origin, 4)
+			save_campaign()
+			return pay
+	return 0
+
+
+## --- Легендарная ковка (трофеи → орудие на рейс) ---
+func can_forge(id: String) -> bool:
+	if not CampaignData.LEGENDARY_RECIPES.has(id):
+		return false
+	var needs: Dictionary = CampaignData.LEGENDARY_RECIPES[id]["needs"]
+	for t in needs:
+		if int(trophies.get(t, 0)) < int(needs[t]):
+			return false
+	return true
+
+
+## Сковать: трофеи в печь, орудие в staged-модули следующего рейса.
+func forge(id: String) -> bool:
+	if not can_forge(id):
+		return false
+	var needs: Dictionary = CampaignData.LEGENDARY_RECIPES[id]["needs"]
+	for t in needs:
+		trophies[t] = int(trophies[t]) - int(needs[t])
+	pending.append(id)
+	save_campaign()
+	return true
 
 
 ## --- Рандомные локации (POI) ---
