@@ -171,6 +171,8 @@ func _redraw_map() -> void:
 		var mark := ""
 		if id == campaign.location:
 			mark = " 📍"
+		if not campaign.poi_at(id).is_empty():
+			mark += " ❓"
 		btn.text = "%s\n%s%s" % [c["icon"], c["name"], mark]
 	_map_area.queue_redraw()
 
@@ -223,6 +225,22 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	spec.text = "Дёшево тут: %s" % (", ".join(cheap) if not cheap.is_empty() else "ничего особенного")
 	spec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
+	# Рандомная находка дня рядом с городом — одна попытка в сутки
+	if is_here:
+		var poi: Dictionary = campaign.poi_at(_selected)
+		if not poi.is_empty():
+			var prow := HBoxContainer.new()
+			prow.add_theme_constant_override("separation", 8)
+			_sheet_body.add_child(prow)
+			var plab := _mk_label(prow, 14, Color(0.85, 0.75, 0.4))
+			plab.text = "%s %s — %s" % [poi["icon"], poi["name"], poi["desc"]]
+			plab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			plab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var pbtn := _rusty_button("🔎 Осмотреть", Color(0.85, 0.75, 0.4))
+			pbtn.custom_minimum_size = Vector2(150, 46)
+			pbtn.pressed.connect(func(): _resolve_poi_at(_selected))
+			prow.add_child(pbtn)
+
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
 	_sheet_body.add_child(btns)
@@ -255,6 +273,18 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	else:
 		var nope := _mk_label(btns, 15, Color(0.6, 0.5, 0.4))
 		nope.text = "Прямой дороги нет — езжай через соседей."
+
+
+## Осмотр находки дня: разрешаем и показываем итог поверх листа города.
+func _resolve_poi_at(city: String) -> void:
+	var res: Dictionary = campaign.resolve_poi(city)
+	_render_sheet()
+	if res.is_empty():
+		return
+	var box := _mk_label(_sheet_body, 15, Color(0.95, 0.85, 0.5))
+	box.text = "%s: %s" % [res.get("title", "Находка"), res.get("text", "")]
+	box.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sheet_body.move_child(box, 0)
 
 
 func _render_market(is_here: bool) -> void:

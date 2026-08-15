@@ -22,6 +22,7 @@ var research_active := ""          # текущее исследование (id
 var research_left := 0             # сколько рейсов до завершения
 var inventory: Dictionary = {}     # item_id -> qty (скрафченные модули)
 var pending: Array = []            # модули, выданные в следующий рейс
+var poi_used: Array = []           # осмотренные находки: ключи "day_seed:city"
 ## Ссылка на мета-прогресс (чертежи). Ставится из Main.
 var meta: Node = null
 
@@ -53,6 +54,10 @@ func load_campaign() -> void:
 	research_left = int(data.get("research_left", 0))
 	inventory = data.get("inventory", {})
 	pending = data.get("pending", [])
+	poi_used = data.get("poi_used", [])
+	# Находки живут одни сутки: чистим метки прошлых дней
+	var today_prefix := "%d:" % day_seed
+	poi_used = poi_used.filter(func(k: Variant) -> bool: return str(k).begins_with(today_prefix))
 
 
 func save_campaign() -> void:
@@ -73,6 +78,7 @@ func save_campaign() -> void:
 		"research_left": research_left,
 		"inventory": inventory,
 		"pending": pending,
+		"poi_used": poi_used,
 	}))
 
 ## --- База (только в родном городе) ---
@@ -372,6 +378,76 @@ func contract_text(c: Dictionary) -> String:
 			var dn2: String = CampaignData.CITIES.get(c["dest"], {}).get("name", "?")
 			return "🏁 Доехать до %s живым (награда ⚙%d)" % [dn2, c["reward"]]
 	return "?"
+
+
+## --- Рандомные локации (POI) ---
+## Находка у города сегодня, если её ещё не осматривали.
+func poi_at(city: String) -> Dictionary:
+	if poi_used.has("%d:%s" % [day_seed, city]):
+		return {}
+	return CampaignData.poi_for(city, day_seed)
+
+
+## Осмотреть находку. Бросок детерминирован (день + город) — перезаход не поможет.
+## Возвращает {"title", "text"} для панели или {} если осматривать нечего.
+func resolve_poi(city: String) -> Dictionary:
+	var poi: Dictionary = poi_at(city)
+	if poi.is_empty():
+		return {}
+	poi_used.append("%d:%s" % [day_seed, city])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(abs(hash("%d:%s:roll" % [day_seed, city])))
+	var parts: Array[String] = []
+	match String(poi.get("id", "")):
+		"spring":
+			var res := "fuel" if rng.randf() < 0.5 else "water"
+			var n := add_cargo(res, rng.randi_range(1, 2))
+			if n > 0:
+				parts.append("+%d %s" % [n, CampaignData.RESOURCES[res]["name"]])
+			else:
+				# Трюм полон — прямо в баки и котлы фуры
+				var sc := 8 * rng.randi_range(1, 2)
+				wallet += sc
+				parts.append("трюм полон, слили в котлы (⚙+%d)" % sc)
+		"convoy_wreck":
+			var pool: Array = ["metal", "food", "ammo", "water"]
+			for _i in rng.randi_range(2, 3):
+				var r2: String = pool[rng.randi() % pool.size()]
+				if add_cargo(r2, 1) > 0:
+					parts.append("+1 %s" % CampaignData.RESOURCES[r2]["name"])
+			if rng.randf() < 0.3 and add_cargo("chips", 1) > 0:
+				parts.append("+1 Электроника!")
+		"raider_cache":
+			if rng.randf() < 0.25:
+				var toll: int = mini(wallet, rng.randi_range(15, 35))
+				wallet -= toll
+				parts.append("ЛОВУШКА! Мина рванула — ремонт ⚙-%d" % toll)
+			else:
+				var pool2: Array = ["metal", "ammo", "chips"]
+				for _i in rng.randi_range(3, 4):
+					var r3: String = pool2[rng.randi() % pool2.size()]
+					if add_cargo(r3, 1) > 0:
+						parts.append("+1 %s" % CampaignData.RESOURCES[r3]["name"])
+				# Иногда в заначке чертёж — уходит в мета-мастерскую
+				if rng.randf() < 0.5 and meta != null:
+					meta.blueprints += 1
+					meta.save_meta()
+					parts.append("+1 чертёж 📐")
+		"merchant":
+			var keys: Array = CampaignData.RESOURCES.keys()
+			var res2: String = keys[rng.randi() % keys.size()]
+			var unit := maxi(1, int(price_of(res2, city) * 0.5))
+			var qty: int = mini(3, mini(cargo_space(), wallet / unit))
+			if qty > 0:
+				wallet -= unit * qty
+				add_cargo(res2, qty)
+				parts.append("+%d %s за ⚙%d (по ⚙%d)" % [qty, CampaignData.RESOURCES[res2]["name"], unit * qty, unit])
+			else:
+				parts.append("торговец развёл руками: кошелёк или трюм пуст")
+	save_campaign()
+	var title_txt: String = "%s %s" % [poi.get("icon", "❓"), poi.get("name", "Находка")]
+	var body: String = "; ".join(parts) if not parts.is_empty() else "Пусто. Пепел и ржавчина."
+	return {"title": title_txt, "text": body}
 
 
 ## --- Итоги рейса ---

@@ -195,12 +195,39 @@ const DAILY_MODS := {
 	"tailwind": {"name": "Попутный ветер", "icon": "🍃", "desc": "мир летит +15%, КД Нитро -20%"},
 }
 
+## Рандомные локации пустоши (POI): каждый день по сиду даты часть городов
+## получает находку поблизости. Осматривается один раз в день.
+const POI_TYPES := {
+	"convoy_wreck": {"name": "Остов конвоя", "icon": "🚛",
+		"desc": "Разбитый караван у обочины. Можно порыться в обломках."},
+	"raider_cache": {"name": "Схрон рейдеров", "icon": "🏴",
+		"desc": "Заначка банды в скалах. Богато, но бывают мины."},
+	"merchant": {"name": "Странствующий торговец", "icon": "🐪",
+		"desc": "Кочевник с товаром за полцены от местного рынка."},
+	"spring": {"name": "Просачивающаяся скважина", "icon": "⛲",
+		"desc": "Из-под земли бьёт струйка. Бесплатно — бери."},
+}
+
 ## Шаблоны контрактов, которые раздают города.
 const CONTRACT_POOL := [
 	{"type": "deliver", "label": "Отвезти %d «%s» в %s", "qty_min": 2, "qty_max": 5, "pay_mult": 3.0},
 	{"type": "bounty", "label": "Перебить %d рейдеров в рейсах", "qty_min": 10, "qty_max": 20, "pay_min": 60, "pay_max": 120},
 	{"type": "reach", "label": "Доехать до %s живым", "pay_min": 50, "pay_max": 90},
 ]
+
+
+## Какая находка ждёт у города сегодня: {} если пусто.
+## Детерминированно от реальной даты и города — на всей пустоши одинаково.
+static func poi_for(city: String, day_seed: int) -> Dictionary:
+	var h := fposmod(sin(float(day_seed) * 37.77 + float(city.hash() % 997) * 17.13) * 24634.6345, 1.0)
+	if h > 0.5:
+		return {}
+	var keys := POI_TYPES.keys()
+	var h2 := fposmod(sin(float(day_seed) * 91.31 + float(city.hash() % 991) * 57.71) * 43758.5453, 1.0)
+	var id: String = keys[int(h2 * float(keys.size())) % keys.size()]
+	var d: Dictionary = POI_TYPES[id].duplicate()
+	d["id"] = id
+	return d
 
 
 static func route_between(a: String, b: String) -> Array:
