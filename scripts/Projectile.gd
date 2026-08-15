@@ -12,6 +12,13 @@ var slow_factor := -1.0
 var splash := 0.0
 var state: Node
 
+# Баллистика мортиры: летим по дуге в точку с упреждением
+var _lob_from := Vector3.ZERO
+var _lob_to := Vector3.ZERO
+var _lob_t := 0.0
+var _lob_time := 0.0
+var _lob_height := 4.0
+
 
 func configure(p_target: Node3D, st: Dictionary, p_color: Color, p_kind: String, p_state: Node) -> void:
 	target = p_target
@@ -26,6 +33,7 @@ func configure(p_target: Node3D, st: Dictionary, p_color: Color, p_kind: String,
 		"flame": speed = 16.0
 		"harpoon": speed = 34.0
 		"shell": speed = 26.0
+		"mortar": speed = 0.0   # движение дугой, не по прямой
 
 
 func _ready() -> void:
@@ -60,13 +68,30 @@ func _ready() -> void:
 			s2.radius = 0.14
 			s2.height = 0.28
 			mesh.mesh = s2
+		"mortar":
+			# Самодельная мина: цилиндричек с хвостовым оперением
+			var s3 := SphereMesh.new()
+			s3.radius = 0.2
+			s3.height = 0.4
+			mesh.mesh = s3
 	mesh.material_override = m
 	add_child(mesh)
+	if kind == "mortar":
+		var fin := MeshInstance3D.new()
+		var fm := BoxMesh.new()
+		fm.size = Vector3(0.3, 0.3, 0.04)
+		fin.mesh = fm
+		fin.position = Vector3(0, 0.3, 0)
+		fin.material_override = m
+		mesh.add_child(fin)
 
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(target) or target.is_dying:
 		queue_free()
+		return
+	if kind == "mortar":
+		_lob_step(delta)
 		return
 	var aim := target.global_position + Vector3.UP * 0.6
 	var to_target := aim - global_position
@@ -78,6 +103,37 @@ func _process(delta: float) -> void:
 	global_position += to_target.normalized() * step
 	if kind == "flame":
 		scale = scale.lerp(Vector3.ONE * 1.8, delta * 3.0)
+
+
+## Полёт мины по дуге: фиксируем точку цели с упреждением, прилет — сплэш.
+func _lob_start() -> void:
+	_lob_from = global_position
+	# Упреждение: цель едет к фуре — бьём чуть вперёд по курсу
+	_lob_to = target.global_position + Vector3.UP * 0.4
+	if "chase_speed" in target:
+		var fly_time := clampf(_lob_from.distance_to(_lob_to) / 22.0, 0.6, 1.4)
+		var dir: Vector3 = -Vector3(global_position - _lob_to).normalized()
+		_lob_to += Vector3(dir.x, 0, dir.z) * target.chase_speed * fly_time * 0.4
+		_lob_time = fly_time
+	else:
+		_lob_time = 1.0
+	_lob_height = clampf(_lob_from.distance_to(_lob_to) * 0.22, 3.0, 7.0)
+	_lob_t = 0.0
+
+
+func _lob_step(delta: float) -> void:
+	if _lob_time <= 0.0:
+		_lob_start()
+	_lob_t += delta / _lob_time
+	if _lob_t >= 1.0:
+		global_position = _lob_to
+		_hit()
+		return
+	var pos := _lob_from.lerp(_lob_to, _lob_t)
+	pos.y += sin(_lob_t * PI) * _lob_height
+	global_position = pos
+	# Мина переворачивается в полёте
+	rotation.x += delta * 6.0
 
 
 func _hit() -> void:
@@ -94,6 +150,8 @@ func _hit() -> void:
 	match kind:
 		"shell":
 			Junk.explosion(get_tree().current_scene, global_position, 1.2)
+		"mortar":
+			Junk.explosion(get_tree().current_scene, global_position, 1.8)
 		"flame":
 			Junk.explosion(get_tree().current_scene, global_position, 0.5)
 		_:

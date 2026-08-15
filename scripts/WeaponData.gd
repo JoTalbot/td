@@ -46,4 +46,26 @@ const DEFS := {
 			{"damage": 115, "range": 22.0, "fire_rate": 0.7, "splash": 4.0, "upgrade": -1},
 		],
 	},
+	"tesla": {
+		"name": "Тесла",
+		"cost": 110,
+		"color": Color(1.0, 0.88, 0.45),
+		"kind": "zap",
+		"levels": [
+			{"damage": 9, "range": 12.0, "fire_rate": 1.1, "chain": 2, "upgrade": 100},
+			{"damage": 15, "range": 13.0, "fire_rate": 1.3, "chain": 3, "upgrade": 190},
+			{"damage": 24, "range": 14.0, "fire_rate": 1.5, "chain": 4, "upgrade": -1},
+		],
+	},
+	"mortar": {
+		"name": "Мортира",
+		"cost": 160,
+		"color": Color(0.9, 0.65, 0.3),
+		"kind": "mortar",
+		"levels": [
+			{"damage": 48, "range": 19.0, "fire_rate": 0.4, "splash": 4.5, "upgrade": 130},
+			{"damage": 80, "range": 20.0, "fire_rate": 0.48, "splash": 5.0, "upgrade": 240},
+			{"damage": 130, "range": 21.0, "fire_rate": 0.55, "splash": 5.5, "upgrade": -1},
+		],
+	},
 }

@@ -97,6 +97,38 @@ func _build_visual() -> void:
 			barrel.material_override = Junk.metal(Color(0.18, 0.18, 0.18), 0.55, 0.85)
 			_turret.add_child(barrel)
 			Junk.box(_turret, Vector3(0.8, 0.55, 0.08), Vector3(0, 0.25, 0.32), Junk.rust(RandomNumberGenerator.new()))
+		"tesla":
+			# Самодельный разрядник: мачта с медной катушкой и шаром
+			Junk.box(_turret, Vector3(0.45, 0.25, 0.45), Vector3(0, 0.1, 0), Junk.metal(Color(0.3, 0.27, 0.22), 0.8, 0.6))
+			Junk.cyl(_turret, 0.06, 0.9, Vector3(0, 0.6, 0), Junk.metal(Color(0.25, 0.22, 0.2), 0.7, 0.6))
+			# Медная обмотка по мачте
+			for i in 4:
+				Junk.cyl(_turret, 0.15, 0.05, Vector3(0, 0.32 + i * 0.17, 0), Junk.metal(Color(0.7, 0.42, 0.2), 0.35, 0.95))
+			var ball := MeshInstance3D.new()
+			var sphere := SphereMesh.new()
+			sphere.radius = 0.17
+			sphere.height = 0.34
+			ball.mesh = sphere
+			ball.position = Vector3(0, 1.12, 0)
+			var ball_mat := StandardMaterial3D.new()
+			ball_mat.albedo_color = Color(0.9, 0.75, 0.45)
+			ball_mat.roughness = 0.3
+			ball_mat.metallic = 0.9
+			ball_mat.emission_enabled = true
+			ball_mat.emission = Color(1.0, 0.8, 0.35)
+			ball_mat.emission_energy_multiplier = 1.2
+			ball.material_override = ball_mat
+			ball.name = "Ball"
+			_turret.add_child(ball)
+		"mortar":
+			# Толстая труба под углом + лафет с сошниками
+			Junk.box(_turret, Vector3(0.6, 0.2, 0.6), Vector3(0, 0.08, 0), Junk.metal(Color(0.3, 0.27, 0.22), 0.8, 0.6))
+			Junk.cyl(_turret, 0.22, 1.15, Vector3(0, 0.5, 0.08), Junk.metal(Color(0.2, 0.2, 0.2), 0.55, 0.8), Vector3(38, 0, 0))
+			# Сошники-ноги
+			Junk.cyl(_turret, 0.05, 0.7, Vector3(0.3, 0.2, -0.15), Junk.metal(Color(0.35, 0.32, 0.28), 0.7, 0.7), Vector3(0, 0, 35))
+			Junk.cyl(_turret, 0.05, 0.7, Vector3(-0.3, 0.2, -0.15), Junk.metal(Color(0.35, 0.32, 0.28), 0.7, 0.7), Vector3(0, 0, -35))
+			# Ящик мин рядом
+			Junk.box(_turret, Vector3(0.4, 0.28, 0.3), Vector3(0.42, 0.16, -0.25), Junk.metal(Color(0.45, 0.35, 0.15), 0.85, 0.4))
 
 	_flash = OmniLight3D.new()
 	_flash.light_color = Color(1.0, 0.75, 0.35)
@@ -161,7 +193,87 @@ func _find_target() -> Node3D:
 
 func _shoot(target: Node3D) -> void:
 	_flash.light_energy = 2.5
+	if _def()["kind"] == "zap":
+		_zap(target)
+		return
 	var proj: Node3D = Projectile.new()
 	proj.configure(target, stats(), _def()["color"], _def()["kind"], state)
 	get_tree().current_scene.add_child(proj)
 	proj.global_position = _turret.global_position + _turret.global_transform.basis.z * 0.8 + Vector3.UP * 0.2
+
+
+## Разряд Теслы: мгновенная дуга, перескакивает на ближайших врагов с затуханием.
+func _zap(target: Node3D) -> void:
+	var st: Dictionary = stats()
+	var dmg: int = st["damage"]
+	var chains: int = int(st.get("chain", 2))
+	var from: Vector3 = _turret.global_position + Vector3.UP * 0.9
+	var current: Node3D = target
+	var hit_list: Array[Node3D] = []
+	for i in chains:
+		if not is_instance_valid(current) or current.is_dying:
+			break
+		var to: Vector3 = current.global_position + Vector3.UP * 0.9
+		_spawn_arc(from, to)
+		current.take_damage(dmg, state)
+		hit_list.append(current)
+		from = to
+		dmg = int(ceil(dmg * 0.6))   # затухание 40% на прыжок
+		current = _next_chain_target(from, hit_list)
+
+
+## Ближайший враг в радиусе 7 м, которого дуга ещё не била.
+func _next_chain_target(from: Vector3, hit_list: Array) -> Node3D:
+	var best: Node3D = null
+	var best_d := 7.0
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy) or enemy.is_dying or enemy in hit_list:
+			continue
+		var d: float = from.distance_to(enemy.global_position)
+		if d < best_d:
+			best_d = d
+			best = enemy
+	return best
+
+
+## Визуал дуги: ломаный тёплый разряд из тонких цилиндров, живёт 0.12 с.
+func _spawn_arc(from: Vector3, to: Vector3) -> void:
+	var arc := Node3D.new()
+	get_tree().current_scene.add_child(arc)
+	arc.global_position = from
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.82, 0.35)
+	mat.emission_energy_multiplier = 3.0
+	mat.albedo_color = Color(1.0, 0.85, 0.4)
+	# Ломаная: 4 сегмента со случайным уходом в сторону
+	var pts: Array[Vector3] = [from]
+	for s in 3:
+		var k := (s + 1) / 4.0
+		var mid := from.lerp(to, k)
+		mid += Vector3(randf_range(-0.5, 0.5), randf_range(-0.25, 0.4), randf_range(-0.5, 0.5)) * (1.0 - absf(k - 0.5))
+		pts.append(mid)
+	pts.append(to)
+	for s in pts.size() - 1:
+		var a: Vector3 = pts[s]
+		var b: Vector3 = pts[s + 1]
+		var seg_len := a.distance_to(b)
+		if seg_len < 0.05:
+			continue
+		var seg := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.03
+		cm.bottom_radius = 0.03
+		cm.height = seg_len
+		seg.mesh = cm
+		seg.material_override = mat
+		arc.add_child(seg)
+		seg.global_position = (a + b) * 0.5
+		seg.look_at_from_position(seg.global_position, b, Vector3.UP)
+		seg.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+	# Вспышка в точке попадания
+	Junk.explosion(get_tree().current_scene, to, 0.35)
+	var tw := arc.create_tween()
+	tw.tween_interval(0.12)
+	tw.tween_callback(arc.queue_free)

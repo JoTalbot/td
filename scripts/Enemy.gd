@@ -244,7 +244,7 @@ func _process(delta: float) -> void:
 				_start_charge()
 
 
-## Разгонный таран: босс откатывается назад, потом врубается с утроенной силой.
+## Разгонный таран: босс откатывается назад, потом врубается с силой ×2.2.
 func _start_charge() -> void:
 	_charging = true
 	attack_offset.z -= 9.0

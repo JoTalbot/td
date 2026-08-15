@@ -185,30 +185,30 @@ func _build_bottom_bar() -> void:
 	panel.anchor_bottom = 1.0
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -330
-	panel.offset_right = 330
+	panel.offset_left = -356
+	panel.offset_right = 356
 	panel.offset_top = -102
 	panel.offset_bottom = -12
 	add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
 
 	for id in WeaponData.DEFS:
 		var def: Dictionary = WeaponData.DEFS[id]
 		var btn := _rusty_button("%s\n⚙ %d" % [def["name"], def["cost"]], def["color"])
-		btn.custom_minimum_size = Vector2(118, 68)
-		btn.add_theme_font_size_override("font_size", 15)
+		btn.custom_minimum_size = Vector2(88, 68)
+		btn.add_theme_font_size_override("font_size", 13)
 		btn.pressed.connect(func(): weapon_selected.emit(id))
 		row.add_child(btn)
 		_build_buttons[id] = btn
 
 	# Кнопка гаража
 	_garage_toggle = _rusty_button("ГАРАЖ", Color(0.7, 0.85, 0.5))
-	_garage_toggle.custom_minimum_size = Vector2(92, 68)
-	_garage_toggle.add_theme_font_size_override("font_size", 16)
+	_garage_toggle.custom_minimum_size = Vector2(88, 68)
+	_garage_toggle.add_theme_font_size_override("font_size", 15)
 	_garage_toggle.pressed.connect(_toggle_garage)
 	row.add_child(_garage_toggle)
 

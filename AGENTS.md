@@ -33,7 +33,7 @@
 | `scripts/Wasteland.gd` | Скроллящаяся пустошь: 3 тайла (дорога, скалы, остовы машин, столбы), `speed_scale` от движка |
 | `scripts/Truck.gd` | Грузовик: кабина+цистерна+платформа, 8 слотов, колёса/тряска/выхлоп; Crossout-апгрейды с видимыми обвесами (`apply_upgrade`) |
 | `scripts/TruckData.gd` | Данные апгрейдов фуры: armor/spikes/engine/drone, по 3 уровня |
-| `scripts/WeaponData.gd` | Данные орудий: 4 типа × 3 уровня (mgun/flamer/harpoon/cannon) |
+| `scripts/WeaponData.gd` | Данные орудий: 6 типов × 3 уровня (mgun/flamer/harpoon/cannon/tesla/mortar) |
 | `scripts/AbilityData.gd` | Данные способностей экипажа: залп/щит/нитро, кулдауны, цвета |
 | `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
 | `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов |
