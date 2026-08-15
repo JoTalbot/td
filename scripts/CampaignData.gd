@@ -64,6 +64,60 @@ const ROUTES := [
 	["gasgrad", "crowsnest", 2, 1.3],
 ]
 
+## Здания базы (в Цитадели): цена — лом + ресурсы из трюма.
+const BUILDINGS := {
+	"storage": {
+		"name": "Склад",
+		"icon": "📦",
+		"desc": "+6 мест в трюме за уровень",
+		"costs": [
+			{"scrap": 60, "metal": 4},
+			{"scrap": 120, "metal": 8},
+			{"scrap": 220, "metal": 14},
+		],
+	},
+	"lab": {
+		"name": "Лаборатория",
+		"icon": "⚗️",
+		"desc": "Открывает исследования (ур. = доступ к техам)",
+		"costs": [
+			{"scrap": 100, "metal": 5, "chips": 2},
+			{"scrap": 200, "metal": 10, "chips": 5},
+			{"scrap": 350, "metal": 16, "chips": 9},
+		],
+	},
+	"refinery": {
+		"name": "Перегонный куб",
+		"icon": "🛢",
+		"desc": "+2 топлива при возвращении домой (за ур.)",
+		"costs": [
+			{"scrap": 80, "metal": 6},
+			{"scrap": 150, "metal": 12},
+			{"scrap": 260, "metal": 20},
+		],
+	},
+	"greenshed": {
+		"name": "Теплица",
+		"icon": "🌿",
+		"desc": "+2 еды при возвращении домой (за ур.)",
+		"costs": [
+			{"scrap": 70, "metal": 3, "water": 2},
+			{"scrap": 130, "metal": 6, "water": 4},
+			{"scrap": 220, "metal": 10, "water": 7},
+		],
+	},
+	"workshop": {
+		"name": "Мастерская",
+		"icon": "🔧",
+		"desc": "-8% к цене крафта за уровень",
+		"costs": [
+			{"scrap": 90, "metal": 7},
+			{"scrap": 170, "metal": 12},
+			{"scrap": 280, "metal": 18},
+		],
+	},
+}
+
 ## Шаблоны контрактов, которые раздают города.
 const CONTRACT_POOL := [
 	{"type": "deliver", "label": "Отвезти %d «%s» в %s", "qty_min": 2, "qty_max": 5, "pay_mult": 3.0},

@@ -510,6 +510,16 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		sl.add_theme_font_size_override("font_size", 15)
 		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(sl)
+	var produced: Dictionary = summary.get("produced", {})
+	if not produced.is_empty():
+		var pl := Label.new()
+		var pparts: Array = []
+		for res in produced:
+			pparts.append("%s×%d" % [CampaignData.RESOURCES[res]["icon"], int(produced[res])])
+		pl.text = "🏭 База произвела: " + ", ".join(pparts)
+		pl.add_theme_font_size_override("font_size", 15)
+		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(pl)
 	for c in summary.get("done", []):
 		var cl := Label.new()
 		cl.text = "✅ Контракт закрыт: +⚙%d" % int(c["reward"])

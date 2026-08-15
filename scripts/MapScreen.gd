@@ -193,6 +193,9 @@ func _render_sheet() -> void:
 	elif _view == "contracts":
 		_sheet_title.text = "%s %s — доска контрактов" % [c["icon"], c["name"]]
 		_render_contracts(is_here)
+	elif _view == "base":
+		_sheet_title.text = "%s %s — БАЗА" % [c["icon"], c["name"]]
+		_render_base(is_here)
 	else:
 		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
 		_render_info(c, is_here, route)
@@ -222,6 +225,11 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		ct.custom_minimum_size = Vector2(170, 52)
 		ct.pressed.connect(func(): _view = "contracts"; _render_sheet())
 		btns.add_child(ct)
+		if bool(c.get("home", false)):
+			var bb := _rusty_button("🏠 База", Color(0.85, 0.7, 0.3))
+			bb.custom_minimum_size = Vector2(150, 52)
+			bb.pressed.connect(func(): _view = "base"; _render_sheet())
+			btns.add_child(bb)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
 		var go := _rusty_button("🚚 В РЕЙС: %d волн, опасность ★%.0f" % [waves_count, float(route[1])], Color(0.9, 0.5, 0.25))
@@ -300,6 +308,45 @@ func _render_contracts(is_here: bool) -> void:
 			campaign.accept_contract(campaign.location, uid)
 			_render_sheet())
 		row.add_child(take)
+
+
+## Вид базы: постройки, их уровни и цены.
+func _render_base(is_here: bool) -> void:
+	var back := _rusty_button("← К описанию")
+	back.custom_minimum_size = Vector2(170, 40)
+	back.pressed.connect(func(): _view = "info"; _render_sheet())
+	_sheet_body.add_child(back)
+	if not is_here:
+		var l := _mk_label(_sheet_body, 15, Color(0.7, 0.55, 0.4))
+		l.text = "Строить можно только дома."
+		return
+	for id in CampaignData.BUILDINGS:
+		var d: Dictionary = CampaignData.BUILDINGS[id]
+		var lvl: int = campaign.bld_level(id)
+		var cost: Dictionary = campaign.bld_cost(id)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		_sheet_body.add_child(row)
+		var txt := _mk_label(row, 14, TEXT_DIM)
+		txt.custom_minimum_size = Vector2(470, 0)
+		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if cost.is_empty():
+			txt.text = "%s %s [МАКС ур.%d] — %s" % [d["icon"], d["name"], lvl, d["desc"]]
+		else:
+			var parts: Array = []
+			for k in cost:
+				if k == "scrap":
+					parts.append("⚙%d" % int(cost[k]))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(cost[k])])
+			txt.text = "%s %s [ур.%d→%d] — %s  |  цена: %s" % [d["icon"], d["name"], lvl, lvl + 1, d["desc"], " ".join(parts)]
+		row.add_child(txt)
+		var b := _rusty_button("Строить", Color(0.85, 0.7, 0.3))
+		b.custom_minimum_size = Vector2(120, 40)
+		b.disabled = cost.is_empty() or not campaign.can_build(id)
+		var bid: String = id
+		b.pressed.connect(func(): campaign.build(bid); _render_sheet())
+		row.add_child(b)
 
 
 ## Холст карты: рисует дороги между городами.

@@ -16,6 +16,7 @@ var day_seed := 0                  # настоящая дата — дневн�
 var contracts: Array = []          # активные контракты
 var offers: Dictionary = {}        # city -> контракты на доске
 var kills_total := 0
+var buildings: Dictionary = {}     # bld_id -> level
 
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func load_campaign() -> void:
 	contracts = data.get("contracts", [])
 	offers = data.get("offers", {})
 	kills_total = int(data.get("kills_total", 0))
+	buildings = data.get("buildings", {})
 
 
 func save_campaign() -> void:
@@ -53,7 +55,46 @@ func save_campaign() -> void:
 		"contracts": contracts,
 		"offers": offers,
 		"kills_total": kills_total,
+		"buildings": buildings,
 	}))
+
+## --- База (только в родном городе) ---
+func bld_level(id: String) -> int:
+	return int(buildings.get(id, 0))
+
+
+func bld_cost(id: String) -> Dictionary:
+	## Цена следующего уровня; пусто — если максимум.
+	var lvl: int = bld_level(id)
+	var costs: Array = CampaignData.BUILDINGS[id]["costs"]
+	return costs[lvl] if lvl < costs.size() else {}
+
+
+func can_build(id: String) -> bool:
+	var cost := bld_cost(id)
+	if cost.is_empty():
+		return false
+	for k in cost:
+		if k == "scrap":
+			if wallet < int(cost[k]):
+				return false
+		elif cargo_qty(k) < int(cost[k]):
+			return false
+	return true
+
+
+func build(id: String) -> bool:
+	if not can_build(id):
+		return false
+	var cost := bld_cost(id)
+	for k in cost:
+		if k == "scrap":
+			wallet -= int(cost[k])
+		else:
+			take_cargo(k, int(cost[k]))
+	buildings[id] = bld_level(id) + 1
+	save_campaign()
+	return true
 
 
 ## --- Трюм ---
@@ -65,11 +106,8 @@ func cargo_used() -> int:
 
 
 func cargo_cap() -> int:
-	# +места от базы (склад) — подхватывается, если база построена
-	var bonus := 0
-	if has_meta("storage_level"):
-		bonus = int(get_meta("storage_level")) * 6
-	return BASE_CARGO_CAP + bonus
+	# +места от склада на базе
+	return BASE_CARGO_CAP + bld_level("storage") * 6
 
 
 func cargo_space() -> int:
@@ -237,10 +275,21 @@ func arrive(city: String, run_scrap: int, loot: Dictionary) -> Dictionary:
 			wallet += int(c["reward"])
 			done.append(c)
 			contracts.remove_at(i)
+	# Производство базы, если приехали домой
+	var produced := {}
+	if city == "citadel":
+		if bld_level("refinery") > 0:
+			var n := add_cargo("fuel", bld_level("refinery") * 2)
+			if n > 0:
+				produced["fuel"] = n
+		if bld_level("greenshed") > 0:
+			var n2 := add_cargo("food", bld_level("greenshed") * 2)
+			if n2 > 0:
+				produced["food"] = n2
 	# Доска контрактов в новом городе обновляется
 	offers.erase(city)
 	save_campaign()
-	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done}
+	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced}
 
 
 ## Рейс провален: груз пополам, лом рейса сгорел.
