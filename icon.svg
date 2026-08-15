@@ -1,21 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
-      <stop offset="0%" stop-color="#1a2350"/>
-      <stop offset="100%" stop-color="#05070f"/>
-    </radialGradient>
-    <linearGradient id="tower" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4de1ff"/>
-      <stop offset="100%" stop-color="#1a6cff"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0a54a"/>
+      <stop offset="70%" stop-color="#d4763b"/>
+      <stop offset="100%" stop-color="#8a4a26"/>
+    </linearGradient>
+    <linearGradient id="rust" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a4a28"/>
+      <stop offset="100%" stop-color="#4a2c16"/>
     </linearGradient>
   </defs>
-  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
-  <circle cx="64" cy="34" r="12" fill="#ff3d8c">
-    <animate attributeName="r" values="12;14;12" dur="2s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="64" cy="34" r="18" fill="none" stroke="#ff3d8c" stroke-width="2" opacity="0.5"/>
-  <path d="M48 108 L54 56 L74 56 L80 108 Z" fill="url(#tower)"/>
-  <rect x="50" y="48" width="28" height="10" rx="3" fill="#7df3ff"/>
-  <rect x="44" y="104" width="40" height="8" rx="3" fill="#123" stroke="#4de1ff" stroke-width="1.5"/>
-  <line x1="64" y1="48" x2="64" y2="40" stroke="#ffe14d" stroke-width="3"/>
+  <rect width="128" height="128" rx="24" fill="url(#sky)"/>
+  <circle cx="96" cy="30" r="14" fill="#ffe9b0" opacity="0.9"/>
+  <rect x="0" y="88" width="128" height="40" fill="#9c6b35"/>
+  <path d="M0 88 L128 88 L128 96 L0 96 Z" fill="#6e4522"/>
+  <!-- Грузовик -->
+  <rect x="18" y="58" width="62" height="26" rx="3" fill="url(#rust)" stroke="#2e1c0e" stroke-width="2"/>
+  <rect x="80" y="50" width="26" height="34" rx="3" fill="#5a3a1e" stroke="#2e1c0e" stroke-width="2"/>
+  <rect x="84" y="55" width="12" height="10" rx="1" fill="#c9b18a"/>
+  <!-- Турель на кузове -->
+  <rect x="34" y="46" width="18" height="12" rx="2" fill="#3d3428"/>
+  <rect x="50" y="49" width="18" height="4" fill="#2a241c"/>
+  <!-- Шипы -->
+  <path d="M22 58 L26 48 L30 58 Z" fill="#8c8274"/>
+  <path d="M60 58 L64 48 L68 58 Z" fill="#8c8274"/>
+  <!-- Колёса -->
+  <circle cx="32" cy="88" r="11" fill="#1c1813" stroke="#3a3228" stroke-width="3"/>
+  <circle cx="62" cy="88" r="11" fill="#1c1813" stroke="#3a3228" stroke-width="3"/>
+  <circle cx="94" cy="88" r="11" fill="#1c1813" stroke="#3a3228" stroke-width="3"/>
+  <!-- Пыль -->
+  <circle cx="12" cy="90" r="7" fill="#caa065" opacity="0.7"/>
+  <circle cx="6" cy="82" r="5" fill="#caa065" opacity="0.5"/>
 </svg>

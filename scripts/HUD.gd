@@ -1,68 +1,105 @@
 extends CanvasLayer
-## HUD: ресурсы, волны, панель строительства, панель башни, game over.
+## HUD пустоши: лом, HP грузовика, волны, арсенал, гараж (апгрейды Crossout).
 
-signal tower_selected(type_id: String)
+signal weapon_selected(type_id: String)
 signal upgrade_pressed
 signal sell_pressed
+signal truck_upgrade_pressed(id: String)
 signal restart_pressed
 
-const TowerData := preload("res://scripts/TowerData.gd")
+const WeaponData := preload("res://scripts/WeaponData.gd")
+const TruckData := preload("res://scripts/TruckData.gd")
 
 var state: Node
 var waves: Node
+var truck: Node3D
 
-var _money_label: Label
-var _lives_label: Label
+var _scrap_label: Label
+var _hp_label: Label
+var _hp_fill: ColorRect
 var _wave_label: Label
 var _message_label: Label
-var _tower_panel: PanelContainer
-var _tower_info: Label
+var _weapon_panel: PanelContainer
+var _weapon_info: Label
 var _upgrade_btn: Button
 var _build_buttons: Dictionary = {}
+var _garage_panel: PanelContainer
+var _garage_buttons: Dictionary = {}
+var _garage_toggle: Button
 var _game_over_panel: CenterContainer
 
-const PANEL_BG := Color(0.05, 0.07, 0.16, 0.85)
-const ACCENT := Color(0.35, 0.8, 1.0)
+const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
+const BORDER := Color(0.55, 0.4, 0.2)
+const ACCENT := Color(0.95, 0.75, 0.35)
+const TEXT_DIM := Color(0.85, 0.78, 0.65)
 
 
 func _ready() -> void:
 	_build_top_bar()
 	_build_bottom_bar()
-	_build_tower_panel()
+	_build_weapon_panel()
+	_build_garage()
 	_build_message()
 	_build_game_over()
 
-	state.money_changed.connect(func(v): _money_label.text = "⬡ %d" % v)
-	state.lives_changed.connect(func(v): _lives_label.text = "♥ %d" % v)
+	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
+	state.hp_changed.connect(_on_hp_changed)
 	waves.wave_started.connect(func(i): _wave_label.text = "Волна %d" % i)
-	waves.wave_cleared.connect(func(i): flash_message("Волна %d зачищена! +%d" % [i, 30 + i * 5]))
+	waves.wave_cleared.connect(func(i): flash_message("Волна %d отбита!" % i))
 
-	_money_label.text = "⬡ %d" % state.money
-	_lives_label.text = "♥ %d" % state.lives
-	_wave_label.text = "Приготовьтесь..."
+	_scrap_label.text = "⚙ %d" % state.scrap
+	_on_hp_changed(state.hp, state.max_hp)
+	_wave_label.text = "Держись..."
 
 
 func _process(_delta: float) -> void:
 	var t: float = waves.time_to_next_wave()
-	if t >= 0.0 and waves.wave_index >= 0:
+	if t >= 0.0:
 		if waves.wave_index == 0:
-			_wave_label.text = "Старт через %.0f" % ceilf(t)
+			_wave_label.text = "Рейдеры через %.0f" % ceilf(t)
 		else:
 			_wave_label.text = "Волна %d через %.0f" % [waves.wave_index + 1, ceilf(t)]
-	# Доступность кнопок по деньгам
 	for id in _build_buttons:
-		var btn: Button = _build_buttons[id]
-		btn.disabled = state.money < TowerData.DEFS[id]["cost"]
+		(_build_buttons[id] as Button).disabled = state.scrap < WeaponData.DEFS[id]["cost"]
 
 
-func _styled_panel() -> StyleBoxFlat:
+func _on_hp_changed(hp: int, max_hp: int) -> void:
+	_hp_label.text = "%d/%d" % [hp, max_hp]
+	var ratio := float(hp) / float(max_hp)
+	_hp_fill.custom_minimum_size.x = 120.0 * ratio
+	_hp_fill.color = Color(1.0 - ratio * 0.7, ratio * 0.75, 0.1)
+
+
+func _styled_panel(border := BORDER) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL_BG
-	sb.border_color = ACCENT
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(10)
+	sb.border_color = border
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(4)
 	sb.set_content_margin_all(10)
 	return sb
+
+
+func _rusty_button(text: String, accent := ACCENT) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.18, 0.13, 0.08, 0.95)
+	sb.border_color = accent * 0.8
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(4)
+	btn.add_theme_stylebox_override("normal", sb)
+	var sb_h := sb.duplicate() as StyleBoxFlat
+	sb_h.bg_color = Color(0.3, 0.2, 0.1, 0.95)
+	btn.add_theme_stylebox_override("hover", sb_h)
+	btn.add_theme_stylebox_override("pressed", sb_h)
+	var sb_d := sb.duplicate() as StyleBoxFlat
+	sb_d.bg_color = Color(0.1, 0.08, 0.06, 0.9)
+	sb_d.border_color = Color(0.3, 0.25, 0.2)
+	btn.add_theme_stylebox_override("disabled", sb_d)
+	btn.add_theme_color_override("font_color", Color(0.95, 0.88, 0.7))
+	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.45, 0.38))
+	return btn
 
 
 func _build_top_bar() -> void:
@@ -70,29 +107,52 @@ func _build_top_bar() -> void:
 	panel.add_theme_stylebox_override("panel", _styled_panel())
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -220
-	panel.offset_right = 220
+	panel.offset_left = -215
+	panel.offset_right = 215
 	panel.offset_top = 8
 	add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 22)
+	row.add_theme_constant_override("separation", 16)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
 
-	_money_label = Label.new()
-	_money_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
-	_money_label.add_theme_font_size_override("font_size", 22)
-	row.add_child(_money_label)
+	_scrap_label = Label.new()
+	_scrap_label.add_theme_color_override("font_color", ACCENT)
+	_scrap_label.add_theme_font_size_override("font_size", 21)
+	row.add_child(_scrap_label)
 
-	_lives_label = Label.new()
-	_lives_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.5))
-	_lives_label.add_theme_font_size_override("font_size", 22)
-	row.add_child(_lives_label)
+	# HP-бар грузовика
+	var hp_box := HBoxContainer.new()
+	hp_box.add_theme_constant_override("separation", 6)
+	row.add_child(hp_box)
+	var hp_icon := Label.new()
+	hp_icon.text = "🛠"
+	hp_icon.add_theme_font_size_override("font_size", 19)
+	hp_box.add_child(hp_icon)
+	var bar_bg := PanelContainer.new()
+	var bg_sb := StyleBoxFlat.new()
+	bg_sb.bg_color = Color(0.05, 0.04, 0.03)
+	bg_sb.border_color = BORDER
+	bg_sb.set_border_width_all(1)
+	bg_sb.set_content_margin_all(2)
+	bar_bg.add_theme_stylebox_override("panel", bg_sb)
+	hp_box.add_child(bar_bg)
+	var fill_wrap := Control.new()
+	fill_wrap.custom_minimum_size = Vector2(120, 16)
+	bar_bg.add_child(fill_wrap)
+	_hp_fill = ColorRect.new()
+	_hp_fill.custom_minimum_size = Vector2(120, 16)
+	_hp_fill.color = Color(0.3, 0.75, 0.1)
+	fill_wrap.add_child(_hp_fill)
+	_hp_label = Label.new()
+	_hp_label.add_theme_font_size_override("font_size", 15)
+	_hp_label.add_theme_color_override("font_color", TEXT_DIM)
+	hp_box.add_child(_hp_label)
 
 	_wave_label = Label.new()
-	_wave_label.add_theme_color_override("font_color", ACCENT)
-	_wave_label.add_theme_font_size_override("font_size", 22)
+	_wave_label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.3))
+	_wave_label.add_theme_font_size_override("font_size", 19)
 	row.add_child(_wave_label)
 
 
@@ -103,99 +163,153 @@ func _build_bottom_bar() -> void:
 	panel.anchor_bottom = 1.0
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -300
-	panel.offset_right = 300
-	panel.offset_top = -100
+	panel.offset_left = -330
+	panel.offset_right = 330
+	panel.offset_top = -102
 	panel.offset_bottom = -12
 	add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
 
-	for id in TowerData.DEFS:
-		var def: Dictionary = TowerData.DEFS[id]
-		var btn := Button.new()
-		btn.text = "%s\n⬡ %d" % [def["name"], def["cost"]]
-		btn.custom_minimum_size = Vector2(130, 70)
-		btn.add_theme_font_size_override("font_size", 16)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(def["color"].r * 0.2, def["color"].g * 0.2, def["color"].b * 0.2, 0.9)
-		sb.border_color = def["color"]
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(8)
-		btn.add_theme_stylebox_override("normal", sb)
-		var sb_h := sb.duplicate() as StyleBoxFlat
-		sb_h.bg_color = Color(def["color"].r * 0.35, def["color"].g * 0.35, def["color"].b * 0.35, 0.95)
-		btn.add_theme_stylebox_override("hover", sb_h)
-		btn.add_theme_stylebox_override("pressed", sb_h)
-		btn.pressed.connect(func(): tower_selected.emit(id))
+	for id in WeaponData.DEFS:
+		var def: Dictionary = WeaponData.DEFS[id]
+		var btn := _rusty_button("%s\n⚙ %d" % [def["name"], def["cost"]], def["color"])
+		btn.custom_minimum_size = Vector2(118, 68)
+		btn.add_theme_font_size_override("font_size", 15)
+		btn.pressed.connect(func(): weapon_selected.emit(id))
 		row.add_child(btn)
 		_build_buttons[id] = btn
 
+	# Кнопка гаража
+	_garage_toggle = _rusty_button("ГАРАЖ", Color(0.7, 0.85, 0.5))
+	_garage_toggle.custom_minimum_size = Vector2(92, 68)
+	_garage_toggle.add_theme_font_size_override("font_size", 16)
+	_garage_toggle.pressed.connect(_toggle_garage)
+	row.add_child(_garage_toggle)
 
-func _build_tower_panel() -> void:
-	_tower_panel = PanelContainer.new()
-	_tower_panel.add_theme_stylebox_override("panel", _styled_panel())
-	_tower_panel.anchor_left = 1.0
-	_tower_panel.anchor_right = 1.0
-	_tower_panel.anchor_top = 0.5
-	_tower_panel.anchor_bottom = 0.5
-	_tower_panel.offset_left = -230
-	_tower_panel.offset_right = -10
-	_tower_panel.offset_top = -110
-	_tower_panel.offset_bottom = 110
-	_tower_panel.visible = false
-	add_child(_tower_panel)
+
+func _build_garage() -> void:
+	_garage_panel = PanelContainer.new()
+	_garage_panel.add_theme_stylebox_override("panel", _styled_panel(Color(0.6, 0.7, 0.4)))
+	_garage_panel.anchor_left = 0.5
+	_garage_panel.anchor_right = 0.5
+	_garage_panel.anchor_top = 1.0
+	_garage_panel.anchor_bottom = 1.0
+	_garage_panel.offset_left = -290
+	_garage_panel.offset_right = 290
+	_garage_panel.offset_top = -368
+	_garage_panel.offset_bottom = -112
+	_garage_panel.visible = false
+	add_child(_garage_panel)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	_garage_panel.add_child(col)
+
+	var title := Label.new()
+	title.text = "🔧 ГАРАЖ — прокачка фуры"
+	title.add_theme_font_size_override("font_size", 19)
+	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+
+	for id in TruckData.DEFS:
+		var def: Dictionary = TruckData.DEFS[id]
+		var btn := _rusty_button("", ACCENT)
+		btn.custom_minimum_size = Vector2(0, 52)
+		btn.add_theme_font_size_override("font_size", 15)
+		btn.pressed.connect(func(): truck_upgrade_pressed.emit(id))
+		col.add_child(btn)
+		_garage_buttons[id] = btn
+	refresh_truck_panel()
+
+
+func refresh_truck_panel() -> void:
+	for id in _garage_buttons:
+		var def: Dictionary = TruckData.DEFS[id]
+		var lvl: int = truck.upgrade_levels[id]
+		var costs: Array = def["costs"]
+		var btn: Button = _garage_buttons[id]
+		if lvl >= costs.size():
+			btn.text = "%s [МАКС] — %s" % [def["name"], def["desc"]]
+			btn.disabled = true
+		else:
+			btn.text = "%s [ур.%d→%d] ⚙ %d — %s" % [def["name"], lvl, lvl + 1, costs[lvl], def["desc"]]
+			btn.disabled = false
+
+
+func _toggle_garage() -> void:
+	_garage_panel.visible = not _garage_panel.visible
+	if _garage_panel.visible:
+		refresh_truck_panel()
+
+
+func _build_weapon_panel() -> void:
+	_weapon_panel = PanelContainer.new()
+	_weapon_panel.add_theme_stylebox_override("panel", _styled_panel())
+	_weapon_panel.anchor_left = 1.0
+	_weapon_panel.anchor_right = 1.0
+	_weapon_panel.anchor_top = 0.5
+	_weapon_panel.anchor_bottom = 0.5
+	_weapon_panel.offset_left = -225
+	_weapon_panel.offset_right = -10
+	_weapon_panel.offset_top = -115
+	_weapon_panel.offset_bottom = 115
+	_weapon_panel.visible = false
+	add_child(_weapon_panel)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
-	_tower_panel.add_child(col)
+	_weapon_panel.add_child(col)
 
-	_tower_info = Label.new()
-	_tower_info.add_theme_font_size_override("font_size", 17)
-	col.add_child(_tower_info)
+	_weapon_info = Label.new()
+	_weapon_info.add_theme_font_size_override("font_size", 16)
+	_weapon_info.add_theme_color_override("font_color", TEXT_DIM)
+	col.add_child(_weapon_info)
 
-	_upgrade_btn = Button.new()
-	_upgrade_btn.custom_minimum_size = Vector2(0, 48)
+	_upgrade_btn = _rusty_button("")
+	_upgrade_btn.custom_minimum_size = Vector2(0, 46)
 	_upgrade_btn.pressed.connect(func(): upgrade_pressed.emit())
 	col.add_child(_upgrade_btn)
 
-	var sell_btn := Button.new()
-	sell_btn.text = "Продать"
-	sell_btn.custom_minimum_size = Vector2(0, 48)
+	var sell_btn := _rusty_button("Демонтаж", Color(0.9, 0.5, 0.3))
+	sell_btn.custom_minimum_size = Vector2(0, 46)
 	sell_btn.pressed.connect(func(): sell_pressed.emit())
 	col.add_child(sell_btn)
 
 
-func show_tower_panel(tower: Node3D) -> void:
-	var def: Dictionary = TowerData.DEFS[tower.type_id]
-	var st: Dictionary = tower.stats()
-	_tower_info.text = "%s — ур. %d\nУрон: %d\nДальность: %.1f\nСкорострельность: %.1f/с" % [
-		def["name"], tower.level + 1, st["damage"], st["range"], st["fire_rate"]
+func show_weapon_panel(weapon: Node3D) -> void:
+	var def: Dictionary = WeaponData.DEFS[weapon.type_id]
+	var st: Dictionary = weapon.stats()
+	_weapon_info.text = "%s — ур. %d\nУрон: %d\nДальность: %.0f\nТемп: %.1f/с" % [
+		def["name"], weapon.level + 1, st["damage"], st["range"], st["fire_rate"]
 	]
-	var up: int = tower.upgrade_cost()
-	_upgrade_btn.text = "Улучшить ⬡ %d" % up if up >= 0 else "МАКС. УРОВЕНЬ"
+	var up: int = weapon.upgrade_cost()
+	_upgrade_btn.text = "Прокачать ⚙ %d" % up if up >= 0 else "МАКС. УРОВЕНЬ"
 	_upgrade_btn.disabled = up < 0
-	_tower_panel.visible = true
+	_weapon_panel.visible = true
 
 
-func hide_tower_panel() -> void:
-	_tower_panel.visible = false
+func hide_weapon_panel() -> void:
+	_weapon_panel.visible = false
 
 
 func _build_message() -> void:
 	_message_label = Label.new()
 	_message_label.anchor_left = 0.5
 	_message_label.anchor_right = 0.5
-	_message_label.anchor_top = 0.18
-	_message_label.anchor_bottom = 0.18
+	_message_label.anchor_top = 0.16
+	_message_label.anchor_bottom = 0.16
 	_message_label.offset_left = -300
 	_message_label.offset_right = 300
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message_label.add_theme_font_size_override("font_size", 26)
-	_message_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	_message_label.add_theme_font_size_override("font_size", 24)
+	_message_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
+	_message_label.add_theme_color_override("font_outline_color", Color(0.2, 0.1, 0.02))
+	_message_label.add_theme_constant_override("outline_size", 6)
 	_message_label.modulate.a = 0.0
 	add_child(_message_label)
 
@@ -215,9 +329,8 @@ func _build_game_over() -> void:
 	add_child(_game_over_panel)
 
 	var panel := PanelContainer.new()
-	var sb := _styled_panel()
-	sb.bg_color = Color(0.03, 0.02, 0.08, 0.95)
-	sb.border_color = Color(1.0, 0.3, 0.5)
+	var sb := _styled_panel(Color(0.9, 0.4, 0.2))
+	sb.bg_color = Color(0.1, 0.05, 0.02, 0.96)
 	sb.set_content_margin_all(30)
 	panel.add_theme_stylebox_override("panel", sb)
 	_game_over_panel.add_child(panel)
@@ -228,28 +341,27 @@ func _build_game_over() -> void:
 	panel.add_child(col)
 
 	var title := Label.new()
-	title.name = "Title"
-	title.text = "БАЗА УНИЧТОЖЕНА"
-	title.add_theme_font_size_override("font_size", 36)
-	title.add_theme_color_override("font_color", Color(1.0, 0.35, 0.5))
+	title.text = "ФУРА УНИЧТОЖЕНА"
+	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.name = "Subtitle"
-	subtitle.add_theme_font_size_override("font_size", 20)
+	subtitle.add_theme_font_size_override("font_size", 19)
+	subtitle.add_theme_color_override("font_color", TEXT_DIM)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(subtitle)
 
-	var btn := Button.new()
-	btn.text = "Играть снова"
-	btn.custom_minimum_size = Vector2(220, 56)
-	btn.add_theme_font_size_override("font_size", 20)
+	var btn := _rusty_button("В новый рейс")
+	btn.custom_minimum_size = Vector2(220, 54)
+	btn.add_theme_font_size_override("font_size", 19)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	col.add_child(btn)
 
 
 func show_game_over(wave: int) -> void:
 	var subtitle := _game_over_panel.find_child("Subtitle", true, false) as Label
-	subtitle.text = "Вы продержались %d волн" % wave
+	subtitle.text = "Вы отбились от %d волн рейдеров" % wave
 	_game_over_panel.visible = true

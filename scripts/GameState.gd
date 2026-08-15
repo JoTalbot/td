@@ -1,36 +1,56 @@
 extends Node
-## Экономика и жизни базы.
+## Ресурсы (металлолом) и прочность грузовика.
 
-signal money_changed(value: int)
-signal lives_changed(value: int)
+signal scrap_changed(value: int)
+signal hp_changed(hp: int, max_hp: int)
 signal game_over
 
-const START_MONEY := 220
-const START_LIVES := 20
+const START_SCRAP := 150
+const START_HP := 100
 
-var money: int = START_MONEY
-var lives: int = START_LIVES
+var scrap: int = START_SCRAP
+var hp: int = START_HP
+var max_hp: int = START_HP
 var is_game_over: bool = false
 
 
 func spend(amount: int) -> bool:
-	if amount > money:
+	if amount > scrap:
 		return false
-	money -= amount
-	money_changed.emit(money)
+	scrap -= amount
+	scrap_changed.emit(scrap)
 	return true
 
 
 func earn(amount: int) -> void:
-	money += amount
-	money_changed.emit(money)
+	scrap += amount
+	scrap_changed.emit(scrap)
 
 
-func lose_life(amount: int = 1) -> void:
+func damage_truck(amount: int) -> void:
 	if is_game_over:
 		return
-	lives = maxi(lives - amount, 0)
-	lives_changed.emit(lives)
-	if lives <= 0:
+	hp = maxi(hp - amount, 0)
+	hp_changed.emit(hp, max_hp)
+	if hp <= 0:
 		is_game_over = true
 		game_over.emit()
+
+
+var _heal_accum := 0.0
+
+func heal(amount: float) -> void:
+	if is_game_over:
+		return
+	_heal_accum += amount
+	if _heal_accum >= 1.0:
+		var whole := int(_heal_accum)
+		_heal_accum -= whole
+		hp = mini(hp + whole, max_hp)
+		hp_changed.emit(hp, max_hp)
+
+
+func add_max_hp(amount: int) -> void:
+	max_hp += amount
+	hp = mini(hp + amount, max_hp)
+	hp_changed.emit(hp, max_hp)

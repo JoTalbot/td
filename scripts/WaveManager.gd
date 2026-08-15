@@ -1,33 +1,34 @@
 extends Node
-## Генерация волн: масштабирование сложности, типы врагов, боссы каждые 5 волн.
+## Волны рейдеров: подъезжают сзади и с боков, боссы каждые 5 волн.
 
 signal wave_started(index: int)
 signal wave_cleared(index: int)
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
 
-var board: Node3D
+var truck: Node3D
 var state: Node
 
 var wave_index := 0
 var enemies_alive := 0
 var spawning := false
 var between_waves := true
-var countdown := 4.0
+var countdown := 5.0
 
 var _spawn_queue: Array = []
 var _spawn_timer := 0.0
+var _side_toggle := 1.0
 
-const ENEMY_TYPES := [
-	{"hp": 45, "speed": 3.0, "reward": 8, "color": Color(1.0, 0.35, 0.3), "dmg": 1},
-	{"hp": 30, "speed": 4.6, "reward": 10, "color": Color(0.3, 1.0, 0.5), "dmg": 1},
-	{"hp": 110, "speed": 2.1, "reward": 16, "color": Color(0.9, 0.5, 1.0), "dmg": 2},
-]
+const TYPES := {
+	"buggy": {"hp": 40, "speed": 9.0, "reward": 9, "dmg": 4, "interval": 1.6},
+	"biker": {"hp": 24, "speed": 13.0, "reward": 11, "dmg": 3, "interval": 1.1},
+	"ram":   {"hp": 120, "speed": 7.0, "reward": 18, "dmg": 9, "interval": 2.2},
+}
 
 
 func start() -> void:
 	between_waves = true
-	countdown = 4.0
+	countdown = 5.0
 
 
 func _process(delta: float) -> void:
@@ -42,69 +43,72 @@ func _process(delta: float) -> void:
 		_spawn_timer -= delta
 		if _spawn_timer <= 0.0 and not _spawn_queue.is_empty():
 			_spawn(_spawn_queue.pop_front())
-			_spawn_timer = 0.7 if wave_index < 8 else 0.5
+			_spawn_timer = maxf(1.3 - wave_index * 0.05, 0.6)
 		if _spawn_queue.is_empty():
 			spawning = false
 	elif enemies_alive <= 0:
 		wave_cleared.emit(wave_index)
-		state.earn(30 + wave_index * 5)
+		var bonus := 25 + wave_index * 6
+		if truck.upgrade_levels["engine"] > 0:
+			bonus = int(bonus * (1.0 + 0.25 * truck.upgrade_levels["engine"]))
+		state.earn(bonus)
 		between_waves = true
-		countdown = 6.0
+		countdown = 8.0
 
 
 func _launch_wave() -> void:
 	wave_index += 1
 	between_waves = false
 	spawning = true
-	_spawn_timer = 0.0
+	_spawn_timer = 0.5
 	_spawn_queue.clear()
 
-	var count := 6 + wave_index * 2
-	var hp_scale := 1.0 + (wave_index - 1) * 0.22
+	var count := 4 + wave_index
+	var hp_scale := 1.0 + (wave_index - 1) * 0.2
 	for i in count:
-		var tpl: Dictionary = ENEMY_TYPES[0]
-		if wave_index >= 3 and i % 3 == 1:
-			tpl = ENEMY_TYPES[1]
-		if wave_index >= 5 and i % 4 == 2:
-			tpl = ENEMY_TYPES[2]
-		_spawn_queue.append({
-			"hp": int(tpl["hp"] * hp_scale),
-			"speed": tpl["speed"],
-			"reward": tpl["reward"],
-			"color": tpl["color"],
-			"dmg": tpl["dmg"],
-			"boss": false,
-		})
-
+		var t := "buggy"
+		if wave_index >= 2 and i % 3 == 1:
+			t = "biker"
+		if wave_index >= 4 and i % 4 == 2:
+			t = "ram"
+		_spawn_queue.append({"type": t, "hp_scale": hp_scale})
 	if wave_index % 5 == 0:
-		_spawn_queue.append({
-			"hp": int(400 * hp_scale),
-			"speed": 1.6,
-			"reward": 80,
-			"color": Color(1.0, 0.8, 0.1),
-			"dmg": 5,
-			"boss": true,
-		})
-
+		_spawn_queue.append({"type": "boss", "hp_scale": hp_scale})
 	wave_started.emit(wave_index)
 
 
 func _spawn(data: Dictionary) -> void:
 	var enemy: Node3D = EnemyScript.new()
-	enemy.max_hp = data["hp"]
-	enemy.base_speed = data["speed"]
-	enemy.reward = data["reward"]
-	enemy.enemy_color = data["color"]
-	enemy.damage_to_base = data["dmg"]
-	enemy.is_boss = data["boss"]
-	enemy.path = board.path_points
+	var t: String = data["type"]
+	if t == "boss":
+		enemy.enemy_type = "boss"
+		enemy.is_boss = true
+		enemy.max_hp = int(350 * data["hp_scale"])
+		enemy.chase_speed = 6.5
+		enemy.reward = 70
+		enemy.attack_damage = 14
+		enemy.attack_interval = 2.5
+		enemy.attack_offset = Vector3(0, 0, -11.0)
+	else:
+		var tpl: Dictionary = TYPES[t]
+		enemy.enemy_type = t
+		enemy.max_hp = int(tpl["hp"] * data["hp_scale"])
+		enemy.chase_speed = tpl["speed"]
+		enemy.reward = tpl["reward"]
+		enemy.attack_damage = tpl["dmg"]
+		enemy.attack_interval = tpl["interval"]
+		_side_toggle *= -1.0
+		var lane := 3.6 + randf() * 1.6
+		var depth := randf_range(-3.5, 3.0)
+		enemy.attack_offset = Vector3(_side_toggle * lane, 0, depth)
+
+	enemy.truck = truck
+	enemy.state = state
 	enemies_alive += 1
 	enemy.died.connect(func(_r): enemies_alive -= 1)
-	enemy.reached_base.connect(func():
-		enemies_alive -= 1
-		state.lose_life(data["dmg"])
-	)
 	get_tree().current_scene.add_child(enemy)
+	# Появляются сзади в клубах пыли, чуть сбоку
+	enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
 
 
 func time_to_next_wave() -> float:

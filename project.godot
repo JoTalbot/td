@@ -6,8 +6,8 @@ config_version=5
 
 [application]
 
-config/name="Neon Bastion TD"
-config/description="Неоновый sci-fi tower defense для Android на Godot 4 (портретный режим)."
+config/name="Rust Road TD"
+config/description="Tower defense на несущемся по пустоши боевом грузовике в духе Безумного Макса. Godot 4, Android, портрет."
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.2", "Mobile")
 config/icon="res://icon.svg"

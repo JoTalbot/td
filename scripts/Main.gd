@@ -1,23 +1,25 @@
 extends Node3D
-## Корневой узел игры: собирает окружение, доску, камеру, менеджеров и HUD.
+## Корень игры "Дорога ярости": пустыня, грузовик, волны рейдеров, HUD.
 
-const Board := preload("res://scripts/Board.gd")
+const Wasteland := preload("res://scripts/Wasteland.gd")
+const Truck := preload("res://scripts/Truck.gd")
 const CameraRig := preload("res://scripts/CameraRig.gd")
 const GameState := preload("res://scripts/GameState.gd")
 const WaveManager := preload("res://scripts/WaveManager.gd")
 const HUD := preload("res://scripts/HUD.gd")
-const TowerScript := preload("res://scripts/Tower.gd")
-const TowerData := preload("res://scripts/TowerData.gd")
-const CityScape := preload("res://scripts/CityScape.gd")
+const WeaponScript := preload("res://scripts/Weapon.gd")
+const WeaponData := preload("res://scripts/WeaponData.gd")
+const TruckData := preload("res://scripts/TruckData.gd")
 
-var board: Board
+var truck: Truck
+var wasteland: Wasteland
 var camera_rig: CameraRig
 var state: GameState
 var waves: WaveManager
 var hud: HUD
 
-var selected_tower_type: String = ""
-var selected_tower: Node3D = null
+var selected_weapon_type: String = ""
+var selected_weapon: Node3D = null
 
 
 func _ready() -> void:
@@ -28,22 +30,22 @@ func _ready() -> void:
 	state.name = "GameState"
 	add_child(state)
 
-	board = Board.new()
-	board.name = "Board"
-	add_child(board)
+	wasteland = Wasteland.new()
+	wasteland.name = "Wasteland"
+	add_child(wasteland)
 
-	var city := CityScape.new()
-	city.name = "CityScape"
-	add_child(city)
+	truck = Truck.new()
+	truck.name = "Truck"
+	add_child(truck)
 
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
 	add_child(camera_rig)
-	camera_rig.focus_on(board.center_position())
+	camera_rig.focus_on(Vector3(0, 1.0, 0))
 
 	waves = WaveManager.new()
 	waves.name = "WaveManager"
-	waves.board = board
+	waves.truck = truck
 	waves.state = state
 	add_child(waves)
 
@@ -51,11 +53,13 @@ func _ready() -> void:
 	hud.name = "HUD"
 	hud.state = state
 	hud.waves = waves
+	hud.truck = truck
 	add_child(hud)
 
-	hud.tower_selected.connect(_on_tower_type_selected)
+	hud.weapon_selected.connect(_on_weapon_type_selected)
 	hud.upgrade_pressed.connect(_on_upgrade_pressed)
 	hud.sell_pressed.connect(_on_sell_pressed)
+	hud.truck_upgrade_pressed.connect(_on_truck_upgrade)
 	hud.restart_pressed.connect(_on_restart_pressed)
 	state.game_over.connect(func(): hud.show_game_over(waves.wave_index))
 
@@ -64,31 +68,26 @@ func _ready() -> void:
 
 func _setup_environment() -> void:
 	var env := Environment.new()
-	# Киберпанк: ночное небо мегаполиса с грязно-пурпурным заревом у горизонта.
+	# Раскалённое пустынное небо, выгоревшее у горизонта.
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.01, 0.005, 0.03)
-	sky_mat.sky_horizon_color = Color(0.22, 0.04, 0.28)
-	sky_mat.ground_bottom_color = Color(0.02, 0.01, 0.05)
-	sky_mat.ground_horizon_color = Color(0.2, 0.05, 0.25)
-	sky_mat.sun_angle_max = 0.0
+	sky_mat.sky_top_color = Color(0.55, 0.72, 0.85)
+	sky_mat.sky_horizon_color = Color(0.95, 0.82, 0.6)
+	sky_mat.ground_bottom_color = Color(0.55, 0.42, 0.28)
+	sky_mat.ground_horizon_color = Color(0.9, 0.75, 0.55)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.3, 0.2, 0.5)
-	env.ambient_light_energy = 0.55
-	env.glow_enabled = true
-	env.glow_intensity = 1.35
-	env.glow_bloom = 0.22
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 0.85
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 1.0
+	# Пыльная дымка вдали
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.16, 0.03, 0.22)
-	env.fog_density = 0.016
+	env.fog_light_color = Color(0.87, 0.72, 0.5)
+	env.fog_density = 0.008
+	env.fog_sky_affect = 0.2
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.08
-	env.adjustment_saturation = 1.25
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.12
 
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
@@ -96,20 +95,20 @@ func _setup_environment() -> void:
 
 
 func _setup_lights() -> void:
-	# Холодная "луна" мегаполиса — циановый ключевой свет.
-	var moon := DirectionalLight3D.new()
-	moon.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
-	moon.light_color = Color(0.5, 0.75, 1.0)
-	moon.light_energy = 0.55
-	moon.shadow_enabled = true
-	add_child(moon)
+	# Жестокое пустынное солнце
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50.0, -40.0, 0.0)
+	sun.light_color = Color(1.0, 0.93, 0.78)
+	sun.light_energy = 1.3
+	sun.shadow_enabled = true
+	add_child(sun)
 
-	# Магента-заполнение снизу-сбоку: отсвет неоновых вывесок города.
-	var rim := DirectionalLight3D.new()
-	rim.rotation_degrees = Vector3(-25.0, 140.0, 0.0)
-	rim.light_color = Color(1.0, 0.15, 0.65)
-	rim.light_energy = 0.5
-	add_child(rim)
+	# Тёплый отражённый от песка свет
+	var bounce := DirectionalLight3D.new()
+	bounce.rotation_degrees = Vector3(35.0, 130.0, 0.0)
+	bounce.light_color = Color(0.9, 0.7, 0.45)
+	bounce.light_energy = 0.35
+	add_child(bounce)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -128,84 +127,114 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _handle_tap(screen_pos: Vector2) -> void:
+	# Проецируем тап на горизонтальную плоскость на высоте платформы грузовика.
 	var cam := camera_rig.camera
 	var from := cam.project_ray_origin(screen_pos)
 	var dir := cam.project_ray_normal(screen_pos)
+	var plane_y := 1.15
 	if absf(dir.y) < 0.0001:
 		return
-	var t := -from.y / dir.y
+	var t := (plane_y - from.y) / dir.y
 	if t <= 0.0:
 		return
 	var hit := from + dir * t
-	var cell := board.world_to_cell(hit)
-	if not board.is_inside(cell):
-		_deselect_tower()
+
+	# Сначала — попадание в существующее орудие
+	var wslot := truck.nearest_weapon_slot(hit)
+	if wslot >= 0:
+		_select_weapon(truck.weapons[wslot])
 		return
 
-	var existing := board.tower_at(cell)
-	if existing != null:
-		_select_tower(existing)
-		return
-
-	if selected_tower_type != "" and board.is_buildable(cell):
-		_try_build(cell)
-	else:
-		_deselect_tower()
+	# Затем — установка нового
+	if selected_weapon_type != "":
+		var slot := truck.nearest_free_slot(hit)
+		if slot >= 0:
+			_try_mount(slot)
+			return
+	_deselect_weapon()
 
 
-func _try_build(cell: Vector2i) -> void:
-	var cost: int = TowerData.DEFS[selected_tower_type]["cost"]
+func _try_mount(slot: int) -> void:
+	var cost: int = WeaponData.DEFS[selected_weapon_type]["cost"]
 	if not state.spend(cost):
-		hud.flash_message("Недостаточно кредитов!")
+		hud.flash_message("Мало металлолома!")
 		return
-	var tower: Node3D = TowerScript.new()
-	tower.setup(selected_tower_type, board, state)
-	board.place_tower(cell, tower)
-	hud.flash_message("%s построена" % TowerData.DEFS[selected_tower_type]["name"])
+	var weapon: Node3D = WeaponScript.new()
+	weapon.setup(selected_weapon_type, state)
+	weapon.slot_index = slot
+	truck.mount_weapon(slot, weapon)
+	hud.flash_message("%s установлен" % WeaponData.DEFS[selected_weapon_type]["name"])
+	truck.set_slots_highlight(selected_weapon_type != "")
 
 
-func _select_tower(tower: Node3D) -> void:
-	_deselect_tower()
-	selected_tower = tower
-	tower.set_selected(true)
-	hud.show_tower_panel(tower)
+func _select_weapon(weapon: Node3D) -> void:
+	_deselect_weapon()
+	selected_weapon = weapon
+	weapon.set_selected(true)
+	hud.show_weapon_panel(weapon)
 
 
-func _deselect_tower() -> void:
-	if is_instance_valid(selected_tower):
-		selected_tower.set_selected(false)
-	selected_tower = null
-	hud.hide_tower_panel()
+func _deselect_weapon() -> void:
+	if is_instance_valid(selected_weapon):
+		selected_weapon.set_selected(false)
+	selected_weapon = null
+	hud.hide_weapon_panel()
 
 
-func _on_tower_type_selected(type_id: String) -> void:
-	selected_tower_type = type_id
-	_deselect_tower()
+func _on_weapon_type_selected(type_id: String) -> void:
+	selected_weapon_type = type_id
+	truck.set_slots_highlight(true)
+	_deselect_weapon()
 
 
 func _on_upgrade_pressed() -> void:
-	if not is_instance_valid(selected_tower):
+	if not is_instance_valid(selected_weapon):
 		return
-	var cost: int = selected_tower.upgrade_cost()
+	var cost: int = selected_weapon.upgrade_cost()
 	if cost < 0:
 		hud.flash_message("Максимальный уровень!")
 		return
 	if state.spend(cost):
-		selected_tower.upgrade()
-		hud.show_tower_panel(selected_tower)
-		hud.flash_message("Улучшено до ур. %d" % (selected_tower.level + 1))
+		selected_weapon.upgrade()
+		hud.show_weapon_panel(selected_weapon)
+		hud.flash_message("Прокачано до ур. %d" % (selected_weapon.level + 1))
 	else:
-		hud.flash_message("Недостаточно кредитов!")
+		hud.flash_message("Мало металлолома!")
 
 
 func _on_sell_pressed() -> void:
-	if not is_instance_valid(selected_tower):
+	if not is_instance_valid(selected_weapon):
 		return
-	var refund: int = selected_tower.sell_value()
-	board.remove_tower(selected_tower.cell)
+	var refund: int = selected_weapon.sell_value()
+	truck.unmount_weapon(selected_weapon.slot_index)
 	state.earn(refund)
-	hud.flash_message("+%d кредитов за продажу" % refund)
-	_deselect_tower()
+	hud.flash_message("+%d лома за демонтаж" % refund)
+	selected_weapon = null
+	hud.hide_weapon_panel()
+
+
+func _on_truck_upgrade(id: String) -> void:
+	var lvl: int = truck.upgrade_levels[id]
+	var costs: Array = TruckData.DEFS[id]["costs"]
+	if lvl >= costs.size():
+		hud.flash_message("Максимальный уровень!")
+		return
+	if not state.spend(costs[lvl]):
+		hud.flash_message("Мало металлолома!")
+		return
+	truck.apply_upgrade(id)
+	match id:
+		"armor":
+			state.add_max_hp(60)
+		"engine":
+			wasteland.speed_scale = 1.0 + 0.15 * truck.upgrade_levels["engine"]
+	hud.flash_message("%s: ур. %d" % [TruckData.DEFS[id]["name"], truck.upgrade_levels[id]])
+	hud.refresh_truck_panel()
+
+
+func _process(delta: float) -> void:
+	if truck.repair_rate() > 0.0 and not state.is_game_over:
+		state.heal(truck.repair_rate() * delta)
 
 
 func _on_restart_pressed() -> void:
