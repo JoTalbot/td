@@ -83,6 +83,6 @@
 
 ## Сборка под Android
 
-- **CI**: `.github/workflows/android.yml` собирает APK на каждый пуш в `main` (артефакт `NeonBastionTD-apk`) и публикует релиз при теге `v*`.
+- **CI**: `.github/workflows/android.yml` собирает APK на каждый пуш в `main` (артефакт `RustRoadTD-apk`) и публикует релиз при теге `v*`.
 - **Локально**: см. `docs/ANDROID_BUILD.md`.
 - При смене версии Godot синхронно обновлять `GODOT_VERSION` в workflow и `config/features` в `project.godot`.

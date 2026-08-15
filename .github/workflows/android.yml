@@ -84,23 +84,23 @@ jobs:
       - name: Экспорт APK (debug-подпись)
         run: |
           mkdir -p build
-          godot --headless --path . --export-debug "Android" build/NeonBastionTD.apk
+          godot --headless --path . --export-debug "Android" build/RustRoadTD.apk
           ls -lh build/
 
       - name: Проверка APK
         run: |
-          test -s build/NeonBastionTD.apk
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --print-certs build/NeonBastionTD.apk | head -5
+          test -s build/RustRoadTD.apk
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --print-certs build/RustRoadTD.apk | head -5
 
       - name: Артефакт APK
         uses: actions/upload-artifact@v4
         with:
-          name: NeonBastionTD-apk
-          path: build/NeonBastionTD.apk
+          name: RustRoadTD-apk
+          path: build/RustRoadTD.apk
 
       - name: Публикация релиза (по тегу v*)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/NeonBastionTD.apk
+          files: build/RustRoadTD.apk
           generate_release_notes: true

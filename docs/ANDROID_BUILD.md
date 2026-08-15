@@ -31,8 +31,8 @@
 Или headless:
 
 ```bash
-godot --headless --path . --export-debug "Android" build/NeonBastionTD-debug.apk
-godot --headless --path . --export-release "Android" build/NeonBastionTD.apk
+godot --headless --path . --export-debug "Android" build/RustRoadTD-debug.apk
+godot --headless --path . --export-release "Android" build/RustRoadTD.apk
 ```
 
 ## Советы по производительности
