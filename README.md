@@ -23,7 +23,9 @@
 
 ## Сборка под Android
 
-См. [docs/ANDROID_BUILD.md](docs/ANDROID_BUILD.md).
+**Автоматически (CI):** каждый пуш в `main` собирает APK через GitHub Actions — скачайте артефакт `NeonBastionTD-apk` со страницы Actions. Пуш тега `v*` публикует APK в GitHub Releases.
+
+**Локально:** см. [docs/ANDROID_BUILD.md](docs/ANDROID_BUILD.md).
 
 ## Структура
 

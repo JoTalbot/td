@@ -1,0 +1,103 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.2.2"
+
+jobs:
+  build-apk:
+    name: Сборка APK (Godot ${{ env.GODOT_VERSION }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Установка JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Установка Android build-tools
+        run: |
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platform-tools" "build-tools;34.0.0" "platforms;android-34" > /dev/null
+
+      - name: Установка Godot (headless)
+        run: |
+          curl -sL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp
+          sudo mv "/tmp/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
+
+      - name: Кэш export-шаблонов Godot
+        id: templates-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}
+
+      - name: Установка export-шаблонов
+        if: steps.templates-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -q /tmp/templates.tpz -d /tmp/tpz
+          mv /tmp/tpz/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+
+      - name: Debug keystore
+        run: |
+          keytool -genkey -v -keystore "$HOME/debug.keystore" -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Настройки редактора Godot (пути SDK)
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Импорт ресурсов проекта
+        run: godot --headless --path . --import
+
+      - name: Экспорт APK (debug-подпись)
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/NeonBastionTD.apk
+          ls -lh build/
+
+      - name: Проверка APK
+        run: |
+          test -s build/NeonBastionTD.apk
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --print-certs build/NeonBastionTD.apk | head -5
+
+      - name: Артефакт APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeonBastionTD-apk
+          path: build/NeonBastionTD.apk
+
+      - name: Публикация релиза (по тегу v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/NeonBastionTD.apk
+          generate_release_notes: true

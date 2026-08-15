@@ -1,7 +1,7 @@
 # Godot
 .godot/
 *.tmp
-export_presets.cfg
+# export_presets.cfg коммитим: секретов в нём нет, keystore генерируется в CI
 
 # Сборки
 build/

@@ -43,4 +43,6 @@
 
 ## Сборка под Android
 
-См. `docs/ANDROID_BUILD.md`. Кратко: установить export templates Godot 4.2.2, Android SDK, настроить keystore, `godot --headless --export-release Android build/NeonBastionTD.apk`.
+- **CI**: workflow `.github/workflows/android.yml` собирает APK на каждый пуш в `main` (артефакт `NeonBastionTD-apk`) и публикует релиз при пуше тега `v*`. Пресет экспорта — `export_presets.cfg` (коммитится, секретов не содержит; debug keystore генерируется в CI).
+- **Локально**: см. `docs/ANDROID_BUILD.md`.
+- При смене версии Godot синхронно обновлять `GODOT_VERSION` в workflow и `config/features` в `project.godot`.
