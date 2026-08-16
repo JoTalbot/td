@@ -304,6 +304,7 @@ func _spawn_escort_if_needed(city_id: String) -> void:
 
 ## Постоянные техи и staged-модули применяются один раз на старте рейса.
 func _apply_campaign_effects() -> void:
+	truck.apply_route_cosmetics(campaign.mastered_routes.size())
 	if "plating" in campaign.research_done:
 		state.add_max_hp(40)
 	if "copper_heads" in campaign.research_done:

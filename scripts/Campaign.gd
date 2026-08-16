@@ -38,6 +38,7 @@ var visited_routes: Array = []       # ключи именованных тра�
 var route_mastery: Dictionary = {}  # route_key -> число успешных прохождений
 var mastered_routes: Array = []     # награда за уровень 3 уже выдана
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
+var war_log: Array = []              # последние захваты дорог
 var achievements: Array = []         # автоматически выданные достижения
 var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
 var war_week := -1
@@ -95,6 +96,7 @@ func load_campaign() -> void:
 	route_mastery = data.get("route_mastery", {})
 	mastered_routes = data.get("mastered_routes", [])
 	route_control = data.get("route_control", {})
+	war_log = data.get("war_log", [])
 	achievements = data.get("achievements", [])
 	achievement_stats = data.get("achievement_stats", {"trade": 0, "trophies": 0})
 	war_week = int(data.get("war_week", -1))
@@ -151,6 +153,7 @@ func save_campaign() -> void:
 		"route_mastery": route_mastery,
 		"mastered_routes": mastered_routes,
 		"route_control": route_control,
+		"war_log": war_log,
 		"achievements": achievements,
 		"achievement_stats": achievement_stats,
 		"war_week": war_week,
@@ -221,8 +224,15 @@ func advance_faction_war() -> void:
 	if CampaignData.ROUTES.is_empty():
 		return
 	var route: Array = CampaignData.ROUTES[(day * 7 + runs_finished * 3) % CampaignData.ROUTES.size()]
+	var key := CampaignData.route_key(String(route[0]), String(route[1]))
 	var owner := String(route[0]) if (day + runs_finished) % 2 == 0 else String(route[1])
-	route_control[CampaignData.route_key(String(route[0]), String(route[1]))] = owner
+	var previous := String(route_control.get(key, ""))
+	route_control[key] = owner
+	if previous != owner:
+		var route_name := String(CampaignData.route_meta(String(route[0]), String(route[1])).get("name", "Безымянная дорога"))
+		war_log.push_front({"day": day, "route": key, "name": route_name, "owner": owner, "previous": previous})
+		if war_log.size() > 20:
+			war_log.resize(20)
 
 
 func _current_war_week() -> int:

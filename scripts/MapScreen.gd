@@ -457,6 +457,9 @@ func _render_sheet() -> void:
 	elif _view == "achievements":
 		_sheet_title.text = "ДОСТИЖЕНИЯ"
 		_render_achievements()
+	elif _view == "warlog":
+		_sheet_title.text = "ЖУРНАЛ ВОЙНЫ"
+		_render_war_log()
 	else:
 		_sheet_title.text = String(c["name"])
 		_render_info(c, is_here, route)
@@ -619,6 +622,28 @@ func _render_war_campaign(city: String) -> void:
 		row.add_child(support)
 	else:
 		label.text = "НЕДЕЛЯ ВОЙНЫ • %s\nОЧКИ %d/25 • ЦЕЛИ 5 / 12 / 25" % [campaign.war_faction_name(), campaign.war_points]
+	var journal := _rusty_button("ЖУРНАЛ ЗАХВАТОВ", Color(0.68, 0.52, 0.32))
+	journal.custom_minimum_size = Vector2(260, 58)
+	journal.pressed.connect(func(): _open_view("warlog"))
+	_sheet_body.add_child(journal)
+
+
+func _render_war_log() -> void:
+	if campaign.war_log.is_empty():
+		var empty := _mk_label(_sheet_body, 20, TEXT_DIM)
+		empty.text = "Пока ни одна фракция не изменила контроль дорог."
+		return
+	for entry in campaign.war_log:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_sheet_body.add_child(row)
+		_status_icon(row, "warning", 40)
+		var owner := String(entry.get("owner", ""))
+		var faction := String(CampaignData.CITIES.get(owner, {}).get("faction", owner))
+		var text := _mk_label(row, 19, TEXT_DIM)
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.text = "ДЕНЬ %d • %s\nКОНТРОЛЬ: %s" % [int(entry.get("day", 0)), entry.get("name", "Дорога"), faction]
 
 
 func _render_city_specials(city: String) -> void:
