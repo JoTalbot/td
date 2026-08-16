@@ -3,6 +3,7 @@ extends Node
 ## текущий город, день. Сейв в user://campaign.save (JSON).
 
 signal achievement_unlocked(id: String, data: Dictionary)
+signal route_mastered(data: Dictionary)
 
 const CampaignData := preload("res://scripts/CampaignData.gd")
 
@@ -35,7 +36,10 @@ var story_progress: Dictionary = {} # city -> следующий этап сюж
 var story_choices: Dictionary = {}  # city -> выбранные решения по этапам
 var visited_routes: Array = []       # ключи именованных трасс
 var route_mastery: Dictionary = {}  # route_key -> число успешных прохождений
+var mastered_routes: Array = []     # награда за уровень 3 уже выдана
+var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
 var achievements: Array = []         # автоматически выданные достижения
+var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
 var hull_current := "buggy"
@@ -84,7 +88,10 @@ func load_campaign() -> void:
 	story_choices = data.get("story_choices", {})
 	visited_routes = data.get("visited_routes", [])
 	route_mastery = data.get("route_mastery", {})
+	mastered_routes = data.get("mastered_routes", [])
+	route_control = data.get("route_control", {})
 	achievements = data.get("achievements", [])
+	achievement_stats = data.get("achievement_stats", {"trade": 0, "trophies": 0})
 	if data.has("discovered_cities"):
 		discovered_cities = data.get("discovered_cities", [location])
 	else:
@@ -132,7 +139,10 @@ func save_campaign() -> void:
 		"story_choices": story_choices,
 		"visited_routes": visited_routes,
 		"route_mastery": route_mastery,
+		"mastered_routes": mastered_routes,
+		"route_control": route_control,
 		"achievements": achievements,
+		"achievement_stats": achievement_stats,
 		"hulls_owned": hulls_owned,
 		"hull_current": hull_current,
 	}))
@@ -156,6 +166,15 @@ func note_route(a: String, b: String) -> void:
 		if key not in visited_routes:
 			visited_routes.append(key)
 		route_mastery[key] = int(route_mastery.get(key, 0)) + 1
+		if route_mastery_level(a, b) >= 3 and key not in mastered_routes:
+			mastered_routes.append(key)
+			wallet += 150
+			add_cargo("parts", 2)
+			if meta != null:
+				meta.blueprints += 1
+				meta.save_meta()
+			var route_name := String(CampaignData.route_meta(a, b).get("name", "Трасса"))
+			route_mastered.emit({"name": "МАСТЕР: %s" % route_name, "desc": "Трасса освоена. Торговая скидка растёт на 3%.", "reward": {"scrap": 150, "bp": 1}})
 	check_achievements()
 	save_campaign()
 
@@ -176,8 +195,26 @@ func route_mastery_danger_mult(a: String, b: String) -> float:
 	return 1.0 - route_mastery_level(a, b) * 0.05
 
 
+func route_controller(a: String, b: String) -> String:
+	var key := CampaignData.route_key(a, b)
+	if route_control.has(key):
+		return String(route_control[key])
+	return a if a < b else b
+
+
+func advance_faction_war() -> void:
+	if CampaignData.ROUTES.is_empty():
+		return
+	var route: Array = CampaignData.ROUTES[(day * 7 + runs_finished * 3) % CampaignData.ROUTES.size()]
+	var owner := String(route[0]) if (day + runs_finished) % 2 == 0 else String(route[1])
+	route_control[CampaignData.route_key(String(route[0]), String(route[1]))] = owner
+
+
 func check_achievements() -> Array[String]:
 	var unlocked: Array[String] = []
+	var route_runs := 0
+	for count in route_mastery.values():
+		route_runs += int(count)
 	for id in CampaignData.ACHIEVEMENTS:
 		if id in achievements:
 			continue
@@ -189,6 +226,15 @@ func check_achievements() -> Array[String]:
 			"roadmaster": complete = visited_routes.size() >= CampaignData.ROUTE_META.size()
 			"veteran": complete = runs_finished >= 10
 			"war_rig": complete = "war_rig" in hulls_owned
+			"roads_bronze": complete = route_runs >= 4
+			"roads_silver": complete = route_runs >= 12
+			"roads_gold": complete = route_runs >= 24
+			"trade_bronze": complete = int(achievement_stats.get("trade", 0)) >= 10
+			"trade_silver": complete = int(achievement_stats.get("trade", 0)) >= 30
+			"trade_gold": complete = int(achievement_stats.get("trade", 0)) >= 75
+			"trophy_bronze": complete = int(achievement_stats.get("trophies", 0)) >= 3
+			"trophy_silver": complete = int(achievement_stats.get("trophies", 0)) >= 10
+			"trophy_gold": complete = int(achievement_stats.get("trophies", 0)) >= 25
 		if complete:
 			achievements.append(id)
 			unlocked.append(id)
@@ -236,13 +282,32 @@ func buy_intel() -> String:
 	return city
 
 
+func story_ending(city: String) -> String:
+	var chain: Array = CampaignData.CITY_STORIES.get(city, [])
+	if chain.is_empty() or story_stage(city) < chain.size():
+		return "ongoing"
+	var choices: Array = story_choices.get(city, [])
+	if "betray" in choices:
+		return "betrayed"
+	var profit_count := choices.count("profit")
+	return "mercenary" if profit_count >= 2 else "allied"
+
+
 func city_service_price(city: String) -> int:
 	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
-	return maxi(1, int(round(int(service.get("scrap", 0)) * (1.0 - rep_level(city) * 0.05))))
+	var price := int(round(int(service.get("scrap", 0)) * (1.0 - rep_level(city) * 0.05)))
+	if story_ending(city) == "allied":
+		price = int(round(price * 0.85))
+	return maxi(1, price)
 
 
 func city_service_strength(city: String) -> float:
-	return 0.15 + rep_level(city) * 0.03 if city == "bonewall" else 0.12 + rep_level(city) * 0.02
+	var strength := 0.15 + rep_level(city) * 0.03 if city == "bonewall" else 0.12 + rep_level(city) * 0.02
+	if story_ending(city) == "allied":
+		strength += 0.05
+	elif story_ending(city) == "mercenary":
+		strength += 0.03
+	return strength
 
 
 func _has_service_buff(buff_id: String) -> bool:
@@ -257,7 +322,7 @@ func _has_service_buff(buff_id: String) -> bool:
 
 func can_buy_city_service(city: String) -> bool:
 	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
-	if service.is_empty() or location != city or _has_service_buff(String(service["buff"])):
+	if service.is_empty() or location != city or story_ending(city) == "betrayed" or _has_service_buff(String(service["buff"])):
 		return false
 	if wallet < city_service_price(city):
 		return false
@@ -519,6 +584,8 @@ func gain_rep(city: String, n: int) -> void:
 ## Округляем вниз — скидка должна чувствоваться даже на дешёвом товаре.
 func buy_price(res: String, city: String) -> int:
 	var disc := 1.0 - 0.04 * float(rep_level(city))
+	# Каждая полностью освоенная именованная трасса даёт постоянные −3% (до −18%).
+	disc -= minf(mastered_routes.size() * 0.03, 0.18)
 	return maxi(int(floor(price_of(res, city) * disc)), 1)
 
 
@@ -537,6 +604,8 @@ func buy(res: String, qty: int) -> bool:
 	wallet -= cost
 	add_cargo(res, qty)
 	gain_rep(location, 1)  # деньги сливаются — тебя запоминают
+	achievement_stats["trade"] = int(achievement_stats.get("trade", 0)) + 1
+	check_achievements()
 	save_campaign()
 	return true
 
@@ -547,6 +616,8 @@ func sell(res: String, qty: int) -> bool:
 	take_cargo(res, qty)
 	wallet += int(price_of(res, location) * qty * sell_rate(location))
 	gain_rep(location, 1)
+	achievement_stats["trade"] = int(achievement_stats.get("trade", 0)) + 1
+	check_achievements()
 	save_campaign()
 	return true
 
@@ -578,6 +649,8 @@ func scrap_trophy(t: String) -> String:
 	if fallback > 0:
 		wallet += fallback
 		parts.append("остаток скупщику: ⚙+%d" % fallback)
+	achievement_stats["trophies"] = int(achievement_stats.get("trophies", 0)) + 1
+	check_achievements()
 	save_campaign()
 	return "; ".join(parts) if not parts.is_empty() else "Груда ржавчины."
 
@@ -589,6 +662,8 @@ func sell_trophy(t: String) -> int:
 	trophies[t] = int(trophies[t]) - 1
 	var price: int = CampaignData.TROPHIES[t]["scrap_price"]
 	wallet += price
+	achievement_stats["trophies"] = int(achievement_stats.get("trophies", 0)) + 1
+	check_achievements()
 	save_campaign()
 	return price
 
@@ -704,7 +779,8 @@ func _generate_offers(city: String) -> Array:
 	var tpls: Array = CampaignData.CONTRACT_POOL.duplicate()
 	tpls.shuffle()
 	var res_keys: Array = CampaignData.RESOURCES.keys()
-	for i in 2:
+	var offer_count := 3 if story_ending(city) == "allied" else (1 if story_ending(city) == "betrayed" else 2)
+	for i in offer_count:
 		var tpl: Dictionary = tpls[i % tpls.size()]
 		var c := {"type": tpl["type"], "uid": "%s_%d_%d" % [city, day_seed, i], "origin": city}
 		match tpl["type"]:
@@ -961,6 +1037,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary
 	discover_around(city)
 	day += 1
 	runs_finished += 1
+	advance_faction_war()
 	wallet += run_scrap
 	var loot_in := {}
 	var scrap_fallback := 0
@@ -1032,6 +1109,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary
 func fail_run() -> void:
 	runs_finished += 1
 	day += 1
+	advance_faction_war()
 	for res in cargo.keys():
 		var loss := int(ceil(int(cargo[res]) * 0.5))
 		cargo[res] = int(cargo[res]) - loss

@@ -393,8 +393,10 @@ func _redraw_map() -> void:
 		marker.visible = campaign.is_city_discovered(id)
 		if marker.visible:
 			marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
+			marker.set_story_ending(campaign.story_ending(id))
 	(_map_area as MapCanvas).set_discovered(campaign.discovered_cities)
 	(_map_area as MapCanvas).set_mastery(campaign.route_mastery)
+	(_map_area as MapCanvas).set_route_control(campaign.route_control)
 	var selected_to := ""
 	if _selected != campaign.location and not CampaignData.route_between(campaign.location, _selected).is_empty():
 		selected_to = _selected
@@ -500,10 +502,12 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			route_tags = " • КАРАВАН"
 		var route_meta: Dictionary = CampaignData.route_meta(campaign.location, _selected)
 		var route_name := String(route_meta.get("name", "Безымянный тракт"))
+		var controller: String = campaign.route_controller(campaign.location, _selected)
+		var controller_name := String(CampaignData.CITIES.get(controller, {}).get("faction", "Ничейная земля"))
 		var mastery_level: int = campaign.route_mastery_level(campaign.location, _selected)
 		var effective_danger: float = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, _selected)
-		route_info.text = "%s • МАСТЕРСТВО %d/3 • %d ВОЛН • ОПАСНОСТЬ %.2f%s" % [
-			route_name.to_upper(), mastery_level, 4 + int(route[0]) * 2, effective_danger, route_tags]
+		route_info.text = "%s • МАСТЕРСТВО %d/3 • %d ВОЛН • ОПАСНОСТЬ %.2f%s\nКОНТРОЛЬ: %s" % [
+			route_name.to_upper(), mastery_level, 4 + int(route[0]) * 2, effective_danger, route_tags, controller_name]
 		route_info.tooltip_text = String(route_meta.get("desc", "Подсвеченная дорога ведёт в выбранный город"))
 		var preview: Dictionary = CampaignData.route_preview(campaign.location, _selected)
 		var preview_row := HBoxContainer.new()
@@ -620,7 +624,8 @@ func _render_city_specials(city: String) -> void:
 		var stage: Dictionary = campaign.story_current(city)
 		var story_label := _mk_label(_sheet_body, 20, Color(0.9, 0.66, 0.35))
 		if stage.is_empty():
-			story_label.text = "ИСТОРИЯ ФРАКЦИИ • ЦЕПОЧКА ЗАВЕРШЕНА"
+			var endings := {"allied": "СОЮЗ", "mercenary": "ДЕЛОВОЕ ПАРТНЁРСТВО", "betrayed": "ПРЕДАТЕЛЬСТВО"}
+			story_label.text = "ИСТОРИЯ ЗАВЕРШЕНА • %s" % endings.get(campaign.story_ending(city), "ФИНАЛ")
 			return
 		var art_prefix := "bone" if city == "bonewall" else "copper"
 		var art_path := "res://assets/ui/art_%s_%d.jpg" % [art_prefix, campaign.story_stage(city) + 1]
@@ -1200,6 +1205,11 @@ class MapCanvas:
 	var selected_b := ""
 	var discovered: Array = []
 	var mastery: Dictionary = {}
+	var control: Dictionary = {}
+
+	func set_route_control(values: Dictionary) -> void:
+		control = values.duplicate(true)
+		queue_redraw()
 
 	func set_mastery(values: Dictionary) -> void:
 		mastery = values.duplicate(true)
@@ -1242,6 +1252,12 @@ class MapCanvas:
 				draw_circle((a + b) * 0.5, 7.0, Color(1.0, 0.78, 0.25, 1.0))
 			else:
 				draw_line(a, b, col, 4.0, true)
+			var route_key := CDATA.route_key(String(r[0]), String(r[1]))
+			if control.has(route_key):
+				var owner := String(control[route_key])
+				var faction := String(CDATA.CITIES.get(owner, {}).get("faction", owner))
+				var control_hue := fposmod(float(abs(faction.hash()) % 360) / 360.0, 1.0)
+				draw_line(a, b, Color.from_hsv(control_hue, 0.72, 0.95, 0.8), 2.0, true)
 			draw_circle(a, 5.0, Color(1.0, 0.48, 0.12) if is_selected else col)
 			var mastery_count := int(mastery.get(CDATA.route_key(String(r[0]), String(r[1])), 0))
 			var mastery_level := mini(int(mastery_count / 2), 3)

@@ -4,6 +4,7 @@ extends Button
 var city_name := ""
 var _current := false
 var _has_poi := false
+var _ending := "ongoing"
 var _caption: Label
 
 
@@ -59,6 +60,16 @@ func set_marks(current: bool, has_poi: bool) -> void:
 	queue_redraw()
 
 
+func set_story_ending(ending: String) -> void:
+	_ending = ending
+	match ending:
+		"allied": self_modulate = Color(0.82, 1.0, 0.72)
+		"mercenary": self_modulate = Color(1.0, 0.82, 0.48)
+		"betrayed": self_modulate = Color(1.0, 0.52, 0.42)
+		_: self_modulate = Color.WHITE
+	queue_redraw()
+
+
 func _animate_hover(on: bool) -> void:
 	pivot_offset = size * 0.5
 	var tween := create_tween()
@@ -76,6 +87,9 @@ func _draw() -> void:
 	# Только маленькие статусные метки — никакой рамки вокруг эмблемы.
 	if _current:
 		draw_circle(Vector2(12, 92), 5.0, Color(1.0, 0.48, 0.16, 0.95))
+	if _ending != "ongoing":
+		var ending_color := Color(0.45, 0.9, 0.35) if _ending == "allied" else (Color(1.0, 0.72, 0.2) if _ending == "mercenary" else Color(0.95, 0.2, 0.12))
+		draw_arc(Vector2(71, 41), 43, 0, TAU, 32, ending_color, 4.0)
 	if _has_poi:
 		draw_circle(Vector2(size.x - 18, 18), 11.0, Color(0.9, 0.66, 0.2, 0.95))
 		draw_string(ThemeDB.fallback_font, Vector2(size.x - 23, 24), "?", HORIZONTAL_ALIGNMENT_CENTER, 10, 17, Color(0.1, 0.06, 0.02))

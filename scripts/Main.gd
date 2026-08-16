@@ -159,6 +159,9 @@ func _ready() -> void:
 	campaign.achievement_unlocked.connect(func(_id, data):
 		hud.show_achievement(data)
 		sfx.play("earn", 1.0, 1.15))
+	campaign.route_mastered.connect(func(data):
+		hud.show_achievement(data)
+		sfx.play("earn", 1.0, 0.9))
 
 	map_screen = MapScreen.new()
 	map_screen.name = "MapScreen"
@@ -202,12 +205,20 @@ func _on_travel(city_id: String) -> void:
 	waves.run_length = 4 + int(route[0]) * 2
 	waves.danger = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, city_id)
 	waves.bonus_mult *= campaign.route_mastery_reward_mult(campaign.location, city_id)
+	var route_controller: String = campaign.route_controller(campaign.location, city_id)
+	var friendly_control := campaign.rep_level(route_controller) >= 2
+	if friendly_control:
+		waves.danger *= 0.95
+		waves.bonus_mult *= 1.08
+	else:
+		waves.danger *= 1.05
 	# Первые выезды на голой багги — учебный профиль: короче и мягче
 	var noob := campaign.runs_finished < 2 and campaign.hull_current == "buggy"
 	if noob:
 		waves.run_length = mini(waves.run_length, 3)
 		waves.danger = minf(waves.danger, 0.7)
 	var scout_contract: Dictionary = campaign.active_scout_for(city_id)
+	waves.scout_boss = not scout_contract.is_empty()
 	if not scout_contract.is_empty():
 		waves.run_length += 1
 		waves.danger += float(scout_contract.get("danger_bonus", 0.2))
@@ -234,6 +245,9 @@ func _on_travel(city_id: String) -> void:
 	elif tags != "":
 		hud.flash_message(tags.strip_edges())
 	_apply_campaign_effects()
+	if not friendly_control:
+		waves.extra_count += 1
+		hud.flash_message("ГРАНИЦА ФРАКЦИИ: контроль «%s» — рейдеров больше!" % CampaignData.CITIES[route_controller]["faction"])
 	if not scout_contract.is_empty():
 		waves.extra_count += 3
 		hud.flash_message("РАЗВЕДКОНТРАКТ: +1 волна, усиленные рейдеры, повышенная награда!")
