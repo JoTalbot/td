@@ -14,6 +14,7 @@ const TruckData := preload("res://scripts/TruckData.gd")
 const AbilityData := preload("res://scripts/AbilityData.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
+const RustButton := preload("res://scripts/RustButton.gd")
 
 var state: Node
 var waves: Node
@@ -112,31 +113,24 @@ func _styled_panel(border := BORDER) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL_BG
 	sb.border_color = border
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(10)
+	sb.border_width_left = 3
+	sb.border_width_top = 3
+	sb.border_width_right = 5
+	sb.border_width_bottom = 5
+	sb.corner_radius_top_left = 6
+	sb.corner_radius_top_right = 2
+	sb.corner_radius_bottom_left = 2
+	sb.corner_radius_bottom_right = 6
+	sb.set_content_margin_all(12)
+	sb.shadow_color = Color(0.02, 0.01, 0.005, 0.8)
+	sb.shadow_size = 6
+	sb.shadow_offset = Vector2(3, 4)
 	return sb
 
 
 func _rusty_button(text: String, accent := ACCENT) -> Button:
-	var btn := Button.new()
-	btn.text = text
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.18, 0.13, 0.08, 0.95)
-	sb.border_color = accent * 0.8
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(4)
-	btn.add_theme_stylebox_override("normal", sb)
-	var sb_h := sb.duplicate() as StyleBoxFlat
-	sb_h.bg_color = Color(0.3, 0.2, 0.1, 0.95)
-	btn.add_theme_stylebox_override("hover", sb_h)
-	btn.add_theme_stylebox_override("pressed", sb_h)
-	var sb_d := sb.duplicate() as StyleBoxFlat
-	sb_d.bg_color = Color(0.1, 0.08, 0.06, 0.9)
-	sb_d.border_color = Color(0.3, 0.25, 0.2)
-	btn.add_theme_stylebox_override("disabled", sb_d)
-	btn.add_theme_color_override("font_color", Color(0.95, 0.88, 0.7))
-	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.45, 0.38))
+	var btn := RustButton.new()
+	btn.setup(text, accent)
 	btn.pressed.connect(func(): if sfx != null: sfx.play("click", 0.35))
 	return btn
 
@@ -146,8 +140,8 @@ func _build_top_bar() -> void:
 	panel.add_theme_stylebox_override("panel", _styled_panel())
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -215
-	panel.offset_right = 215
+	panel.offset_left = -350
+	panel.offset_right = 350
 	panel.offset_top = 8
 	add_child(panel)
 
@@ -158,7 +152,7 @@ func _build_top_bar() -> void:
 
 	_scrap_label = Label.new()
 	_scrap_label.add_theme_color_override("font_color", ACCENT)
-	_scrap_label.add_theme_font_size_override("font_size", 21)
+	_scrap_label.add_theme_font_size_override("font_size", 26)
 	row.add_child(_scrap_label)
 
 	# HP-бар грузовика
@@ -167,7 +161,7 @@ func _build_top_bar() -> void:
 	row.add_child(hp_box)
 	var hp_icon := Label.new()
 	hp_icon.text = "🛠"
-	hp_icon.add_theme_font_size_override("font_size", 19)
+	hp_icon.add_theme_font_size_override("font_size", 24)
 	hp_box.add_child(hp_icon)
 	var bar_bg := PanelContainer.new()
 	var bg_sb := StyleBoxFlat.new()
@@ -185,13 +179,13 @@ func _build_top_bar() -> void:
 	_hp_fill.color = Color(0.3, 0.75, 0.1)
 	fill_wrap.add_child(_hp_fill)
 	_hp_label = Label.new()
-	_hp_label.add_theme_font_size_override("font_size", 15)
+	_hp_label.add_theme_font_size_override("font_size", 20)
 	_hp_label.add_theme_color_override("font_color", TEXT_DIM)
 	hp_box.add_child(_hp_label)
 
 	_wave_label = Label.new()
 	_wave_label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.3))
-	_wave_label.add_theme_font_size_override("font_size", 19)
+	_wave_label.add_theme_font_size_override("font_size", 24)
 	row.add_child(_wave_label)
 
 
@@ -217,7 +211,7 @@ func _build_bottom_bar() -> void:
 		var def: Dictionary = WeaponData.DEFS[id]
 		var btn := _rusty_button("%s\n⚙ %d" % [def["name"], def["cost"]], def["color"])
 		btn.custom_minimum_size = Vector2(88, 68)
-		btn.add_theme_font_size_override("font_size", 13)
+		btn.add_theme_font_size_override("font_size", 18)
 		# Нарисованная иконка орудия: картинка сверху, цена строкой снизу
 		var icon_path: String = "res://assets/ui/w_%s.png" % id
 		if ResourceLoader.exists(icon_path):
@@ -234,7 +228,7 @@ func _build_bottom_bar() -> void:
 	# Кнопка гаража
 	_garage_toggle = _rusty_button("ГАРАЖ", Color(0.7, 0.85, 0.5))
 	_garage_toggle.custom_minimum_size = Vector2(88, 68)
-	_garage_toggle.add_theme_font_size_override("font_size", 15)
+	_garage_toggle.add_theme_font_size_override("font_size", 20)
 	_garage_toggle.pressed.connect(_toggle_garage)
 	row.add_child(_garage_toggle)
 
@@ -249,9 +243,9 @@ func _build_ability_bar() -> void:
 	_ability_panel.anchor_top = 0.5
 	_ability_panel.anchor_bottom = 0.5
 	_ability_panel.offset_left = 10
-	_ability_panel.offset_right = 148
-	_ability_panel.offset_top = -126
-	_ability_panel.offset_bottom = 126
+	_ability_panel.offset_right = 184
+	_ability_panel.offset_top = -205
+	_ability_panel.offset_bottom = 205
 	add_child(_ability_panel)
 
 	var col := VBoxContainer.new()
@@ -260,7 +254,7 @@ func _build_ability_bar() -> void:
 
 	var title := Label.new()
 	title.text = "ЭКИПАЖ"
-	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_font_size_override("font_size", 19)
 	title.add_theme_color_override("font_color", TEXT_DIM)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
@@ -271,8 +265,8 @@ func _build_ability_bar() -> void:
 		if bool(def.get("legendary", false)) and not leg_abilities.has(id):
 			continue
 		var btn := _rusty_button("%s %s" % [def["icon"], def["name"]], def["color"])
-		btn.custom_minimum_size = Vector2(112, 56)
-		btn.add_theme_font_size_override("font_size", 16)
+		btn.custom_minimum_size = Vector2(112, 58)
+		btn.add_theme_font_size_override("font_size", 21)
 		# Нарисованная иконка способности рядом с именем
 		var ab_icon: String = "res://assets/ui/ab_%s.svg" % id
 		if ResourceLoader.exists(ab_icon):
@@ -300,9 +294,9 @@ func _build_garage() -> void:
 	_garage_panel.anchor_right = 0.5
 	_garage_panel.anchor_top = 1.0
 	_garage_panel.anchor_bottom = 1.0
-	_garage_panel.offset_left = -290
-	_garage_panel.offset_right = 290
-	_garage_panel.offset_top = -368
+	_garage_panel.offset_left = -340
+	_garage_panel.offset_right = 340
+	_garage_panel.offset_top = -470
 	_garage_panel.offset_bottom = -112
 	_garage_panel.visible = false
 	add_child(_garage_panel)
@@ -313,7 +307,7 @@ func _build_garage() -> void:
 
 	var title := Label.new()
 	title.text = "🔧 ГАРАЖ — прокачка фуры"
-	title.add_theme_font_size_override("font_size", 19)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
@@ -321,8 +315,8 @@ func _build_garage() -> void:
 	for id in TruckData.DEFS:
 		var def: Dictionary = TruckData.DEFS[id]
 		var btn := _rusty_button("", ACCENT)
-		btn.custom_minimum_size = Vector2(0, 52)
-		btn.add_theme_font_size_override("font_size", 15)
+		btn.custom_minimum_size = Vector2(0, 58)
+		btn.add_theme_font_size_override("font_size", 20)
 		btn.pressed.connect(func(): truck_upgrade_pressed.emit(id))
 		col.add_child(btn)
 		_garage_buttons[id] = btn
@@ -356,10 +350,10 @@ func _build_weapon_panel() -> void:
 	_weapon_panel.anchor_right = 1.0
 	_weapon_panel.anchor_top = 0.5
 	_weapon_panel.anchor_bottom = 0.5
-	_weapon_panel.offset_left = -225
+	_weapon_panel.offset_left = -300
 	_weapon_panel.offset_right = -10
-	_weapon_panel.offset_top = -115
-	_weapon_panel.offset_bottom = 115
+	_weapon_panel.offset_top = -160
+	_weapon_panel.offset_bottom = 160
 	_weapon_panel.visible = false
 	add_child(_weapon_panel)
 
@@ -368,17 +362,17 @@ func _build_weapon_panel() -> void:
 	_weapon_panel.add_child(col)
 
 	_weapon_info = Label.new()
-	_weapon_info.add_theme_font_size_override("font_size", 16)
+	_weapon_info.add_theme_font_size_override("font_size", 21)
 	_weapon_info.add_theme_color_override("font_color", TEXT_DIM)
 	col.add_child(_weapon_info)
 
 	_upgrade_btn = _rusty_button("")
-	_upgrade_btn.custom_minimum_size = Vector2(0, 46)
+	_upgrade_btn.custom_minimum_size = Vector2(0, 58)
 	_upgrade_btn.pressed.connect(func(): upgrade_pressed.emit())
 	col.add_child(_upgrade_btn)
 
 	var sell_btn := _rusty_button("Демонтаж", Color(0.9, 0.5, 0.3))
-	sell_btn.custom_minimum_size = Vector2(0, 46)
+	sell_btn.custom_minimum_size = Vector2(0, 58)
 	sell_btn.pressed.connect(func(): sell_pressed.emit())
 	col.add_child(sell_btn)
 
@@ -413,10 +407,10 @@ func _build_encounter() -> void:
 	_encounter_panel.anchor_right = 1.0
 	_encounter_panel.anchor_top = 0.17
 	_encounter_panel.anchor_bottom = 0.17
-	_encounter_panel.offset_left = -265
+	_encounter_panel.offset_left = -360
 	_encounter_panel.offset_right = -10
 	_encounter_panel.offset_top = 0
-	_encounter_panel.offset_bottom = 235
+	_encounter_panel.offset_bottom = 340
 	_encounter_panel.visible = false
 	add_child(_encounter_panel)
 
@@ -424,11 +418,11 @@ func _build_encounter() -> void:
 	col.add_theme_constant_override("separation", 6)
 	_encounter_panel.add_child(col)
 	_encounter_title = Label.new()
-	_encounter_title.add_theme_font_size_override("font_size", 16)
+	_encounter_title.add_theme_font_size_override("font_size", 21)
 	_encounter_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.55))
 	col.add_child(_encounter_title)
 	_encounter_desc = Label.new()
-	_encounter_desc.add_theme_font_size_override("font_size", 13)
+	_encounter_desc.add_theme_font_size_override("font_size", 18)
 	_encounter_desc.add_theme_color_override("font_color", TEXT_DIM)
 	_encounter_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_encounter_desc)
@@ -446,7 +440,7 @@ func show_encounter(title: String, desc: String, options: Array) -> void:
 		b.queue_free()
 	for opt in options:
 		var btn := _rusty_button(String(opt["label"]))
-		btn.custom_minimum_size = Vector2(0, 42)
+		btn.custom_minimum_size = Vector2(0, 58)
 		var cb: Callable = opt["cb"]
 		btn.pressed.connect(func() -> void:
 			cb.call()
@@ -483,7 +477,7 @@ func _build_hint() -> void:
 	_hint_panel.gui_input.connect(_on_hint_gui_input)
 	add_child(_hint_panel)
 	_hint_label = Label.new()
-	_hint_label.add_theme_font_size_override("font_size", 15)
+	_hint_label.add_theme_font_size_override("font_size", 20)
 	_hint_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -518,7 +512,7 @@ func _build_message() -> void:
 	_message_label.offset_left = -300
 	_message_label.offset_right = 300
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message_label.add_theme_font_size_override("font_size", 24)
+	_message_label.add_theme_font_size_override("font_size", 30)
 	_message_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
 	_message_label.add_theme_color_override("font_outline_color", Color(0.2, 0.1, 0.02))
 	_message_label.add_theme_constant_override("outline_size", 6)
@@ -555,20 +549,20 @@ func _build_game_over() -> void:
 
 	var title := Label.new()
 	title.text = "ФУРА УНИЧТОЖЕНА"
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.name = "Subtitle"
-	subtitle.add_theme_font_size_override("font_size", 19)
+	subtitle.add_theme_font_size_override("font_size", 24)
 	subtitle.add_theme_color_override("font_color", TEXT_DIM)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(subtitle)
 
 	_earned_label = Label.new()
-	_earned_label.add_theme_font_size_override("font_size", 20)
+	_earned_label.add_theme_font_size_override("font_size", 25)
 	_earned_label.add_theme_color_override("font_color", ACCENT)
 	_earned_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_earned_label)
@@ -576,13 +570,13 @@ func _build_game_over() -> void:
 	# Мастерская: тратим чертежи на постоянные улучшения
 	var shop_title := Label.new()
 	shop_title.text = "🔧 МАСТЕРСКАЯ — постоянные улучшения"
-	shop_title.add_theme_font_size_override("font_size", 18)
+	shop_title.add_theme_font_size_override("font_size", 23)
 	shop_title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 	shop_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(shop_title)
 
 	_blueprints_label = Label.new()
-	_blueprints_label.add_theme_font_size_override("font_size", 17)
+	_blueprints_label.add_theme_font_size_override("font_size", 22)
 	_blueprints_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 	_blueprints_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_blueprints_label)
@@ -590,15 +584,15 @@ func _build_game_over() -> void:
 	for id in MetaProgress.DEFS:
 		var def: Dictionary = MetaProgress.DEFS[id]
 		var mbtn := _rusty_button("", Color(0.7, 0.85, 0.5))
-		mbtn.custom_minimum_size = Vector2(420, 46)
-		mbtn.add_theme_font_size_override("font_size", 15)
+		mbtn.custom_minimum_size = Vector2(420, 58)
+		mbtn.add_theme_font_size_override("font_size", 20)
 		mbtn.pressed.connect(func(): meta_upgrade_pressed.emit(id))
 		col.add_child(mbtn)
 		_meta_buttons[id] = mbtn
 
 	var btn := _rusty_button("На карту пустоши")
-	btn.custom_minimum_size = Vector2(240, 54)
-	btn.add_theme_font_size_override("font_size", 19)
+	btn.custom_minimum_size = Vector2(240, 58)
+	btn.add_theme_font_size_override("font_size", 24)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	col.add_child(btn)
 
@@ -634,7 +628,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		ch.queue_free()
 	var title := Label.new()
 	title.text = "🏁 ПРИБЫТИЕ: %s" % city_name
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
@@ -644,7 +638,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		col.add_child(_art_banner(art_path))
 	var scrap_l := Label.new()
 	scrap_l.text = "⚙ Лом рейса: +%d" % int(summary.get("scrap", 0))
-	scrap_l.add_theme_font_size_override("font_size", 18)
+	scrap_l.add_theme_font_size_override("font_size", 23)
 	scrap_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(scrap_l)
 	var loot: Dictionary = summary.get("loot", {})
@@ -655,13 +649,13 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 			var d: Dictionary = CampaignData.RESOURCES[res]
 			parts.append("%s×%d" % [d["icon"], int(loot[res])])
 		ll.text = "📦 В трюм: " + ", ".join(parts)
-		ll.add_theme_font_size_override("font_size", 16)
+		ll.add_theme_font_size_override("font_size", 21)
 		ll.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(ll)
 	if int(summary.get("sold", 0)) > 0:
 		var sl := Label.new()
 		sl.text = "💰 Не влезло, продано кустарям: +⚙%d" % int(summary["sold"])
-		sl.add_theme_font_size_override("font_size", 15)
+		sl.add_theme_font_size_override("font_size", 20)
 		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(sl)
 	var escort_pay: int = summary.get("escort", 0)
@@ -673,7 +667,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		else:
 			el.text = "💥 Клиентский броневик не доехал…"
 			el.add_theme_color_override("font_color", Color(1.0, 0.45, 0.3))
-		el.add_theme_font_size_override("font_size", 16)
+		el.add_theme_font_size_override("font_size", 21)
 		el.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(el)
 	var produced: Dictionary = summary.get("produced", {})
@@ -683,28 +677,28 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		for res in produced:
 			pparts.append("%s×%d" % [CampaignData.RESOURCES[res]["icon"], int(produced[res])])
 		pl.text = "🏭 База произвела: " + ", ".join(pparts)
-		pl.add_theme_font_size_override("font_size", 15)
+		pl.add_theme_font_size_override("font_size", 20)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(pl)
 	if str(summary.get("research", "")) != "":
 		var rd: Dictionary = CampaignData.RESEARCH[summary["research"]]
 		var rl := Label.new()
 		rl.text = "%s Исследование завершено: %s!" % [rd["icon"], rd["name"]]
-		rl.add_theme_font_size_override("font_size", 16)
+		rl.add_theme_font_size_override("font_size", 21)
 		rl.add_theme_color_override("font_color", Color(0.8, 0.85, 0.6))
 		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(rl)
 	if int(summary.get("blueprints", 0)) > 0:
 		var bl := Label.new()
 		bl.text = "📐 Чертежи за рейс: +%d" % int(summary["blueprints"])
-		bl.add_theme_font_size_override("font_size", 16)
+		bl.add_theme_font_size_override("font_size", 21)
 		bl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 		bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(bl)
 	if bool(summary.get("record", false)):
 		var rl2 := Label.new()
 		rl2.text = "🏆 НОВЫЙ РЕКОРД: %d волн!" % int(summary.get("best_wave", 0))
-		rl2.add_theme_font_size_override("font_size", 17)
+		rl2.add_theme_font_size_override("font_size", 22)
 		rl2.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		rl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(rl2)
@@ -716,7 +710,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 			var td: Dictionary = CampaignData.TROPHIES.get(t, {"icon": "🛻", "name": t})
 			tparts.append("%s %s×%d" % [td["icon"], td["name"], int(tros[t])])
 		tl.text = "🛻 Трофеи в ангаре: " + ", ".join(tparts)
-		tl.add_theme_font_size_override("font_size", 15)
+		tl.add_theme_font_size_override("font_size", 20)
 		tl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.5))
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(tl)
@@ -730,20 +724,20 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		for oc in contracts_rep:
 			rparts.append("%s +%d" % [CampaignData.CITIES.get(oc, {}).get("faction", "?"), int(contracts_rep[oc])])
 		rpl.text = "🤝 Репутация: " + ", ".join(rparts)
-		rpl.add_theme_font_size_override("font_size", 14)
+		rpl.add_theme_font_size_override("font_size", 19)
 		rpl.add_theme_color_override("font_color", Color(0.7, 0.85, 0.9))
 		rpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(rpl)
 	for c in summary.get("done", []):
 		var cl := Label.new()
 		cl.text = "✅ Контракт закрыт: +⚙%d" % int(c["reward"])
-		cl.add_theme_font_size_override("font_size", 16)
+		cl.add_theme_font_size_override("font_size", 21)
 		cl.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(cl)
 	var btn := _rusty_button("К стоянке (карта)", Color(0.7, 0.85, 0.5))
-	btn.custom_minimum_size = Vector2(0, 54)
-	btn.add_theme_font_size_override("font_size", 19)
+	btn.custom_minimum_size = Vector2(0, 58)
+	btn.add_theme_font_size_override("font_size", 24)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	col.add_child(btn)
 	panel.visible = true
@@ -777,7 +771,7 @@ func show_game_over(wave: int, earned: int = 0) -> void:
 	if record_label == null:
 		record_label = Label.new()
 		record_label.name = "Record"
-		record_label.add_theme_font_size_override("font_size", 18)
+		record_label.add_theme_font_size_override("font_size", 23)
 		record_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_game_over_panel.find_child("Col", true, false).add_child(record_label)
 		_game_over_panel.find_child("Col", true, false).move_child(record_label, _earned_label.get_index() + 1)
