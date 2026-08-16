@@ -19,6 +19,8 @@ const Campaign := preload("res://scripts/Campaign.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const MapScreen := preload("res://scripts/MapScreen.gd")
 const Tutorial := preload("res://scripts/Tutorial.gd")
+const UserSettings := preload("res://scripts/UserSettings.gd")
+const Junk := preload("res://scripts/Junk.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -33,6 +35,7 @@ var tutorial: Node
 var meta: MetaProgress
 var campaign: Campaign
 var map_screen: MapScreen
+var user_settings: UserSettings
 var world_env: Environment
 var _earned_blueprints := 0
 ## Рейс идёт (тапы по сцене работают только в бою)
@@ -58,6 +61,12 @@ var selected_weapon: Node3D = null
 
 
 func _ready() -> void:
+	user_settings = UserSettings.new()
+	user_settings.name = "UserSettings"
+	add_child(user_settings)
+	_apply_user_settings()
+	user_settings.changed.connect(_on_user_setting_changed)
+
 	_setup_environment()
 	_setup_lights()
 
@@ -68,6 +77,7 @@ func _ready() -> void:
 	# Процедурные звуки и тряска камеры
 	sfx = SoundFX.new()
 	sfx.name = "SoundFX"
+	sfx.master_volume = user_settings.sound_gain()
 	add_child(sfx)
 	state.sfx = sfx
 	state.damaged.connect(_on_truck_damaged)
@@ -91,6 +101,7 @@ func _ready() -> void:
 
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
+	camera_rig.trauma_scale = user_settings.shake_gain()
 	add_child(camera_rig)
 	camera_rig.focus_on(Vector3(0, 1.0, 0))
 
@@ -123,6 +134,7 @@ func _ready() -> void:
 	hud.truck = truck
 	hud.abilities = abilities
 	hud.meta = meta
+	hud.settings = user_settings
 	add_child(hud)
 
 	hud.weapon_selected.connect(_on_weapon_type_selected)
@@ -133,6 +145,7 @@ func _ready() -> void:
 	hud.ability_pressed.connect(func(a):
 		if abilities.try_activate(a):
 			sfx.play("ability", 0.8)
+			user_settings.vibrate(30, 0.4)
 			if tutorial != null:
 				tutorial.notify("ability"))
 	abilities.feedback.connect(hud.flash_message)
@@ -145,6 +158,7 @@ func _ready() -> void:
 	map_screen = MapScreen.new()
 	map_screen.name = "MapScreen"
 	map_screen.campaign = campaign
+	map_screen.settings = user_settings
 	add_child(map_screen)
 	hud.campaign = campaign
 	map_screen.travel_requested.connect(_on_travel)
@@ -698,9 +712,24 @@ func _process(delta: float) -> void:
 				break
 
 
-## Урон по фуре: тряска камеры пропорциональна влётушему урону.
+## Применить настройки сразу и ко всем новым процедурным эффектам.
+func _apply_user_settings() -> void:
+	Junk.particle_scale = user_settings.particle_gain()
+	Junk.perf_explosion_lights = String(user_settings.get_value("effects")) == "full"
+	if sfx != null:
+		sfx.master_volume = user_settings.sound_gain()
+	if camera_rig != null:
+		camera_rig.trauma_scale = user_settings.shake_gain()
+
+
+func _on_user_setting_changed(_key: String) -> void:
+	_apply_user_settings()
+
+
+## Урон по фуре: тряска и вибрация пропорциональны влетевшему урону.
 func _on_truck_damaged(amount: int) -> void:
 	camera_rig.add_trauma(clampf(float(amount) * 0.035, 0.15, 0.6))
+	user_settings.vibrate(clampi(25 + amount, 30, 90), clampf(float(amount) / 30.0, 0.3, 0.8))
 
 
 func _on_restart_pressed() -> void:

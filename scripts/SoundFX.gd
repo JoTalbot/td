@@ -8,6 +8,7 @@ var _player: AudioStreamPlayer
 var _play: AudioStreamGeneratorPlayback
 var _samples: Dictionary = {}   # имя -> PackedVector2Array
 var _active: Array = []         # голоса: {"data", "pos" (float), "pitch", "vol"}
+var master_volume := 1.0
 
 
 func _ready() -> void:
@@ -25,9 +26,9 @@ func _ready() -> void:
 
 ## Запустить звук. pitch > 1 выше/короче, < 1 ниже/длиннее.
 func play(sound: String, vol := 1.0, pitch := 1.0) -> void:
-	if not _samples.has(sound) or _active.size() >= 8:
+	if master_volume <= 0.0 or not _samples.has(sound) or _active.size() >= 8:
 		return
-	_active.append({"data": _samples[sound], "pos": 0.0, "pitch": pitch, "vol": vol})
+	_active.append({"data": _samples[sound], "pos": 0.0, "pitch": pitch, "vol": vol * master_volume})
 
 
 func _process(_delta: float) -> void:

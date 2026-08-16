@@ -38,6 +38,8 @@
 | `scripts/Abilities.gd` | Способности: залп по всем врагам, щит-клетка (неуязвимость GameState), нитро (форсаж, враги отстают) |
 | `scripts/RoadEvents.gd` | Случайные события дороги: буря (режет `weapon_range_mult`, туман), мины за борт (вложенный класс `Mine`), сброс припасов, воздушная засада |
 | `scripts/SoundFX.gd` | Процедурный синтез звука (PCM, без файлов): `_build_samples()` — банк, `play(name, vol, pitch)`; полифония 8, headless-безопасен |
+| `scripts/UserSettings.gd` | Пользовательские настройки UI/звука/вибрации/тряски/эффектов; отдельный JSON `user://user_settings.save` |
+| `scripts/RustButton.gd`, `scripts/RustHeader.gd` | Единые процедурные клёпаные кнопки и металлические заголовки; новые интерактивные элементы строить через них |
 | `scripts/RaiderCopter.gd` | Автожир рейдеров: парит над фурой, сбрасывает бомбы, потом камикадзе; в группе `enemies`, но НЕ в `enemies_alive` (не блокирует волну) |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |

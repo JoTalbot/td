@@ -1,8 +1,9 @@
 extends RefCounted
 ## Фабрика "ржавого железа": материалы и мелкие детали в стиле Безумного Макса.
 
-## Глобальный выключатель света вспышек взрывов (бюджет слабых устройств).
+## Глобальные настройки эффектов для слабых устройств.
 static var perf_explosion_lights := true
+static var particle_scale := 1.0
 
 const RUST_TONES: Array[Color] = [
 	Color(0.42, 0.22, 0.1),   # ржавчина
@@ -93,7 +94,7 @@ static func wheel(parent: Node3D, radius: float, width: float, pos: Vector3) -> 
 ## Пыльный шлейф из-под колёс.
 static func dust_trail(parent: Node3D, pos: Vector3, amount := 60, scale := 1.0) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = amount
+	p.amount = maxi(8, int(round(float(amount) * particle_scale)))
 	p.lifetime = 1.4
 	p.preprocess = 0.8
 	p.visibility_aabb = AABB(Vector3(-8, -1, -20) * scale, Vector3(16, 8, 30) * scale)
@@ -128,7 +129,7 @@ static func explosion(scene: Node, pos: Vector3, scale := 1.0) -> void:
 		return   # волна и так в огне — лишний взрыв не строим вовсе
 	var p := GPUParticles3D.new()
 	p.add_to_group("fx_explosion")
-	p.amount = 26
+	p.amount = maxi(12, int(round(26.0 * particle_scale)))
 	p.lifetime = 0.6
 	p.one_shot = true
 	p.explosiveness = 1.0

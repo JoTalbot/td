@@ -12,11 +12,12 @@ var _touches: Dictionary = {}
 var _last_pinch_dist := 0.0
 var _gesturing := false
 var _trauma := 0.0           # тряска камеры: 0..1, затухает сама
+var trauma_scale := 1.0      # пользовательская интенсивность 0..1
 
 
 ## Встряхнуть камеру (таран, взрыв босса). Сила ~0.15..0.8.
 func add_trauma(a: float) -> void:
-	_trauma = minf(_trauma + a, 1.0)
+	_trauma = minf(_trauma + a * trauma_scale, 1.0)
 
 
 func _ready() -> void:

@@ -11,6 +11,7 @@ const RustButton := preload("res://scripts/RustButton.gd")
 const RustHeader := preload("res://scripts/RustHeader.gd")
 
 var campaign: Node = null
+var settings: Node = null
 var sfx: Node = null          # Main ставит синтезатор звука
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.96)
@@ -69,9 +70,14 @@ func _styled_panel(border := BORDER) -> StyleBoxFlat:
 	return sb
 
 
+func _font(base: int) -> int:
+	return settings.font_size(base) if settings != null else base
+
+
 func _rusty_button(text: String, accent := ACCENT) -> Button:
 	var btn := RustButton.new()
 	btn.setup(text, accent)
+	btn.add_theme_font_size_override("font_size", _font(20))
 	btn.pressed.connect(func(): if sfx != null: sfx.play("click", 0.35))
 	return btn
 
@@ -104,6 +110,11 @@ func _build_chrome() -> void:
 	_loc_label = _mk_label(row, 24, ACCENT)
 	_wallet_label = _mk_label(row, 24, Color(0.95, 0.75, 0.35))
 	_cargo_label = _mk_label(row, 24, Color(0.8, 0.85, 0.6))
+	var settings_btn := _rusty_button("⚙", Color(0.55, 0.72, 0.82))
+	settings_btn.custom_minimum_size = Vector2(62, 58)
+	settings_btn.tooltip_text = "Настройки"
+	settings_btn.pressed.connect(func(): _open_view("settings"))
+	row.add_child(settings_btn)
 	_day_label = _mk_label(top_col, 22, TEXT_DIM)
 	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_day_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -112,7 +123,7 @@ func _build_chrome() -> void:
 
 func _mk_label(parent: Control, size: int, color: Color) -> Label:
 	var l := Label.new()
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", _font(size))
 	l.add_theme_color_override("font_color", color)
 	parent.add_child(l)
 	return l
@@ -181,7 +192,7 @@ func _build_map() -> void:
 		var city_size := Vector2(170, 108)
 		btn.custom_minimum_size = city_size
 		btn.size = city_size
-		btn.add_theme_font_size_override("font_size", 18)
+		btn.add_theme_font_size_override("font_size", _font(18))
 		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		# Нарисованная эмблема города над именем
 		var cicon: String = "res://assets/ui/c_%s.png" % id
@@ -215,7 +226,7 @@ func _build_map() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_sheet.add_child(col)
 	_sheet_title = RustHeader.new()
-	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", 25, ACCENT)
+	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", _font(25), ACCENT)
 	col.add_child(_sheet_title)
 	# Закреплённые вкладки остаются на месте, пока длинное содержимое крутится.
 	var nav := HBoxContainer.new()
@@ -231,7 +242,7 @@ func _build_map() -> void:
 		var tab_id: String = tab[0]
 		var tab_btn := _rusty_button(tab[1], tab[2])
 		tab_btn.custom_minimum_size = Vector2(156, 58)
-		tab_btn.add_theme_font_size_override("font_size", 18)
+		tab_btn.add_theme_font_size_override("font_size", _font(18))
 		tab_btn.toggle_mode = true
 		tab_btn.pressed.connect(func(): _open_view(tab_id))
 		nav.add_child(tab_btn)
@@ -311,6 +322,9 @@ func _render_sheet() -> void:
 	elif _view == "showroom":
 		_sheet_title.text = "%s %s — ШОУРУМ ПЛАТФОРМ" % [c["icon"], c["name"]]
 		_render_showroom(is_here)
+	elif _view == "settings":
+		_sheet_title.text = "⚙ НАСТРОЙКИ ФУРЫ"
+		_render_settings()
 	else:
 		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
 		_render_info(c, is_here, route)
@@ -399,7 +413,7 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			tags += " 🐫 караванный тракт"
 		var go := _rusty_button("🚚 В РЕЙС: %d волн, ★%.1f%s" % [waves_count, float(route[1]), tags], Color(0.9, 0.5, 0.25))
 		go.custom_minimum_size = Vector2(360, 58)
-		go.add_theme_font_size_override("font_size", 22)
+		go.add_theme_font_size_override("font_size", _font(22))
 		go.pressed.connect(func(): travel_requested.emit(_selected))
 		btns.add_child(go)
 	else:
@@ -773,6 +787,107 @@ func _render_lab(is_here: bool) -> void:
 			var sid: String = id
 			st.pressed.connect(func(): campaign.stage_item(sid); _render_sheet())
 			row.add_child(st)
+
+
+## Настройки доступны со стоянки и сохраняются отдельно от кампании.
+func _render_settings() -> void:
+	if settings == null:
+		var unavailable := _mk_label(_sheet_body, 20, TEXT_DIM)
+		unavailable.text = "Настройки пока недоступны."
+		return
+	var intro := _mk_label(_sheet_body, 19, TEXT_DIM)
+	intro.text = "Все параметры сохраняются сразу. Размер текста применится после быстрого обновления сцены."
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	var size_row := _settings_row("РАЗМЕР НАДПИСЕЙ")
+	var large := _rusty_button("КРУПНЫЙ", Color(0.65, 0.76, 0.5))
+	var huge := _rusty_button("ОЧЕНЬ КРУПНЫЙ", Color(0.9, 0.65, 0.3))
+	for b in [large, huge]:
+		b.custom_minimum_size = Vector2(180, 58)
+		b.toggle_mode = true
+		size_row.add_child(b)
+	large.set_pressed_no_signal(String(settings.get_value("ui_size")) == "large")
+	huge.set_pressed_no_signal(String(settings.get_value("ui_size")) == "huge")
+	large.pressed.connect(func(): _set_setting("ui_size", "large", true))
+	huge.pressed.connect(func(): _set_setting("ui_size", "huge", true))
+
+	var sound_row := _settings_row("ГРОМКОСТЬ")
+	var quieter := _rusty_button("−", Color(0.65, 0.72, 0.5))
+	quieter.custom_minimum_size = Vector2(82, 58)
+	var sound_value := _mk_label(sound_row, 22, ACCENT)
+	sound_value.custom_minimum_size = Vector2(140, 58)
+	sound_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sound_value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	sound_value.text = "%d%%" % int(settings.get_value("sound"))
+	var louder := _rusty_button("+", Color(0.75, 0.82, 0.5))
+	louder.custom_minimum_size = Vector2(82, 58)
+	sound_row.add_child(quieter)
+	sound_row.move_child(quieter, sound_value.get_index())
+	sound_row.add_child(louder)
+	quieter.pressed.connect(func(): _set_setting("sound", maxi(0, int(settings.get_value("sound")) - 10)))
+	louder.pressed.connect(func(): _set_setting("sound", mini(100, int(settings.get_value("sound")) + 10)))
+
+	var vibration_row := _settings_row("ВИБРАЦИЯ УДАРОВ")
+	var vibration := _rusty_button("ВКЛЮЧЕНА" if bool(settings.get_value("vibration")) else "ВЫКЛЮЧЕНА",
+		Color(0.65, 0.82, 0.5) if bool(settings.get_value("vibration")) else Color(0.65, 0.45, 0.35))
+	vibration.custom_minimum_size = Vector2(220, 58)
+	vibration.pressed.connect(func(): _set_setting("vibration", not bool(settings.get_value("vibration"))))
+	vibration_row.add_child(vibration)
+
+	var shake_row := _settings_row("ТРЯСКА КАМЕРЫ")
+	var shake_names := {0: "ВЫКЛ.", 50: "СРЕДНЯЯ", 100: "ПОЛНАЯ"}
+	var shake_value_int := int(settings.get_value("shake"))
+	var shake := _rusty_button(shake_names.get(shake_value_int, "ПОЛНАЯ"), Color(0.82, 0.6, 0.35))
+	shake.custom_minimum_size = Vector2(220, 58)
+	shake.pressed.connect(func():
+		var current := int(settings.get_value("shake"))
+		_set_setting("shake", 50 if current == 0 else (100 if current == 50 else 0)))
+	shake_row.add_child(shake)
+
+	var effects_row := _settings_row("ЧАСТИЦЫ И ВСПЫШКИ")
+	var economy := String(settings.get_value("effects")) == "economy"
+	var effects := _rusty_button("ЭКОНОМНЫЕ" if economy else "ПОЛНЫЕ",
+		Color(0.6, 0.75, 0.5) if economy else Color(0.9, 0.58, 0.28))
+	effects.custom_minimum_size = Vector2(220, 58)
+	effects.tooltip_text = "Экономный режим уменьшает пыль, искры и отключает свет взрывов"
+	effects.pressed.connect(func(): _set_setting("effects", "full" if economy else "economy"))
+	effects_row.add_child(effects)
+
+	var reset := _rusty_button("СБРОСИТЬ ОБУЧЕНИЕ", Color(0.75, 0.48, 0.3))
+	reset.custom_minimum_size = Vector2(320, 58)
+	reset.pressed.connect(_reset_tutorial)
+	_sheet_body.add_child(reset)
+
+
+func _settings_row(title: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_sheet_body.add_child(row)
+	var label := _mk_label(row, 20, TEXT_DIM)
+	label.text = title
+	label.custom_minimum_size = Vector2(260, 58)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return row
+
+
+func _set_setting(key: String, value, reload_ui: bool = false) -> void:
+	settings.set_value(key, value)
+	settings.vibrate(22, 0.3)
+	if reload_ui:
+		get_tree().call_deferred("reload_current_scene")
+	else:
+		_render_sheet()
+
+
+func _reset_tutorial() -> void:
+	if campaign.meta != null:
+		campaign.meta.tutorial_flags.clear()
+		campaign.meta.save_meta()
+	if settings != null:
+		settings.vibrate(45, 0.45)
+	var done := _mk_label(_sheet_body, 20, Color(0.75, 0.95, 0.55))
+	done.text = "✓ Подсказки обучения снова включены."
+	_sheet_body.move_child(done, 0)
 
 
 ## Холст карты: рисует дороги между городами.
