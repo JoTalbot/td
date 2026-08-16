@@ -641,7 +641,18 @@ func _render_war_campaign(city: String) -> void:
 
 func _render_war_front() -> void:
 	var summary := _mk_label(_sheet_body, 20, Color(0.95, 0.68, 0.35))
-	summary.text = "НЕДЕЛЬНАЯ СТОРОНА: %s • ОЧКИ %d/15" % [campaign.war_faction_name(), campaign.war_points]
+	summary.custom_minimum_size = Vector2(640, 0)
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	summary.text = "НЕДЕЛЬНАЯ СТОРОНА: %s • ОЧКИ %d/15 • ДО СБРОСА %s" % [
+		campaign.war_faction_name(), campaign.war_points, campaign.war_time_left()]
+	var next_move: Dictionary = campaign.next_war_move()
+	if not next_move.is_empty():
+		var forecast := _mk_label(_sheet_body, 19, Color(0.72, 0.86, 0.9))
+		forecast.custom_minimum_size = Vector2(640, 0)
+		forecast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		forecast.text = "ПРОГНОЗ ХОДА: %s — %s  →  %s" % [
+			CampaignData.CITIES[next_move["a"]]["name"], CampaignData.CITIES[next_move["b"]]["name"],
+			CampaignData.CITIES[next_move["owner"]]["faction"]]
 	for route in CampaignData.ROUTES:
 		var a := String(route[0])
 		var b := String(route[1])
@@ -654,11 +665,18 @@ func _render_war_front() -> void:
 		_sheet_body.add_child(row)
 		_status_icon(row, "warning" if commander != "" else "route", 38)
 		var label := _mk_label(row, 19, TEXT_DIM)
+		label.custom_minimum_size = Vector2(580, 0)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var route_name := String(CampaignData.route_meta(a, b).get("name", "%s — %s" % [CampaignData.CITIES[a]["name"], CampaignData.CITIES[b]["name"]]))
 		var faction := String(CampaignData.CITIES.get(controller, {}).get("faction", controller))
 		label.text = "%s • %s • %d дн.%s" % [route_name, faction, age, " • КОМАНДИР" if commander != "" else ""]
+		if commander != "":
+			label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.22))
+			var pulse := create_tween()
+			pulse.set_loops()
+			pulse.tween_property(row, "modulate:a", 0.58, 0.55)
+			pulse.tween_property(row, "modulate:a", 1.0, 0.55)
 
 
 func _render_war_log() -> void:

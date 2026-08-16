@@ -170,6 +170,7 @@ const ROUTE_META := {
 ## Командиры появляются на дорогах, которые фракция удерживает несколько дней.
 const FACTION_COMMANDERS := {
 	"bonewall": {"name": "Костяной Жрец", "type": "bonepriest", "hold_days": 2},
+	"copperpit": {"name": "Медный Бурильщик", "type": "copperdrill", "hold_days": 2},
 }
 
 const CITY_SERVICES := {
@@ -372,6 +373,7 @@ const TROPHIES := {
 	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3, "parts": 5}},
 	"scoutboss": {"name": "Дозорный-картограф", "icon": "🧭", "chance": 1.0, "scrap_price": 180, "salvage": {"metal": 7, "chips": 4, "parts": 6}},
 	"bonepriest": {"name": "Тотем Костяного Жреца", "icon": "🦴", "chance": 1.0, "scrap_price": 210, "salvage": {"metal": 6, "food": 3, "parts": 7}},
+	"copperdrill": {"name": "Дрель Медного Бурильщика", "icon": "⚙", "chance": 1.0, "scrap_price": 230, "salvage": {"metal": 9, "chips": 3, "parts": 8}},
 	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3, "parts": 6}},
 	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2, "parts": 3}},
 }
@@ -421,6 +423,8 @@ const LEGENDARY_RECIPES := {
 	"leg_rychag": {"name": "«Рычаг»", "icon": "🪝", "weapon": "harpoon", "level": 2, "needs": {"ram": 2}, "desc": "Гарпун ур.3 в следующий рейс"},
 	"leg_groza": {"name": "«Гроза»", "icon": "⛈", "weapon": "tesla", "level": 1, "needs": {"ace": 1, "copter": 2}, "desc": "Тесла ур.2 в следующий рейс"},
 	"leg_stena": {"name": "«Стена»", "icon": "🧱", "weapon": "cannon", "level": 2, "needs": {"boss": 1, "ram": 1}, "desc": "Пушка ур.3 в следующий рейс"},
+	"leg_ossuary": {"name": "«Костница»", "icon": "🦴", "weapon": "flamer", "level": 2, "needs": {"bonepriest": 1}, "desc": "Огнемёт ур.3 из тотема Жреца"},
+	"leg_borer": {"name": "«Проходчик»", "icon": "⚙", "weapon": "mortar", "level": 2, "needs": {"copperdrill": 1}, "desc": "Мортира ур.3 из дрели Бурильщика"},
 }
 
 ## Легендарная ковка способностей: сгорают трофеи — способность открыта НАВСЕГДА.

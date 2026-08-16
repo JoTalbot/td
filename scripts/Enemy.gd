@@ -65,6 +65,7 @@ func _ready() -> void:
 		"boss": _build_boss()
 		"scoutboss": _build_scoutboss()
 		"bonepriest": _build_bonepriest()
+		"copperdrill": _build_copperdrill()
 		"trainloko": _build_trainloko()
 		"traincar": _build_traincar()
 		_: _build_buggy()
@@ -244,6 +245,35 @@ func _build_bonepriest() -> void:
 		brazier.add_child(glow)
 
 
+## Медный Бурильщик: карьерный тягач с фронтальной дрелью и шестернями.
+func _build_copperdrill() -> void:
+	_build_boss()
+	var copper := Junk.metal(Color(0.64, 0.29, 0.1), 0.58, 0.82)
+	var dark := Junk.metal(Color(0.16, 0.14, 0.12), 0.88, 0.55)
+	# Массивная ступенчатая дрель перед тараном.
+	for i in 5:
+		var radius := 0.72 - i * 0.11
+		var drill := Junk.spike(_body, radius, 1.15, Vector3(0, 1.05, 3.55 + i * 0.48), Vector3(90, 0, 0))
+		drill.material_override = copper
+	# Боковые редукторы и зубцы.
+	for side in [-1.0, 1.0]:
+		Junk.cyl(_body, 0.48, 0.24, Vector3(side * 1.3, 1.45, 1.25), copper, Vector3(0, 0, 90))
+		for tooth in 8:
+			var angle := TAU * tooth / 8.0
+			Junk.spike(_body, 0.055, 0.3, Vector3(side * 1.45, 1.45 + sin(angle) * 0.55, 1.25 + cos(angle) * 0.55), Vector3(0, 0, side * 90))
+	# Карьерная дуга и сигнальные лампы.
+	Junk.cyl(_body, 0.09, 2.8, Vector3(-1.05, 2.85, -0.4), dark, Vector3(0, 0, -18))
+	Junk.cyl(_body, 0.09, 2.8, Vector3(1.05, 2.85, -0.4), dark, Vector3(0, 0, 18))
+	Junk.cyl(_body, 0.08, 2.0, Vector3(0, 3.75, -0.4), dark, Vector3(0, 0, 90))
+	for side in [-0.72, 0.72]:
+		var lamp := Junk.cyl(_body, 0.16, 0.14, Vector3(side, 3.75, -0.35), copper, Vector3(90, 0, 0))
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.48, 0.12)
+		glow.light_energy = 1.3
+		glow.omni_range = 3.5
+		lamp.add_child(glow)
+
+
 func _build_hp_bar() -> void:
 	_hp_bar = MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -364,13 +394,21 @@ func _set_phase(p: int) -> void:
 		if enemy_type == "bonepriest":
 			spawn_minions.emit(2)
 			phase_announced.emit("КОСТЯНОЙ ЖРЕЦ поднял первую свиту!")
+		elif enemy_type == "copperdrill":
+			_charge_timer = 2.2
+			phase_announced.emit("МЕДНЫЙ БУРИЛЬЩИК раскрутил главную дрель!")
 		else:
 			phase_announced.emit("😡 Босс в ЯРОСТИ: быстрее и злее!")
 	elif p == 3:
 		# Отчаяние: зовёт байкеров и идёт на разгонные тараны
 		spawn_minions.emit(4 if enemy_type == "bonepriest" else 2)
-		_charge_timer = 4.0
-		phase_announced.emit("ЖРЕЦ созвал костяную орду!" if enemy_type == "bonepriest" else "💀 Босс обезумел: берегись разгона!")
+		_charge_timer = 2.5 if enemy_type == "copperdrill" else 4.0
+		if enemy_type == "bonepriest":
+			phase_announced.emit("ЖРЕЦ созвал костяную орду!")
+		elif enemy_type == "copperdrill":
+			phase_announced.emit("БУРИЛЬЩИК идёт в непрерывный проход!")
+		else:
+			phase_announced.emit("💀 Босс обезумел: берегись разгона!")
 
 
 var _slow_mult := 1.0

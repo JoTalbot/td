@@ -306,6 +306,21 @@ func war_faction_name() -> String:
 	return String(CampaignData.CITIES.get(war_side, {}).get("faction", "Фракция не выбрана"))
 
 
+func war_time_left() -> String:
+	var seconds := maxi(0, int((_current_war_week() + 1) * 604800 - Time.get_unix_time_from_system()))
+	return "%d дн. %d ч." % [seconds / 86400, (seconds % 86400) / 3600]
+
+
+func next_war_move() -> Dictionary:
+	if CampaignData.ROUTES.is_empty():
+		return {}
+	var next_day := day + 1
+	var next_runs := runs_finished + 1
+	var route: Array = CampaignData.ROUTES[(next_day * 7 + next_runs * 3) % CampaignData.ROUTES.size()]
+	var owner := String(route[0]) if (next_day + next_runs) % 2 == 0 else String(route[1])
+	return {"a": String(route[0]), "b": String(route[1]), "owner": owner}
+
+
 func _add_war_points(a: String, b: String) -> void:
 	_sync_war_week()
 	if war_side == "":

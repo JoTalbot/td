@@ -453,7 +453,7 @@ func _on_enemy_killed(type: String) -> void:
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
 	# Звук взрыва и тряска: боссы гремят сильнее
-	if type in ["boss", "ace", "scoutboss", "bonepriest"]:
+	if type in ["boss", "ace", "scoutboss", "bonepriest", "copperdrill"]:
 		sfx.play("big_boom", 0.9)
 		camera_rig.add_trauma(0.5)
 	else:
