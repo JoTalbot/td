@@ -372,13 +372,15 @@ func _on_enemy_killed(type: String) -> void:
 	if randf() < _loot_chance:
 		var roll := randf()
 		var res := "metal"
-		if roll > 0.93:
+		if roll > 0.92:
+			res = "parts"   # редкое золото гаражей
+		elif roll > 0.84:
 			res = "chips"
-		elif roll > 0.80:
+		elif roll > 0.72:
 			res = "fuel"
-		elif roll > 0.68:
+		elif roll > 0.62:
 			res = "ammo"
-		elif roll > 0.55:
+		elif roll > 0.52:
 			res = "food"
 		elif roll > 0.45:
 			res = "water"

@@ -10,7 +10,34 @@ const RESOURCES := {
 	"ammo":  {"name": "Свинец", "icon": "🔸", "price": 10},
 	"food":  {"name": "Еда", "icon": "🥫", "price": 7},
 	"chips": {"name": "Электроника", "icon": "📟", "price": 18},
+	"parts": {"name": "Запчасти", "icon": "🔧", "price": 25},
 }
+
+## Корпуса (платформы) грузовика: Crossout-лесенка от багги до военного тягача.
+## slots — орудийные места; hp_mult — к запасу HP фуры; сборка: запчасти+лом+уровень мастерской.
+const HULLS := {
+	"buggy":     {"name": "Багги-пустынник", "icon": "🛞", "slots": 1, "hp_mult": 0.8,
+		"desc": "С чего все начинают: каркас, мотор и одна крышевая турель.",
+		"parts": 0, "scrap": 0, "workshop": 0},
+	"pickup":    {"name": "Пикап «Гиена»", "icon": "🛻", "slots": 3, "hp_mult": 1.0,
+		"desc": "Борт под пару стволов и ящик лома. Рабочая лошадка пустоши.",
+		"parts": 6, "scrap": 300, "workshop": 1},
+	"flatbed":   {"name": "Бортовая «Кляча»", "icon": "🚚", "slots": 5, "hp_mult": 1.05,
+		"desc": "Длинная платформа — уже похоже на крепость на колёсах.",
+		"parts": 14, "scrap": 700, "workshop": 2},
+	"halftrack": {"name": "\"Кабан\"-полугусеничный", "icon": "🛡", "slots": 6, "hp_mult": 1.15,
+		"desc": "Гусеницы сзади, ярость спереди. Жрёт дюны, рвёт колонны.",
+		"parts": 22, "scrap": 1200, "workshop": 2},
+	"truck":     {"name": "Фура «Мамонт»", "icon": "🚛", "slots": 8, "hp_mult": 1.2,
+		"desc": "Легенда трактов: цистерна, восемь слотов, города платят вперёд.",
+		"parts": 34, "scrap": 2000, "workshop": 3},
+	"war_rig":   {"name": "Тягач «Одержимый»", "icon": "☠️", "slots": 10, "hp_mult": 1.35,
+		"desc": "Сам конвой смерти. Десять стволов — и трасса пустеет.",
+		"parts": 50, "scrap": 3500, "workshop": 3},
+}
+
+## Порядок корпусов в шоуруме — от простого к злому.
+const HULL_ORDER := ["buggy", "pickup", "flatbed", "halftrack", "truck", "war_rig"]
 
 ## Города: позиция на карте (0..1), иконка, описание, ценовые модификаторы
 ## (<1 — тут дешевле, >1 — дороже) и флаг родной базы.
@@ -248,14 +275,14 @@ const REP_LEVELS := [
 
 ## Трофейные тачки: шанс захвата обломка, распил на ресурсы и цена продажи.
 const TROPHIES := {
-	"buggy":  {"name": "Багги", "icon": "🛞", "chance": 0.12, "scrap_price": 25, "salvage": {"metal": 2, "ammo": 1}},
-	"biker":  {"name": "Мотоцикл", "icon": "🏍", "chance": 0.12, "scrap_price": 20, "salvage": {"metal": 1, "fuel": 1}},
-	"ram":    {"name": "Таран", "icon": "🛡", "chance": 0.18, "scrap_price": 45, "salvage": {"metal": 4, "chips": 1}},
-	"copter": {"name": "Автожир", "icon": "🚁", "chance": 0.10, "scrap_price": 35, "salvage": {"metal": 2, "chips": 1}},
-	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2}},
-	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3}},
-	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3}},
-	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2}},
+	"buggy":  {"name": "Багги", "icon": "🛞", "chance": 0.12, "scrap_price": 25, "salvage": {"metal": 2, "ammo": 1, "parts": 1}},
+	"biker":  {"name": "Мотоцикл", "icon": "🏍", "chance": 0.12, "scrap_price": 20, "salvage": {"metal": 1, "fuel": 1, "parts": 1}},
+	"ram":    {"name": "Таран", "icon": "🛡", "chance": 0.18, "scrap_price": 45, "salvage": {"metal": 4, "chips": 1, "parts": 2}},
+	"copter": {"name": "Автожир", "icon": "🚁", "chance": 0.10, "scrap_price": 35, "salvage": {"metal": 2, "chips": 1, "parts": 2}},
+	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2, "parts": 4}},
+	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3, "parts": 5}},
+	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3, "parts": 6}},
+	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2, "parts": 3}},
 }
 
 ## Уровень репутации по очкам.

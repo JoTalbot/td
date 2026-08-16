@@ -26,6 +26,9 @@ var poi_used: Array = []           # осмотренные находки: кл
 var reputation: Dictionary = {}    # city -> очки репутации (0..100) у фракции
 var trophies: Dictionary = {}      # тип трофея -> кол-во (ездит с фурой)
 var leg_abilities: Array = []      # легендарные способности, выкованные навсегда (id из AbilityData)
+## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
+var hulls_owned: Array = ["buggy"]
+var hull_current := "buggy"
 ## Ссылка на мета-прогресс (чертежи). Ставится из Main.
 var meta: Node = null
 
@@ -61,6 +64,14 @@ func load_campaign() -> void:
 	reputation = data.get("reputation", {})
 	trophies = data.get("trophies", {})
 	leg_abilities = data.get("leg_abilities", [])
+	hulls_owned = data.get("hulls_owned", [])
+	hull_current = str(data.get("hull_current", ""))
+	if hulls_owned.is_empty():
+		# Миграция ветеранов: сейв без корпусов — дарим «Мамонта», не ломаем сборки
+		hulls_owned = ["buggy", "truck"]
+		hull_current = "truck"
+	if hull_current == "" or hull_current not in hulls_owned:
+		hull_current = hulls_owned[0]
 	# Находки живут одни сутки: чистим метки прошлых дней
 	var today_prefix := "%d:" % day_seed
 	poi_used = poi_used.filter(func(k: Variant) -> bool: return str(k).begins_with(today_prefix))
@@ -88,6 +99,8 @@ func save_campaign() -> void:
 		"reputation": reputation,
 		"trophies": trophies,
 		"leg_abilities": leg_abilities,
+		"hulls_owned": hulls_owned,
+		"hull_current": hull_current,
 	}))
 
 ## --- База (только в родном городе) ---
@@ -125,6 +138,38 @@ func build(id: String) -> bool:
 		else:
 			take_cargo(k, int(cost[k]))
 	buildings[id] = bld_level(id) + 1
+	save_campaign()
+	return true
+
+
+## --- Шоурум корпусов (собираются дома из запчастей) ---
+func can_build_hull(id: String) -> bool:
+	var d: Dictionary = CampaignData.HULLS.get(id, {})
+	if d.is_empty() or id in hulls_owned:
+		return false
+	if bld_level("workshop") < int(d["workshop"]):
+		return false
+	if wallet < int(d["scrap"]):
+		return false
+	return cargo_qty("parts") >= int(d["parts"])
+
+
+func build_hull(id: String) -> bool:
+	if not can_build_hull(id):
+		return false
+	var d: Dictionary = CampaignData.HULLS[id]
+	wallet -= int(d["scrap"])
+	take_cargo("parts", int(d["parts"]))
+	hulls_owned.append(id)
+	hull_current = id          # свежесобранное — сразу в строй
+	save_campaign()
+	return true
+
+
+func select_hull(id: String) -> bool:
+	if id not in hulls_owned or id == hull_current:
+		return false
+	hull_current = id
 	save_campaign()
 	return true
 
