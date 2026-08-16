@@ -41,6 +41,7 @@ var _nav_buttons: Dictionary = {}
 var _safe_insets := Vector4.ZERO
 var _selected := ""
 var _view := "info"   # info | market | contracts | hangar | base | lab | showroom
+var _intel_message := ""
 
 
 func _ready() -> void:
@@ -450,6 +451,9 @@ func _render_sheet() -> void:
 	elif _view == "settings":
 		_sheet_title.text = "НАСТРОЙКИ"
 		_render_settings()
+	elif _view == "achievements":
+		_sheet_title.text = "ДОСТИЖЕНИЯ"
+		_render_achievements()
 	else:
 		_sheet_title.text = String(c["name"])
 		_render_info(c, is_here, route)
@@ -524,6 +528,11 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			prow.add_child(pbtn)
 	if is_here:
 		_render_city_specials(_selected)
+	var achievements_btn := _rusty_button("ДОСТИЖЕНИЯ • %d/%d" % [
+		campaign.achievements.size(), CampaignData.ACHIEVEMENTS.size()], Color(0.82, 0.64, 0.3))
+	achievements_btn.custom_minimum_size = Vector2(300, 58)
+	achievements_btn.pressed.connect(func(): _open_view("achievements"))
+	_sheet_body.add_child(achievements_btn)
 
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
@@ -591,9 +600,10 @@ func _render_city_specials(city: String) -> void:
 		var service_text := _mk_label(service_row, 19, Color(0.82, 0.88, 0.58))
 		service_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		service_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		service_text.text = "УСЛУГА • %s\n%s\nНУЖНО: %s" % [
-			service["name"], service["desc"], _cost_text(service["needs"])]
-		var buy_service := _rusty_button("ЗАКАЗАТЬ • %d ЛОМА" % int(service["scrap"]), Color(0.72, 0.82, 0.48))
+		var service_strength := int(round(campaign.city_service_strength(city) * 100.0))
+		service_text.text = "УСЛУГА • %s • РАНГ %d\nЭФФЕКТ +%d%% • НУЖНО: %s" % [
+			service["name"], campaign.rep_level(city) + 1, service_strength, _cost_text(service["needs"])]
+		var buy_service := _rusty_button("ЗАКАЗАТЬ • %d ЛОМА" % campaign.city_service_price(city), Color(0.72, 0.82, 0.48))
 		buy_service.custom_minimum_size = Vector2(230, 64)
 		buy_service.disabled = not campaign.can_buy_city_service(city)
 		buy_service.pressed.connect(func():
@@ -607,6 +617,17 @@ func _render_city_specials(city: String) -> void:
 		if stage.is_empty():
 			story_label.text = "ИСТОРИЯ ФРАКЦИИ • ЦЕПОЧКА ЗАВЕРШЕНА"
 			return
+		var art_prefix := "bone" if city == "bonewall" else "copper"
+		var art_path := "res://assets/ui/art_%s_%d.jpg" % [art_prefix, campaign.story_stage(city) + 1]
+		if ResourceLoader.exists(art_path):
+			var art := TextureRect.new()
+			art.texture = load(art_path)
+			art.custom_minimum_size = Vector2(640, 190)
+			art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_sheet_body.add_child(art)
+			_sheet_body.move_child(art, story_label.get_index())
 		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s\nНАГРАДА: %s" % [
 			stage["title"], stage["text"], _cost_text(stage["needs"]), _reward_text(stage["reward"])]
 		story_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -660,11 +681,37 @@ func _play_earn() -> void:
 		sfx.play("earn", 0.7)
 
 
+func _buy_intel() -> void:
+	var city: String = campaign.buy_intel()
+	if city != "":
+		_intel_message = "ОТКРЫТО: %s" % CampaignData.CITIES[city]["name"]
+		_play_earn()
+		_redraw_map()
+	_render_sheet()
+
+
 func _render_market(is_here: bool) -> void:
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Торговать можно только в городе, где стоит фура."
 		return
+	var intel_row := HBoxContainer.new()
+	intel_row.add_theme_constant_override("separation", 10)
+	_sheet_body.add_child(intel_row)
+	_status_icon(intel_row, "route", 42)
+	var intel_text := _mk_label(intel_row, 19, Color(0.72, 0.86, 0.9))
+	intel_text.custom_minimum_size = Vector2(300, 58)
+	intel_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intel_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	intel_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intel_text.text = _intel_message if _intel_message != "" else "РАЗВЕДДАННЫЕ • открыть неизвестный город"
+	var intel_btn := _rusty_button("КУПИТЬ • %d ЛОМА" % campaign.intel_price(), Color(0.55, 0.72, 0.82))
+	intel_btn.custom_minimum_size = Vector2(190, 60)
+	intel_btn.disabled = campaign.intel_candidates().is_empty() or campaign.wallet < campaign.intel_price()
+	if campaign.intel_candidates().is_empty():
+		intel_btn.text = "КАРТА ОТКРЫТА"
+	intel_btn.pressed.connect(_buy_intel)
+	intel_row.add_child(intel_btn)
 	for res in CampaignData.RESOURCES:
 		var d: Dictionary = CampaignData.RESOURCES[res]
 		var row := HBoxContainer.new()
@@ -1009,6 +1056,22 @@ func _render_lab(is_here: bool) -> void:
 			var sid: String = id
 			st.pressed.connect(func(): campaign.stage_item(sid); _render_sheet())
 			row.add_child(st)
+
+
+func _render_achievements() -> void:
+	campaign.check_achievements()
+	for id in CampaignData.ACHIEVEMENTS:
+		var data: Dictionary = CampaignData.ACHIEVEMENTS[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_sheet_body.add_child(row)
+		_status_icon(row, "record", 46)
+		var unlocked: bool = id in campaign.achievements
+		var label := _mk_label(row, 20, Color(1.0, 0.78, 0.35) if unlocked else TEXT_DIM)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.text = "%s • %s\n%s\nНАГРАДА: %s" % [
+			"ВЫПОЛНЕНО" if unlocked else "В ПРОЦЕССЕ", data["name"], data["desc"], _reward_text(data["reward"])]
 
 
 ## Настройки доступны со стоянки и сохраняются отдельно от кампании.

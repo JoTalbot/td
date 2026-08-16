@@ -196,6 +196,7 @@ func _on_travel(city_id: String) -> void:
 		return
 	_destination = city_id
 	_route_meta = CampaignData.route_meta(campaign.location, city_id)
+	campaign.note_route(campaign.location, city_id)
 	waves.run_length = 4 + int(route[0]) * 2
 	waves.danger = float(route[1])
 	# Первые выезды на голой багги — учебный профиль: короче и мягче
@@ -243,6 +244,13 @@ func _on_travel(city_id: String) -> void:
 			hud.flash_message("🔧 Штатный пулемёт с базы на борту — больше стволов пока нет!")
 	tutorial.notify("travel")
 	waves.start()
+	var route_event := String(_route_meta.get("event", ""))
+	if route_event != "":
+		var event_timer := create_tween()
+		event_timer.tween_interval(3.0)
+		event_timer.tween_callback(func():
+			if battle_active and not state.is_game_over:
+				events.trigger(route_event))
 
 
 ## Эскорт: если едем в город активного эскорт-контракта — цепляем фургон.
@@ -324,9 +332,11 @@ func _apply_campaign_effects() -> void:
 		"horde": waves.extra_count += int(_route_meta.get("value", 0))
 	# Услуги городов расходуются при старте следующего рейса.
 	for buff in campaign.pop_service_buffs():
-		match String(buff):
-			"bone_plating": state.add_max_hp(int(state.max_hp * 0.15))
-			"copper_sights": state.damage_mult *= 1.12
+		var buff_id := String(buff.get("id", "")) if buff is Dictionary else String(buff)
+		var strength := float(buff.get("strength", 0.0)) if buff is Dictionary else 0.0
+		match buff_id:
+			"bone_plating": state.add_max_hp(int(state.max_hp * (strength if strength > 0.0 else 0.15)))
+			"copper_sights": state.damage_mult *= 1.0 + (strength if strength > 0.0 else 0.12)
 	for item in campaign.pop_pending():
 		# Легендарки из кузни трофеев: орудие заданного уровня, продаётся за 0
 		if item.begins_with("leg_"):

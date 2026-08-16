@@ -30,6 +30,8 @@ var leg_abilities: Array = []      # легендарные способност
 var service_buffs: Array = []      # городские услуги на следующий рейс
 var discovered_cities: Array = ["citadel"]
 var story_progress: Dictionary = {} # city -> следующий этап сюжетной цепочки
+var visited_routes: Array = []       # ключи именованных трасс
+var achievements: Array = []         # автоматически выданные достижения
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
 var hull_current := "buggy"
@@ -75,6 +77,8 @@ func load_campaign() -> void:
 	leg_abilities = data.get("leg_abilities", [])
 	service_buffs = data.get("service_buffs", [])
 	story_progress = data.get("story_progress", {})
+	visited_routes = data.get("visited_routes", [])
+	achievements = data.get("achievements", [])
 	if data.has("discovered_cities"):
 		discovered_cities = data.get("discovered_cities", [location])
 	else:
@@ -119,6 +123,8 @@ func save_campaign() -> void:
 		"service_buffs": service_buffs,
 		"discovered_cities": discovered_cities,
 		"story_progress": story_progress,
+		"visited_routes": visited_routes,
+		"achievements": achievements,
 		"hulls_owned": hulls_owned,
 		"hull_current": hull_current,
 	}))
@@ -136,11 +142,97 @@ func discover_around(city: String) -> void:
 			discovered_cities.append(neighbor)
 
 
+func note_route(a: String, b: String) -> void:
+	var key := CampaignData.route_key(a, b)
+	if not CampaignData.route_meta(a, b).is_empty() and key not in visited_routes:
+		visited_routes.append(key)
+	check_achievements()
+	save_campaign()
+
+
+func check_achievements() -> Array[String]:
+	var unlocked: Array[String] = []
+	for id in CampaignData.ACHIEVEMENTS:
+		if id in achievements:
+			continue
+		var complete := false
+		match String(id):
+			"explorer": complete = discovered_cities.size() >= CampaignData.CITIES.size()
+			"bone_saga": complete = story_stage("bonewall") >= CampaignData.CITY_STORIES["bonewall"].size()
+			"copper_saga": complete = story_stage("copperpit") >= CampaignData.CITY_STORIES["copperpit"].size()
+			"roadmaster": complete = visited_routes.size() >= CampaignData.ROUTE_META.size()
+			"veteran": complete = runs_finished >= 10
+			"war_rig": complete = "war_rig" in hulls_owned
+		if complete:
+			achievements.append(id)
+			unlocked.append(id)
+			_grant_achievement_reward(CampaignData.ACHIEVEMENTS[id]["reward"])
+	if not unlocked.is_empty():
+		save_campaign()
+	return unlocked
+
+
+func _grant_achievement_reward(reward: Dictionary) -> void:
+	if reward.has("scrap"):
+		wallet += int(reward["scrap"])
+	if reward.has("bp") and meta != null:
+		meta.blueprints += int(reward["bp"])
+		meta.save_meta()
+
+
+func intel_candidates() -> Array[String]:
+	var out: Array[String] = []
+	for city in CampaignData.CITIES:
+		if city in discovered_cities:
+			continue
+		for neighbor in CampaignData.neighbors(city):
+			if neighbor in discovered_cities:
+				out.append(city)
+				break
+	return out
+
+
+func intel_price() -> int:
+	return maxi(30, 80 - rep_level(location) * 10)
+
+
+func buy_intel() -> String:
+	var candidates := intel_candidates()
+	if candidates.is_empty() or wallet < intel_price():
+		return ""
+	wallet -= intel_price()
+	candidates.sort()
+	var city: String = candidates[(day_seed + day) % candidates.size()]
+	discovered_cities.append(city)
+	check_achievements()
+	save_campaign()
+	return city
+
+
+func city_service_price(city: String) -> int:
+	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
+	return maxi(1, int(round(int(service.get("scrap", 0)) * (1.0 - rep_level(city) * 0.05))))
+
+
+func city_service_strength(city: String) -> float:
+	return 0.15 + rep_level(city) * 0.03 if city == "bonewall" else 0.12 + rep_level(city) * 0.02
+
+
+func _has_service_buff(buff_id: String) -> bool:
+	for queued in service_buffs:
+		if queued is Dictionary:
+			if String(queued.get("id", "")) == buff_id:
+				return true
+		elif String(queued) == buff_id:
+			return true
+	return false
+
+
 func can_buy_city_service(city: String) -> bool:
 	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
-	if service.is_empty() or location != city or String(service["buff"]) in service_buffs:
+	if service.is_empty() or location != city or _has_service_buff(String(service["buff"])):
 		return false
-	if wallet < int(service["scrap"]):
+	if wallet < city_service_price(city):
 		return false
 	for res in service["needs"]:
 		if cargo_qty(res) < int(service["needs"][res]):
@@ -152,10 +244,10 @@ func buy_city_service(city: String) -> bool:
 	if not can_buy_city_service(city):
 		return false
 	var service: Dictionary = CampaignData.CITY_SERVICES[city]
-	wallet -= int(service["scrap"])
+	wallet -= city_service_price(city)
 	for res in service["needs"]:
 		take_cargo(res, int(service["needs"][res]))
-	service_buffs.append(String(service["buff"]))
+	service_buffs.append({"id": String(service["buff"]), "strength": city_service_strength(city)})
 	save_campaign()
 	return true
 
@@ -215,6 +307,7 @@ func advance_story(city: String) -> bool:
 					meta.save_meta()
 			_: add_cargo(key, amount)
 	story_progress[city] = story_stage(city) + 1
+	check_achievements()
 	save_campaign()
 	return true
 
@@ -278,6 +371,7 @@ func build_hull(id: String) -> bool:
 	take_cargo("parts", int(d["parts"]))
 	hulls_owned.append(id)
 	hull_current = id          # свежесобранное — сразу в строй
+	check_achievements()
 	save_campaign()
 	return true
 
@@ -866,6 +960,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary
 			research_active = ""
 	# Доска контрактов в новом городе обновляется
 	offers.erase(city)
+	check_achievements()
 	save_campaign()
 	return {"scrap": run_scrap, "loot": loot_in, "sold": scrap_fallback, "done": done, "produced": produced, "research": research_finished, "trophies": captured, "rep": rep_gains}
 
@@ -883,6 +978,7 @@ func fail_run() -> void:
 	if research_active != "":
 		research_left -= 1
 		if research_left <= 0:
-			research_done.append(research_active)
-			research_active = ""
+				research_done.append(research_active)
+				research_active = ""
+	check_achievements()
 	save_campaign()

@@ -166,6 +166,31 @@ func trigger(id: String) -> void:
 			_do_supply()
 		"ambush":
 			_do_ambush()
+		"bonefall":
+			state.damage_truck(12)
+			announced.emit("КОСТЯНАЯ ГРЯДА: обвал рёбер! Броня принимает 12 урона.")
+		"cavein":
+			_do_mines()
+			announced.emit("МЕДНЫЙ РАЗЛОМ: шахтный взрыв выбросил мины на дорогу!")
+		"ore_cache":
+			state.earn(90)
+			state.heal(8.0)
+			announced.emit("ШАХТЁРСКИЙ КАРАВАН: найден ящик руды — +90 лома, +8 HP!")
+		"salt_fog":
+			_do_storm()
+			announced.emit("БЕРЕГ МЁРТВЫХ СУДОВ: соляная мгла глушит прицелы!")
+		"smoke_ambush":
+			_do_ambush()
+			announced.emit("ЧЁРНЫЙ ДЫМ: автожиры вышли из копоти!")
+		"caravan_toll":
+			if state.spend(20):
+				if waves != null:
+					waves.bonus_mult *= 1.1
+				announced.emit("СТАРЫЙ ТРАКТ: пошлина уплачена — награда за охрану выше!")
+			else:
+				if waves != null:
+					waves.extra_count += 2
+				announced.emit("СТАРЫЙ ТРАКТ: нечем платить — охрана идёт в бой!")
 
 
 ## Воздушная засада: автожиры рейдеров пикут с неба.

@@ -158,12 +158,12 @@ const ROUTES := [
 ## Именованные трассы: ключи всегда отсортированы по id городов.
 ## modifier применяется в Main на весь рейс.
 const ROUTE_META := {
-	"bartertown|citadel": {"name": "Старый караванный тракт", "desc": "Торговцы платят за охрану дороги.", "modifier": "reward", "value": 1.12},
-	"bonewall|citadel": {"name": "Костяная гряда", "desc": "Белая пыль укрепляет костяную обшивку.", "modifier": "armor", "value": 0.15},
-	"bartertown|copperpit": {"name": "Медный разлом", "desc": "В отвалах часто попадаются полезные детали.", "modifier": "loot", "value": 0.12},
-	"copperpit|rusthaven": {"name": "Шахтёрский караван", "desc": "Богатый конвой повышает награду.", "modifier": "reward", "value": 1.20},
-	"rusthaven|salttown": {"name": "Берег мёртвых судов", "desc": "Соляная мгла режет дальность орудий.", "modifier": "range", "value": 0.85},
-	"crowsnest|gasgrad": {"name": "Чёрный дым", "desc": "Из копоти чаще выходят дополнительные рейдеры.", "modifier": "horde", "value": 2},
+	"bartertown|citadel": {"name": "Старый караванный тракт", "desc": "Торговцы платят за охрану дороги.", "modifier": "reward", "value": 1.12, "event": "caravan_toll"},
+	"bonewall|citadel": {"name": "Костяная гряда", "desc": "Белая пыль укрепляет костяную обшивку.", "modifier": "armor", "value": 0.15, "event": "bonefall"},
+	"bartertown|copperpit": {"name": "Медный разлом", "desc": "В отвалах часто попадаются полезные детали.", "modifier": "loot", "value": 0.12, "event": "cavein"},
+	"copperpit|rusthaven": {"name": "Шахтёрский караван", "desc": "Богатый конвой повышает награду.", "modifier": "reward", "value": 1.20, "event": "ore_cache"},
+	"rusthaven|salttown": {"name": "Берег мёртвых судов", "desc": "Соляная мгла режет дальность орудий.", "modifier": "range", "value": 0.85, "event": "salt_fog"},
+	"crowsnest|gasgrad": {"name": "Чёрный дым", "desc": "Из копоти чаще выходят дополнительные рейдеры.", "modifier": "horde", "value": 2, "event": "smoke_ambush"},
 }
 
 ## Уникальные услуги новых городов: одноразовый бонус на следующий рейс.
@@ -184,6 +184,15 @@ const CITY_STORIES := {
 		{"title": "Голодный привод", "text": "Лифт требует топливо и новые детали.", "needs": {"fuel": 3, "parts": 3}, "reward": {"rep": 12, "scrap": 140, "bp": 1}},
 		{"title": "Сердце карьера", "text": "Корсарский гироскоп оживит древний экскаватор.", "needs": {"trophy:ace": 1}, "reward": {"rep": 20, "chips": 6, "bp": 2}},
 	],
+}
+
+const ACHIEVEMENTS := {
+	"explorer": {"name": "Картограф", "desc": "Открыть все 10 городов", "reward": {"scrap": 250}},
+	"bone_saga": {"name": "Костяной брат", "desc": "Завершить историю Костяного Вала", "reward": {"bp": 2}},
+	"copper_saga": {"name": "Сердце карьера", "desc": "Завершить историю Медного Провала", "reward": {"bp": 2}},
+	"roadmaster": {"name": "Знаток трактов", "desc": "Проехать все 6 именованных трасс", "reward": {"scrap": 300}},
+	"veteran": {"name": "Ветеран пустоши", "desc": "Завершить 10 рейсов", "reward": {"bp": 3}},
+	"war_rig": {"name": "Одержимый", "desc": "Собрать военный тягач", "reward": {"scrap": 500}},
 }
 
 ## Здания базы (в Цитадели): цена — лом + ресурсы из трюма.
