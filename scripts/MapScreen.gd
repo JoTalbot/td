@@ -8,6 +8,7 @@ signal hull_changed
 
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const RustButton := preload("res://scripts/RustButton.gd")
+const RustHeader := preload("res://scripts/RustHeader.gd")
 
 var campaign: Node = null
 var sfx: Node = null          # Main ставит синтезатор звука
@@ -212,8 +213,9 @@ func _build_map() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
 	_sheet.add_child(col)
-	_sheet_title = _mk_label(col, 25, ACCENT)
-	_sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sheet_title = RustHeader.new()
+	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", 25, ACCENT)
+	col.add_child(_sheet_title)
 	# Лист может быть длинным (ангар, лаборатория) — крутим вертикально
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL

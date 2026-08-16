@@ -15,6 +15,7 @@ const AbilityData := preload("res://scripts/AbilityData.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const RustButton := preload("res://scripts/RustButton.gd")
+const RustHeader := preload("res://scripts/RustHeader.gd")
 
 var state: Node
 var waves: Node
@@ -254,11 +255,8 @@ func _build_ability_bar() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_ability_panel.add_child(col)
 
-	var title := Label.new()
-	title.text = "ЭКИПАЖ"
-	title.add_theme_font_size_override("font_size", 19)
-	title.add_theme_color_override("font_color", TEXT_DIM)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var title := RustHeader.new()
+	title.setup("ЭКИПАЖ", 19, Color(0.65, 0.72, 0.5))
 	col.add_child(title)
 
 	for id in AbilityData.DEFS:
@@ -307,11 +305,8 @@ func _build_garage() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_garage_panel.add_child(col)
 
-	var title := Label.new()
-	title.text = "🔧 ГАРАЖ — прокачка фуры"
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var title := RustHeader.new()
+	title.setup("🔧 ГАРАЖ — ПРОКАЧКА ФУРЫ", 24, Color(0.65, 0.78, 0.4))
 	col.add_child(title)
 
 	for id in TruckData.DEFS:
@@ -549,11 +544,9 @@ func _build_game_over() -> void:
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(col)
 
-	var title := Label.new()
-	title.text = "ФУРА УНИЧТОЖЕНА"
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var title := RustHeader.new()
+	title.setup("☠ ФУРА УНИЧТОЖЕНА", 40, Color(0.95, 0.28, 0.12))
+	title.add_theme_color_override("font_color", Color(1.0, 0.5, 0.24))
 	col.add_child(title)
 
 	var subtitle := Label.new()
@@ -628,11 +621,8 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 	var col := panel.get_node("Col")
 	for ch in col.get_children():
 		ch.queue_free()
-	var title := Label.new()
-	title.text = "🏁 ПРИБЫТИЕ: %s" % city_name
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var title := RustHeader.new()
+	title.setup("🏁 ПРИБЫТИЕ: %s" % city_name.to_upper(), 32, Color(0.65, 0.82, 0.4))
 	col.add_child(title)
 	# Арт-баннер: ворота города на закате
 	var art_path := "res://assets/ui/art_arrival.jpg"
