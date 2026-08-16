@@ -44,7 +44,7 @@ var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
 var war_week := -1
 var war_side := ""               # город выбранной фракции на текущую неделю
 var war_points := 0
-var war_claimed: Array = []        # пороги 5/12/25
+var war_claimed: Array = []        # сбалансированные пороги 4/8/15
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
 var hull_current := "buggy"
@@ -103,6 +103,7 @@ func load_campaign() -> void:
 	war_side = String(data.get("war_side", ""))
 	war_points = int(data.get("war_points", 0))
 	war_claimed = data.get("war_claimed", [])
+	_migrate_war_thresholds()
 	_sync_war_week()
 	if data.has("discovered_cities"):
 		discovered_cities = data.get("discovered_cities", [location])
@@ -239,6 +240,14 @@ func _current_war_week() -> int:
 	return int(Time.get_unix_time_from_system() / 604800.0)
 
 
+func _migrate_war_thresholds() -> void:
+	# v2.4.0 использовала тяжёлые цели 5/12/25. Сохраняем полученные награды,
+	# чтобы ветеран не забрал сбалансированные пороги повторно.
+	for pair in [[5, 4], [12, 8], [25, 15]]:
+		if pair[0] in war_claimed and pair[1] not in war_claimed:
+			war_claimed.append(pair[1])
+
+
 func _sync_war_week() -> void:
 	var current := _current_war_week()
 	if war_week != current:
@@ -266,12 +275,12 @@ func _add_war_points(a: String, b: String) -> void:
 	if war_side == "":
 		return
 	war_points += 2 if route_controller(a, b) == war_side else 1
-	for threshold in [5, 12, 25]:
+	for threshold in [4, 8, 15]:
 		if war_points >= threshold and threshold not in war_claimed:
 			war_claimed.append(threshold)
-			var reward := {"scrap": 100 if threshold == 5 else (200 if threshold == 12 else 350)}
-			if threshold >= 12:
-				reward["bp"] = 1 if threshold == 12 else 2
+			var reward := {"scrap": 100 if threshold == 4 else (180 if threshold == 8 else 300)}
+			if threshold >= 8:
+				reward["bp"] = 1 if threshold == 8 else 2
 			_grant_achievement_reward(reward)
 			achievement_unlocked.emit("war_%d" % threshold, {
 				"name": "НЕДЕЛЯ ВОЙНЫ • %d" % threshold,

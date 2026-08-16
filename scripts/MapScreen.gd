@@ -621,7 +621,7 @@ func _render_war_campaign(city: String) -> void:
 				_render_sheet())
 		row.add_child(support)
 	else:
-		label.text = "НЕДЕЛЯ ВОЙНЫ • %s\nОЧКИ %d/25 • ЦЕЛИ 5 / 12 / 25" % [campaign.war_faction_name(), campaign.war_points]
+		label.text = "НЕДЕЛЯ ВОЙНЫ • %s\nОЧКИ %d/15 • ЦЕЛИ 4 / 8 / 15" % [campaign.war_faction_name(), campaign.war_points]
 	var journal := _rusty_button("ЖУРНАЛ ЗАХВАТОВ", Color(0.68, 0.52, 0.32))
 	journal.custom_minimum_size = Vector2(260, 58)
 	journal.pressed.connect(func(): _open_view("warlog"))
