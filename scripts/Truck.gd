@@ -459,9 +459,10 @@ func reapply_upgrades() -> void:
 
 
 ## Косметика мастерства трасс: видимые знаки, костяные трофеи и медная мачта.
-func apply_route_cosmetics(mastered_count: int) -> void:
+func apply_route_cosmetics(mastered_count: int, enabled: Dictionary = {}) -> void:
 	var old := get_node_or_null("RouteCosmetics")
 	if old != null:
+		remove_child(old)
 		old.queue_free()
 	if mastered_count <= 0:
 		return
@@ -470,23 +471,24 @@ func apply_route_cosmetics(mastered_count: int) -> void:
 	add_child(root)
 	var colors := [Color(0.72, 0.34, 0.14), Color(0.78, 0.62, 0.24), Color(0.36, 0.48, 0.42)]
 	# По одной клёпаной дорожной табличке за каждую освоенную трассу.
-	for i in mini(mastered_count, 6):
-		var side := -1.0 if i % 2 == 0 else 1.0
-		var z := -_bed_len * 0.36 + int(i / 2) * 1.25
-		var plate := Junk.box(root, Vector3(0.09, 0.42, 0.72), Vector3(side * (_bed_w * 0.54), 1.65, z), Junk.metal(colors[i % colors.size()], 0.75, 0.65))
-		plate.rotation_degrees.z = side * 5.0
-		for rivet_y in [-0.14, 0.14]:
-			Junk.cyl(plate, 0.025, 0.1, Vector3(side * 0.05, rivet_y, 0), Junk.metal(Color(0.18, 0.15, 0.12), 0.6, 0.8), Vector3(0, 0, 90))
-	if mastered_count >= 2:
+	if bool(enabled.get("signs", true)):
+		for i in mini(mastered_count, 6):
+			var side := -1.0 if i % 2 == 0 else 1.0
+			var z := -_bed_len * 0.36 + int(i / 2) * 1.25
+			var plate := Junk.box(root, Vector3(0.09, 0.42, 0.72), Vector3(side * (_bed_w * 0.54), 1.65, z), Junk.metal(colors[i % colors.size()], 0.75, 0.65))
+			plate.rotation_degrees.z = side * 5.0
+			for rivet_y in [-0.14, 0.14]:
+				Junk.cyl(plate, 0.025, 0.1, Vector3(side * 0.05, rivet_y, 0), Junk.metal(Color(0.18, 0.15, 0.12), 0.6, 0.8), Vector3(0, 0, 90))
+	if mastered_count >= 2 and bool(enabled.get("horns", true)):
 		# Костяные рога на крыше — награда южных трактов.
 		Junk.spike(root, 0.12, 0.75, Vector3(-0.65, 2.9, _cab_z), Vector3(0, 0, -22))
 		Junk.spike(root, 0.12, 0.75, Vector3(0.65, 2.9, _cab_z), Vector3(0, 0, 22))
-	if mastered_count >= 4:
+	if mastered_count >= 4 and bool(enabled.get("mast", true)):
 		# Медная маршрутная мачта.
 		var copper := Junk.metal(Color(0.62, 0.3, 0.12), 0.58, 0.8)
 		Junk.cyl(root, 0.06, 1.8, Vector3(0, 3.2, _cab_z - 0.4), copper)
 		Junk.cyl(root, 0.035, 0.9, Vector3(0, 4.0, _cab_z - 0.4), copper, Vector3(0, 0, 90))
-	if mastered_count >= 6:
+	if mastered_count >= 6 and bool(enabled.get("badge", true)):
 		# Золотой знак полного знания пустоши.
 		Junk.cyl(root, 0.3, 0.1, Vector3(0, 2.75, _cab_z + 0.75), Junk.metal(Color(0.95, 0.7, 0.2), 0.35, 0.85), Vector3(90, 0, 0))
 

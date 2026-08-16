@@ -37,6 +37,7 @@ var story_choices: Dictionary = {}  # city -> выбранные решения 
 var visited_routes: Array = []       # ключи именованных трасс
 var route_mastery: Dictionary = {}  # route_key -> число успешных прохождений
 var mastered_routes: Array = []     # награда за уровень 3 уже выдана
+var route_cosmetics: Dictionary = {"signs": true, "horns": true, "mast": true, "badge": true}
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
 var war_log: Array = []              # последние захваты дорог
 var achievements: Array = []         # автоматически выданные достижения
@@ -95,6 +96,7 @@ func load_campaign() -> void:
 	visited_routes = data.get("visited_routes", [])
 	route_mastery = data.get("route_mastery", {})
 	mastered_routes = data.get("mastered_routes", [])
+	route_cosmetics = data.get("route_cosmetics", {"signs": true, "horns": true, "mast": true, "badge": true})
 	route_control = data.get("route_control", {})
 	war_log = data.get("war_log", [])
 	achievements = data.get("achievements", [])
@@ -153,6 +155,7 @@ func save_campaign() -> void:
 		"visited_routes": visited_routes,
 		"route_mastery": route_mastery,
 		"mastered_routes": mastered_routes,
+		"route_cosmetics": route_cosmetics,
 		"route_control": route_control,
 		"war_log": war_log,
 		"achievements": achievements,
@@ -204,6 +207,23 @@ func route_mastery_count(a: String, b: String) -> int:
 
 func route_mastery_level(a: String, b: String) -> int:
 	return mini(int(route_mastery_count(a, b) / 2), 3)
+
+
+func cosmetic_unlocked(id: String) -> bool:
+	var required := {"signs": 1, "horns": 2, "mast": 4, "badge": 6}
+	return mastered_routes.size() >= int(required.get(id, 999))
+
+
+func cosmetic_enabled(id: String) -> bool:
+	return cosmetic_unlocked(id) and bool(route_cosmetics.get(id, true))
+
+
+func toggle_route_cosmetic(id: String) -> bool:
+	if not cosmetic_unlocked(id):
+		return false
+	route_cosmetics[id] = not bool(route_cosmetics.get(id, true))
+	save_campaign()
+	return true
 
 
 func route_mastery_reward_mult(a: String, b: String) -> float:

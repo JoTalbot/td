@@ -919,6 +919,15 @@ func _render_showroom(is_here: bool) -> void:
 	var head := _mk_label(_sheet_body, 20, Color(0.85, 0.78, 0.6))
 	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [
 		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
+	var cosmetic_title := _mk_label(_sheet_body, 21, Color(0.95, 0.72, 0.32))
+	cosmetic_title.text = "КОСМЕТИКА МАСТЕРСТВА"
+	var cosmetic_row := HBoxContainer.new()
+	cosmetic_row.add_theme_constant_override("separation", 8)
+	_sheet_body.add_child(cosmetic_row)
+	_add_cosmetic_toggle(cosmetic_row, "signs", "ТАБЛИЧКИ")
+	_add_cosmetic_toggle(cosmetic_row, "horns", "РОГА")
+	_add_cosmetic_toggle(cosmetic_row, "mast", "МАЧТА")
+	_add_cosmetic_toggle(cosmetic_row, "badge", "ЗНАК")
 	for id in CampaignData.HULL_ORDER:
 		var d: Dictionary = CampaignData.HULLS[id]
 		var row := HBoxContainer.new()
@@ -955,6 +964,21 @@ func _render_showroom(is_here: bool) -> void:
 					hull_changed.emit()
 					_render_sheet())
 		row.add_child(btn)
+
+
+func _add_cosmetic_toggle(parent: HBoxContainer, id: String, label: String) -> void:
+	var unlocked: bool = campaign.cosmetic_unlocked(id)
+	var enabled: bool = campaign.cosmetic_enabled(id)
+	var button := _rusty_button("%s\n%s" % [label, "ВКЛ" if enabled else ("ВЫКЛ" if unlocked else "ЗАКРЫТО")],
+		Color(0.82, 0.62, 0.28) if enabled else Color(0.45, 0.42, 0.36))
+	button.custom_minimum_size = Vector2(156, 64)
+	button.add_theme_font_size_override("font_size", _font(18))
+	button.disabled = not unlocked
+	button.pressed.connect(func():
+		if campaign.toggle_route_cosmetic(id):
+			hull_changed.emit()
+			_render_sheet())
+	parent.add_child(button)
 
 
 func _render_contracts(is_here: bool) -> void:

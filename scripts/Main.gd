@@ -304,7 +304,7 @@ func _spawn_escort_if_needed(city_id: String) -> void:
 
 ## Постоянные техи и staged-модули применяются один раз на старте рейса.
 func _apply_campaign_effects() -> void:
-	truck.apply_route_cosmetics(campaign.mastered_routes.size())
+	truck.apply_route_cosmetics(campaign.mastered_routes.size(), campaign.route_cosmetics)
 	if "plating" in campaign.research_done:
 		state.add_max_hp(40)
 	if "copper_heads" in campaign.research_done:
@@ -486,6 +486,7 @@ func _on_enemy_killed(type: String) -> void:
 ## Вызывать на свежей сцене (до монтировки орудий) или из шоурума на карте.
 func _apply_hull() -> void:
 	truck.set_hull(campaign.hull_current)
+	truck.apply_route_cosmetics(campaign.mastered_routes.size(), campaign.route_cosmetics)
 	var base := state.START_HP + meta.bonus_start_hp()
 	var hull_mult := float(CampaignData.HULLS.get(campaign.hull_current, {}).get("hp_mult", 1.0))
 	state.max_hp = int(round(float(base) * hull_mult))
