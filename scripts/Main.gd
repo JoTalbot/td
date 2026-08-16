@@ -534,20 +534,34 @@ func _on_meta_upgrade(id: String) -> void:
 	hud.refresh_meta_panel()
 
 
+func _configure_environment_quality() -> void:
+	if world_env == null:
+		return
+	world_env.glow_enabled = Junk.quality_high
+	world_env.fog_density = 0.009 if Junk.quality_high else 0.006
+	world_env.adjustment_contrast = 1.12 if Junk.quality_high else 1.04
+	world_env.adjustment_saturation = 1.18 if Junk.quality_high else 1.06
+
+
 func _setup_environment() -> void:
 	var env := Environment.new()
 	# Раскалённое пустынное небо, выгоревшее у горизонта.
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.55, 0.72, 0.85)
-	sky_mat.sky_horizon_color = Color(0.95, 0.82, 0.6)
-	sky_mat.ground_bottom_color = Color(0.55, 0.42, 0.28)
-	sky_mat.ground_horizon_color = Color(0.9, 0.75, 0.55)
+	sky_mat.sky_top_color = Color(0.20, 0.29, 0.36) if Junk.quality_high else Color(0.48, 0.61, 0.7)
+	sky_mat.sky_horizon_color = Color(1.0, 0.58, 0.26) if Junk.quality_high else Color(0.9, 0.72, 0.48)
+	sky_mat.ground_bottom_color = Color(0.16, 0.09, 0.045)
+	sky_mat.ground_horizon_color = Color(0.82, 0.43, 0.18) if Junk.quality_high else Color(0.72, 0.52, 0.3)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 1.0
+	env.ambient_light_energy = 0.72 if Junk.quality_high else 0.95
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.18 if Junk.quality_high else 1.0
+	env.tonemap_white = 2.4
+	env.glow_enabled = Junk.quality_high
 	# Пыльная дымка вдали
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.87, 0.72, 0.5)
@@ -567,9 +581,10 @@ func _setup_lights() -> void:
 	# Жестокое пустынное солнце
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50.0, -40.0, 0.0)
-	sun.light_color = Color(1.0, 0.93, 0.78)
-	sun.light_energy = 1.3
+	sun.light_color = Color(1.0, 0.78, 0.52) if Junk.quality_high else Color(1.0, 0.9, 0.72)
+	sun.light_energy = 1.65 if Junk.quality_high else 1.25
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 85.0 if Junk.quality_high else 55.0
 	add_child(sun)
 
 	# Тёплый отражённый от песка свет
@@ -780,7 +795,9 @@ func _process(delta: float) -> void:
 ## Применить настройки сразу и ко всем новым процедурным эффектам.
 func _apply_user_settings() -> void:
 	Junk.particle_scale = user_settings.particle_gain()
-	Junk.perf_explosion_lights = String(user_settings.get_value("effects")) == "full"
+	Junk.quality_high = String(user_settings.get_value("effects")) == "full"
+	Junk.perf_explosion_lights = Junk.quality_high
+	_configure_environment_quality()
 	if sfx != null:
 		sfx.master_volume = user_settings.sound_gain()
 	if camera_rig != null:

@@ -816,7 +816,7 @@ func _refresh_pause() -> void:
 	_pause_vibration.text = "ВКЛЮЧЕНА" if bool(settings.get_value("vibration")) else "ВЫКЛЮЧЕНА"
 	var shake_names := {0: "ВЫКЛ.", 50: "СРЕДНЯЯ", 100: "ПОЛНАЯ"}
 	_pause_shake.text = shake_names.get(int(settings.get_value("shake")), "ПОЛНАЯ")
-	_pause_effects.text = "ЭКОНОМНЫЕ" if String(settings.get_value("effects")) == "economy" else "ПОЛНЫЕ"
+	_pause_effects.text = "ЭКОНОМНЫЙ" if String(settings.get_value("effects")) == "economy" else "КАЧЕСТВЕННЫЙ"
 
 
 func _pause_change_sound(delta: int) -> void:

@@ -4,6 +4,7 @@ extends RefCounted
 ## Глобальные настройки эффектов для слабых устройств.
 static var perf_explosion_lights := true
 static var particle_scale := 1.0
+static var quality_high := true
 
 const RUST_TONES: Array[Color] = [
 	Color(0.42, 0.22, 0.1),   # ржавчина
@@ -19,6 +20,12 @@ static func metal(color: Color, rough := 0.85, met := 0.55) -> StandardMaterial3
 	m.albedo_color = color
 	m.roughness = rough
 	m.metallic = met
+	m.metallic_specular = 0.35 + met * 0.35
+	if quality_high and met > 0.25:
+		# Мягкий краевой блик подчёркивает силуэт самодельных железок без текстур.
+		m.rim_enabled = true
+		m.rim = 0.12
+		m.rim_tint = 0.45
 	return m
 
 
@@ -88,6 +95,14 @@ static func wheel(parent: Node3D, radius: float, width: float, pos: Vector3) -> 
 	hub.mesh = hub_mesh
 	hub.material_override = metal(Color(0.4, 0.35, 0.28), 0.6, 0.7)
 	w.add_child(hub)
+	if quality_high:
+		# Шесть крупных грунтозацепов читаются в движении и дешевле сложной шины.
+		var rubber := metal(Color(0.055, 0.045, 0.04), 0.98, 0.08)
+		for i in 6:
+			var a := TAU * i / 6.0
+			var tread := box(w, Vector3(radius * 0.34, width + 0.08, radius * 0.16),
+				Vector3(cos(a) * radius * 0.88, 0, sin(a) * radius * 0.88), rubber)
+			tread.rotation_degrees.y = -rad_to_deg(a)
 	return w
 
 

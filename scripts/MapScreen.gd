@@ -1279,13 +1279,13 @@ func _render_settings() -> void:
 		_set_setting("shake", 50 if current == 0 else (100 if current == 50 else 0)))
 	shake_row.add_child(shake)
 
-	var effects_row := _settings_row("ЧАСТИЦЫ И ВСПЫШКИ")
+	var effects_row := _settings_row("ПРОФИЛЬ ГРАФИКИ")
 	var economy := String(settings.get_value("effects")) == "economy"
-	var effects := _rusty_button("ЭКОНОМНЫЕ" if economy else "ПОЛНЫЕ",
+	var effects := _rusty_button("ЭКОНОМНЫЙ" if economy else "КАЧЕСТВЕННЫЙ",
 		Color(0.6, 0.75, 0.5) if economy else Color(0.9, 0.58, 0.28))
 	effects.custom_minimum_size = Vector2(220, 58)
 	effects.tooltip_text = "Экономный режим уменьшает пыль, искры и отключает свет взрывов"
-	effects.pressed.connect(func(): _set_setting("effects", "full" if economy else "economy"))
+	effects.pressed.connect(func(): _set_setting("effects", "full" if economy else "economy", true))
 	effects_row.add_child(effects)
 
 	var reset := _rusty_button("СБРОСИТЬ ОБУЧЕНИЕ", Color(0.75, 0.48, 0.3))
