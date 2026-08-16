@@ -64,7 +64,19 @@ func hide_screen() -> void:
 	visible = false
 
 
+func _ui_accent() -> Color:
+	if settings == null:
+		return ACCENT
+	match String(settings.get_value("ui_theme")):
+		"bone": return Color(0.82, 0.7, 0.48)
+		"copper": return Color(0.82, 0.4, 0.16)
+		"war": return Color(0.86, 0.22, 0.12)
+	return ACCENT
+
+
 func _styled_panel(border := BORDER) -> StyleBoxFlat:
+	if border == BORDER:
+		border = _ui_accent().darkened(0.25)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL_BG
 	sb.border_color = border
@@ -88,6 +100,8 @@ func _font(base: int) -> int:
 
 
 func _rusty_button(text: String, accent := ACCENT) -> Button:
+	if accent == ACCENT:
+		accent = _ui_accent()
 	var btn := RustButton.new()
 	btn.setup(text, accent)
 	btn.add_theme_font_size_override("font_size", _font(20))
@@ -273,7 +287,7 @@ func _build_map() -> void:
 	col.add_theme_constant_override("separation", 8)
 	_sheet.add_child(col)
 	_sheet_title = RustHeader.new()
-	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", _font(25), ACCENT)
+	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", _font(25), _ui_accent())
 	col.add_child(_sheet_title)
 	# Закреплённые вкладки остаются на месте, пока длинное содержимое крутится.
 	var nav := HBoxContainer.new()
@@ -1310,10 +1324,36 @@ func _render_settings() -> void:
 	effects.pressed.connect(func(): _set_setting("effects", "full" if economy else "economy", true))
 	effects_row.add_child(effects)
 
+	var theme_title := _mk_label(_sheet_body, 20, TEXT_DIM)
+	theme_title.text = "ТЕМА ИНТЕРФЕЙСА"
+	var theme_row := HBoxContainer.new()
+	theme_row.add_theme_constant_override("separation", 8)
+	_sheet_body.add_child(theme_row)
+	for theme in [["rust", "РЖАВАЯ"], ["bone", "КОСТЯНАЯ"], ["copper", "МЕДНАЯ"], ["war", "ВОЕННАЯ"]]:
+		_add_theme_button(theme_row, String(theme[0]), String(theme[1]))
+	var fps_row := _settings_row("МОНИТОР FPS")
+	var fps_button := _rusty_button("ВКЛЮЧЕН" if bool(settings.get_value("show_fps")) else "ВЫКЛЮЧЕН", Color(0.55, 0.75, 0.48))
+	fps_button.custom_minimum_size = Vector2(220, 58)
+	fps_button.pressed.connect(func(): _set_setting("show_fps", not bool(settings.get_value("show_fps"))))
+	fps_row.add_child(fps_button)
+
 	var reset := _rusty_button("СБРОСИТЬ ОБУЧЕНИЕ", Color(0.75, 0.48, 0.3))
 	reset.custom_minimum_size = Vector2(320, 58)
 	reset.pressed.connect(_reset_tutorial)
 	_sheet_body.add_child(reset)
+
+
+func _add_theme_button(parent: HBoxContainer, id: String, label: String) -> void:
+	var unlocked: bool = id == "rust" or (id == "bone" and campaign.story_stage("bonewall") >= 3) \
+		or (id == "copper" and campaign.story_stage("copperpit") >= 3) or (id == "war" and campaign.mastered_routes.size() >= 3)
+	var selected: bool = String(settings.get_value("ui_theme")) == id
+	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНА" if selected else ("ВЫБРАТЬ" if unlocked else "ЗАКРЫТО")],
+		Color(0.78, 0.48, 0.22) if selected else Color(0.42, 0.38, 0.32))
+	button.custom_minimum_size = Vector2(156, 64)
+	button.add_theme_font_size_override("font_size", _font(18))
+	button.disabled = not unlocked or selected
+	button.pressed.connect(func(): _set_setting("ui_theme", id, true))
+	parent.add_child(button)
 
 
 func _settings_row(title: String) -> HBoxContainer:

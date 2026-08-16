@@ -3,6 +3,7 @@ extends Node3D
 ## Боевые параметры не меняет — этим занимается RoadEvents.
 
 signal announced(text: String)
+signal changed(id: String)
 
 const Junk := preload("res://scripts/Junk.gd")
 
@@ -25,6 +26,8 @@ func setup(p_env: Environment, p_truck: Node3D) -> void:
 
 func set_active(on: bool) -> void:
 	active = on
+	if not on and current != "clear":
+		_apply("clear")
 	if _ash != null:
 		_ash.emitting = on and current == "ash"
 
@@ -78,7 +81,8 @@ func _apply(id: String) -> void:
 		tween.tween_property(sky_mat, "sky_top_color", sky_top, 2.8)
 		tween.tween_property(sky_mat, "sky_horizon_color", sky_horizon, 2.8)
 	if _ash != null:
-		_ash.emitting = id == "ash"
+		_ash.emitting = active and id == "ash"
+	changed.emit(id)
 
 
 func _build_ash() -> void:

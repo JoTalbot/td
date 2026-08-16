@@ -24,6 +24,7 @@ func add_trauma(a: float) -> void:
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_pivot = Node3D.new()
 	add_child(_pivot)
 	camera = Camera3D.new()

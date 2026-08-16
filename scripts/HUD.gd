@@ -7,6 +7,7 @@ signal sell_pressed
 signal truck_upgrade_pressed(id: String)
 signal restart_pressed
 signal quit_to_map_pressed
+signal photo_mode_pressed
 signal ability_pressed(id: String)
 signal meta_upgrade_pressed(id: String)
 
@@ -59,6 +60,8 @@ var _achievement_title: Label
 var _achievement_desc: Label
 var _achievement_queue: Array = []
 var _achievement_showing := false
+var _fps_label: Label
+var _fps_timer := 0.0
 var _safe_insets := Vector4.ZERO
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
@@ -82,6 +85,7 @@ func _ready() -> void:
 	_build_hint()
 	_build_pause_menu()
 	_build_achievement_popup()
+	_build_fps_monitor()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "ЛОМ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -98,7 +102,24 @@ func _ready() -> void:
 	_wave_label.text = "Держись..."
 
 
+func _build_fps_monitor() -> void:
+	_fps_label = Label.new()
+	_fps_label.position = Vector2(12 + _safe_insets.x, 102 + _safe_insets.y)
+	_fps_label.add_theme_font_size_override("font_size", _font(18))
+	_fps_label.add_theme_color_override("font_color", Color(0.72, 0.95, 0.55))
+	_fps_label.add_theme_color_override("font_outline_color", Color(0.04, 0.02, 0.01))
+	_fps_label.add_theme_constant_override("outline_size", 4)
+	_fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fps_label)
+
+
 func _process(_delta: float) -> void:
+	_fps_timer -= _delta
+	if _fps_timer <= 0.0 and _fps_label != null:
+		_fps_timer = 0.5
+		_fps_label.visible = settings != null and bool(settings.get_value("show_fps"))
+		if _fps_label.visible:
+			_fps_label.text = "FPS %d • %s" % [int(Performance.get_monitor(Performance.TIME_FPS)), "КАЧ" if String(settings.get_value("effects")) == "full" else "ЭКО"]
 	var t: float = waves.time_to_next_wave()
 	if t >= 0.0:
 		if waves.wave_index == 0:
@@ -130,7 +151,19 @@ func _on_hp_changed(hp: int, max_hp: int) -> void:
 	_hp_fill.color = Color(1.0 - ratio * 0.7, ratio * 0.75, 0.1)
 
 
+func _ui_accent() -> Color:
+	if settings == null:
+		return ACCENT
+	match String(settings.get_value("ui_theme")):
+		"bone": return Color(0.82, 0.7, 0.48)
+		"copper": return Color(0.82, 0.4, 0.16)
+		"war": return Color(0.86, 0.22, 0.12)
+	return ACCENT
+
+
 func _styled_panel(border := BORDER) -> StyleBoxFlat:
+	if border == BORDER:
+		border = _ui_accent().darkened(0.25)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL_BG
 	sb.border_color = border
@@ -167,6 +200,8 @@ func _status_icon(parent: Control, id: String, px: int = 30) -> TextureRect:
 
 
 func _rusty_button(text: String, accent := ACCENT) -> Button:
+	if accent == ACCENT:
+		accent = _ui_accent()
 	var btn := RustButton.new()
 	btn.setup(text, accent)
 	btn.add_theme_font_size_override("font_size", _font(20))
@@ -674,6 +709,12 @@ func _build_pause_menu() -> void:
 	resume.custom_minimum_size = Vector2(0, 64)
 	resume.pressed.connect(_hide_pause)
 	col.add_child(resume)
+	var photo := _rusty_button("ФОТОРЕЖИМ", Color(0.72, 0.58, 0.32))
+	photo.custom_minimum_size = Vector2(0, 60)
+	photo.pressed.connect(func():
+		_hide_pause()
+		photo_mode_pressed.emit())
+	col.add_child(photo)
 
 	var sound_row := HBoxContainer.new()
 	sound_row.add_theme_constant_override("separation", 8)

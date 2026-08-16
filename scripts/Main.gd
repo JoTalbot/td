@@ -22,6 +22,7 @@ const Tutorial := preload("res://scripts/Tutorial.gd")
 const UserSettings := preload("res://scripts/UserSettings.gd")
 const Junk := preload("res://scripts/Junk.gd")
 const WeatherFX := preload("res://scripts/WeatherFX.gd")
+const PhotoMode := preload("res://scripts/PhotoMode.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -38,6 +39,7 @@ var campaign: Campaign
 var map_screen: MapScreen
 var user_settings: UserSettings
 var weather: WeatherFX
+var photo_mode: PhotoMode
 var world_env: Environment
 var _earned_blueprints := 0
 ## Рейс идёт (тапы по сцене работают только в бою)
@@ -101,6 +103,7 @@ func _ready() -> void:
 	truck = Truck.new()
 	truck.name = "Truck"
 	add_child(truck)
+	state.hp_changed.connect(func(hp, max_hp): truck.apply_damage_visual(hp, max_hp))
 
 	weather = WeatherFX.new()
 	weather.name = "WeatherFX"
@@ -176,11 +179,17 @@ func _ready() -> void:
 	map_screen.settings = user_settings
 	add_child(map_screen)
 	hud.campaign = campaign
+	photo_mode = PhotoMode.new()
+	photo_mode.name = "PhotoMode"
+	add_child(photo_mode)
+	photo_mode.setup(camera_rig, weather, hud, map_screen)
+	hud.photo_mode_pressed.connect(photo_mode.enter)
 	map_screen.travel_requested.connect(_on_travel)
 
 	waves.boss_event.connect(hud.flash_message)
 	events.announced.connect(hud.flash_message)
 	weather.announced.connect(hud.flash_message)
+	weather.changed.connect(_on_weather_changed)
 	events.encounter.connect(hud.show_encounter)
 	hud.meta_upgrade_pressed.connect(_on_meta_upgrade)
 	state.game_over.connect(_on_game_over)
@@ -845,6 +854,21 @@ func _apply_user_settings() -> void:
 
 func _on_user_setting_changed(_key: String) -> void:
 	_apply_user_settings()
+
+
+func _on_weather_changed(id: String) -> void:
+	if state == null:
+		return
+	match id:
+		"dust":
+			state.weather_range_mult = 0.82
+			state.weather_fire_rate_mult = 1.0
+		"ash":
+			state.weather_range_mult = 0.92
+			state.weather_fire_rate_mult = 0.85
+		_:
+			state.weather_range_mult = 1.0
+			state.weather_fire_rate_mult = 1.0
 
 
 ## Урон по фуре: тряска и вибрация пропорциональны влетевшему урону.

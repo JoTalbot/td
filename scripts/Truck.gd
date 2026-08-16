@@ -24,6 +24,9 @@ var _engine_parts: Array = []
 var _drone: Node3D = null
 var _drone_phase := 0.0
 var _shake_phase := 0.0
+var _damage_root: Node3D = null
+var _damage_smoke: GPUParticles3D = null
+var _damage_sparks: GPUParticles3D = null
 
 
 func _ready() -> void:
@@ -44,6 +47,9 @@ func set_hull(id: String) -> void:
 	_spike_parts.clear()
 	_engine_parts.clear()
 	_drone = null
+	_damage_root = null
+	_damage_smoke = null
+	_damage_sparks = null
 	for ch in get_children():
 		remove_child(ch)
 		ch.queue_free()
@@ -628,6 +634,68 @@ func ram_damage_multiplier() -> float:
 
 func repair_rate() -> float:
 	return 1.5 * upgrade_levels["drone"]
+
+
+func apply_damage_visual(hp: int, max_hp: int) -> void:
+	if not Junk.quality_high or max_hp <= 0:
+		return
+	if _damage_root == null:
+		_build_damage_fx()
+	var ratio := float(hp) / float(max_hp)
+	_damage_smoke.emitting = ratio < 0.55
+	_damage_sparks.emitting = ratio < 0.28
+	if ratio < 0.55 and _damage_root.get_node_or_null("Scorch") == null:
+		var scorch := Junk.box(_damage_root, Vector3(0.9, 0.04, 1.3), Vector3(0.7, 1.7, _cab_z + 0.7), Junk.metal(Color(0.055, 0.045, 0.04), 1.0, 0.0), Vector3(0, 18, 6))
+		scorch.name = "Scorch"
+
+
+func _build_damage_fx() -> void:
+	_damage_root = Node3D.new()
+	_damage_root.name = "DamageFX"
+	add_child(_damage_root)
+	_damage_smoke = GPUParticles3D.new()
+	_damage_smoke.amount = 18
+	_damage_smoke.lifetime = 1.5
+	var smoke_process := ParticleProcessMaterial.new()
+	smoke_process.direction = Vector3(0, 1, -0.25)
+	smoke_process.spread = 20.0
+	smoke_process.initial_velocity_min = 1.2
+	smoke_process.initial_velocity_max = 2.8
+	smoke_process.gravity = Vector3(0, 0.4, -0.8)
+	smoke_process.scale_min = 0.18
+	smoke_process.scale_max = 0.55
+	smoke_process.color = Color(0.08, 0.07, 0.065, 0.65)
+	_damage_smoke.process_material = smoke_process
+	var smoke_mesh := SphereMesh.new()
+	smoke_mesh.radius = 0.25
+	smoke_mesh.height = 0.5
+	var smoke_mat := StandardMaterial3D.new()
+	smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	smoke_mat.albedo_color = Color(0.07, 0.065, 0.06, 0.58)
+	smoke_mesh.material = smoke_mat
+	_damage_smoke.draw_pass_1 = smoke_mesh
+	_damage_smoke.position = Vector3(0.65, 2.0, _cab_z + 0.6)
+	_damage_smoke.emitting = false
+	_damage_root.add_child(_damage_smoke)
+	_damage_sparks = GPUParticles3D.new()
+	_damage_sparks.amount = 12
+	_damage_sparks.lifetime = 0.45
+	var spark_process := ParticleProcessMaterial.new()
+	spark_process.direction = Vector3(0, 0.4, 1)
+	spark_process.spread = 70.0
+	spark_process.initial_velocity_min = 3.0
+	spark_process.initial_velocity_max = 6.0
+	spark_process.gravity = Vector3(0, -5, 0)
+	spark_process.color = Color(1.0, 0.42, 0.08)
+	_damage_sparks.process_material = spark_process
+	var spark_mesh := BoxMesh.new()
+	spark_mesh.size = Vector3(0.025, 0.025, 0.16)
+	spark_mesh.material = Junk.metal(Color(1.0, 0.35, 0.04), 0.2, 0.2)
+	_damage_sparks.draw_pass_1 = spark_mesh
+	_damage_sparks.position = Vector3(0.65, 1.8, _cab_z + 0.8)
+	_damage_sparks.emitting = false
+	_damage_root.add_child(_damage_sparks)
 
 
 func _process(delta: float) -> void:

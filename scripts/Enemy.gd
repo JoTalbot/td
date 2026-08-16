@@ -316,6 +316,13 @@ func take_damage(amount: int, p_state: Node) -> void:
 	var ratio := clampf(float(hp) / float(max_hp), 0.0, 1.0)
 	_hp_bar.scale.x = maxf(ratio, 0.01)
 	_hp_mat.albedo_color = Color(1.0 - ratio * 0.7, ratio * 0.9, 0.15)
+	if Junk.quality_high and ratio < 0.42 and get_node_or_null("DamageSmoke") == null:
+		var smoke := Junk.dust_trail(self, Vector3(0.45, 1.35 if not is_boss else 2.2, 0.2), 14, 0.45)
+		smoke.name = "DamageSmoke"
+		var smoke_process := smoke.process_material as ParticleProcessMaterial
+		smoke_process.direction = Vector3(0, 1, -0.25)
+		smoke_process.gravity = Vector3(0, 0.4, -0.8)
+		smoke_process.color = Color(0.07, 0.065, 0.06, 0.65)
 	if hp <= 0:
 		_die(p_state)
 	elif is_boss:

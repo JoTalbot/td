@@ -220,7 +220,7 @@ func _process(delta: float) -> void:
 		_turret.rotate_object_local(Vector3.UP, PI)  # стволы построены вдоль +Z
 	_shoot(target)
 	# «Последний рубеж» (легендарная способность) ускоряет темп всех орудий
-	var fm: float = state.fire_rate_mult if state != null else 1.0
+	var fm: float = state.fire_rate_mult * state.weather_fire_rate_mult if state != null else 1.0
 	_cooldown = 1.0 / (float(stats()["fire_rate"]) * fm)
 
 
@@ -234,7 +234,7 @@ func _find_target() -> Node3D:
 	var best: Node3D = null
 	var best_d := 1e9
 	# Дальность режется дорожными событиями (песчаная буря)
-	var r: float = stats()["range"] * (state.weapon_range_mult if state != null else 1.0)
+	var r: float = stats()["range"] * (state.weapon_range_mult * state.weather_range_mult if state != null else 1.0)
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(enemy) or enemy.is_dying:
 			continue

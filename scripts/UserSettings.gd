@@ -10,6 +10,8 @@ const DEFAULTS := {
 	"vibration": true,
 	"shake": 100,             # 0 | 50 | 100
 	"effects": "full",       # full | economy
+	"ui_theme": "rust",      # rust | bone | copper | war
+	"show_fps": false,
 	"map_zoom": 1.0,
 	"map_pan_x": 0.0,
 	"map_pan_y": 0.0,
@@ -88,10 +90,13 @@ func _sanitize() -> void:
 		values["ui_size"] = DEFAULTS["ui_size"]
 	values["sound"] = clampi(int(values["sound"]), 0, 100)
 	values["vibration"] = bool(values["vibration"])
+	values["show_fps"] = bool(values["show_fps"])
 	var shake_value := int(values["shake"])
 	values["shake"] = 0 if shake_value < 25 else (50 if shake_value < 75 else 100)
 	if String(values["effects"]) not in ["full", "economy"]:
 		values["effects"] = DEFAULTS["effects"]
+	if String(values["ui_theme"]) not in ["rust", "bone", "copper", "war"]:
+		values["ui_theme"] = DEFAULTS["ui_theme"]
 	values["map_zoom"] = clampf(float(values["map_zoom"]), 1.0, 2.4)
 	values["map_pan_x"] = float(values["map_pan_x"])
 	values["map_pan_y"] = float(values["map_pan_y"])

@@ -17,6 +17,8 @@ var is_game_over: bool = false
 
 ## Множитель дальности орудий (песчаная буря и т.п.). Крутится дорожными событиями.
 var weapon_range_mult := 1.0
+var weather_range_mult := 1.0
+var weather_fire_rate_mult := 1.0
 
 ## Множитель наград ломом (мета-улучшение «Скупщик хлама»).
 var reward_mult := 1.0
