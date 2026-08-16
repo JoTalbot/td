@@ -113,6 +113,22 @@ func _mk_label(parent: Control, size: int, color: Color) -> Label:
 	return l
 
 
+## Маленькая нарисованная иконка в начало строки списка.
+## Возвращает true, если ассет нашёлся (тогда эмодзи в тексте можно опустить).
+func _add_row_icon(row: HBoxContainer, path: String, px: int = 30) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	var tr := TextureRect.new()
+	tr.texture = load(path)
+	tr.custom_minimum_size = Vector2(px, px)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tr)
+	row.move_child(tr, 0)
+	return true
+
+
 func _refresh_top() -> void:
 	var c: Dictionary = CampaignData.CITIES[campaign.location]
 	_loc_label.text = "%s %s" % [c["icon"], c["name"]]
@@ -428,9 +444,11 @@ func _render_hangar(is_here: bool) -> void:
 		var parts: Array = []
 		for res in d["salvage"]:
 			parts.append("%s×%d" % [CampaignData.RESOURCES[res]["icon"], int(d["salvage"][res])])
+		var has_icon: bool = _add_row_icon(row, "res://assets/ui/t_%s.png" % t)
 		var lab := _mk_label(row, 14, TEXT_DIM)
 		lab.custom_minimum_size = Vector2(280, 0)
-		lab.text = "%s %s ×%d — распил: %s" % [d["icon"], d["name"], have, " ".join(parts)]
+		var prefix: String = "" if has_icon else "%s " % d["icon"]
+		lab.text = "%s%s ×%d — распил: %s" % [prefix, d["name"], have, " ".join(parts)]
 		var tid: String = t
 		var scr := _rusty_button("Разобрать", Color(0.75, 0.7, 0.55))
 		scr.custom_minimum_size = Vector2(130, 40)
@@ -550,11 +568,13 @@ func _render_base(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
+		var has_icon: bool = _add_row_icon(row, "res://assets/ui/b_%s.png" % id)
+		var prefix: String = "" if has_icon else "%s " % d["icon"]
 		var txt := _mk_label(row, 14, TEXT_DIM)
-		txt.custom_minimum_size = Vector2(470, 0)
+		txt.custom_minimum_size = Vector2(440, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if cost.is_empty():
-			txt.text = "%s %s [МАКС ур.%d] — %s" % [d["icon"], d["name"], lvl, d["desc"]]
+			txt.text = "%s%s [МАКС ур.%d] — %s" % [prefix, d["name"], lvl, d["desc"]]
 		else:
 			var parts: Array = []
 			for k in cost:
@@ -562,7 +582,7 @@ func _render_base(is_here: bool) -> void:
 					parts.append("⚙%d" % int(cost[k]))
 				else:
 					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(cost[k])])
-			txt.text = "%s %s [ур.%d→%d] — %s  |  цена: %s" % [d["icon"], d["name"], lvl, lvl + 1, d["desc"], " ".join(parts)]
+			txt.text = "%s%s [ур.%d→%d] — %s  |  цена: %s" % [prefix, d["name"], lvl, lvl + 1, d["desc"], " ".join(parts)]
 		row.add_child(txt)
 		var b := _rusty_button("Строить", Color(0.85, 0.7, 0.3))
 		b.custom_minimum_size = Vector2(120, 40)
