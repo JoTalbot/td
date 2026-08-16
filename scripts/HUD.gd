@@ -6,6 +6,7 @@ signal upgrade_pressed
 signal sell_pressed
 signal truck_upgrade_pressed(id: String)
 signal restart_pressed
+signal quit_to_map_pressed
 signal ability_pressed(id: String)
 signal meta_upgrade_pressed(id: String)
 
@@ -46,6 +47,11 @@ var leg_abilities: Array = []
 var _blueprints_label: Label
 var _earned_label: Label
 var _meta_buttons: Dictionary = {}
+var _pause_overlay: Control
+var _pause_sound: Label
+var _pause_vibration: Button
+var _pause_shake: Button
+var _pause_effects: Button
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
 const BORDER := Color(0.55, 0.4, 0.2)
@@ -54,6 +60,8 @@ const TEXT_DIM := Color(0.85, 0.78, 0.65)
 
 
 func _ready() -> void:
+	# Меню паузы должно принимать нажатия при остановленном дереве сцены.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_top_bar()
 	_build_bottom_bar()
 	_build_weapon_panel()
@@ -63,6 +71,7 @@ func _ready() -> void:
 	_build_ability_bar()
 	_build_encounter()
 	_build_hint()
+	_build_pause_menu()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "ЛОМ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -167,7 +176,8 @@ func _build_top_bar() -> void:
 	hp_box.add_theme_constant_override("separation", 6)
 	row.add_child(hp_box)
 	var hp_icon := Label.new()
-	hp_icon.text = "БРОНЯ"
+	hp_icon.text = "HP"
+	hp_icon.tooltip_text = "Броня фуры"
 	hp_icon.add_theme_font_size_override("font_size", _font(24))
 	hp_box.add_child(hp_icon)
 	var bar_bg := PanelContainer.new()
@@ -194,6 +204,13 @@ func _build_top_bar() -> void:
 	_wave_label.add_theme_color_override("font_color", Color(0.95, 0.55, 0.3))
 	_wave_label.add_theme_font_size_override("font_size", _font(24))
 	row.add_child(_wave_label)
+
+	var pause_btn := _rusty_button("Ⅱ", Color(0.55, 0.72, 0.82))
+	pause_btn.custom_minimum_size = Vector2(58, 58)
+	pause_btn.add_theme_font_size_override("font_size", _font(24))
+	pause_btn.tooltip_text = "Пауза"
+	pause_btn.pressed.connect(_show_pause)
+	row.add_child(pause_btn)
 
 
 func _build_bottom_bar() -> void:
@@ -529,6 +546,155 @@ func flash_message(text: String) -> void:
 	var tw := create_tween()
 	tw.tween_interval(1.2)
 	tw.tween_property(_message_label, "modulate:a", 0.0, 0.6)
+
+
+func _build_pause_menu() -> void:
+	_pause_overlay = Control.new()
+	_pause_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.visible = false
+	add_child(_pause_overlay)
+
+	var shade := ColorRect.new()
+	shade.color = Color(0.035, 0.02, 0.01, 0.82)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_overlay.add_child(shade)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(600, 0)
+	panel.add_theme_stylebox_override("panel", _styled_panel(Color(0.55, 0.72, 0.82)))
+	center.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	panel.add_child(col)
+	var title := RustHeader.new()
+	title.setup("ПАУЗА", _font(32), Color(0.55, 0.72, 0.82))
+	col.add_child(title)
+
+	var resume := _rusty_button("ПРОДОЛЖИТЬ", Color(0.65, 0.82, 0.5))
+	resume.custom_minimum_size = Vector2(0, 64)
+	resume.pressed.connect(_hide_pause)
+	col.add_child(resume)
+
+	var sound_row := HBoxContainer.new()
+	sound_row.add_theme_constant_override("separation", 8)
+	col.add_child(sound_row)
+	var sound_title := Label.new()
+	sound_title.text = "ГРОМКОСТЬ"
+	sound_title.custom_minimum_size = Vector2(250, 58)
+	sound_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	sound_title.add_theme_font_size_override("font_size", _font(20))
+	sound_title.add_theme_color_override("font_color", TEXT_DIM)
+	sound_row.add_child(sound_title)
+	var quieter := _rusty_button("−")
+	quieter.custom_minimum_size = Vector2(70, 58)
+	quieter.pressed.connect(func(): _pause_change_sound(-10))
+	sound_row.add_child(quieter)
+	_pause_sound = Label.new()
+	_pause_sound.custom_minimum_size = Vector2(100, 58)
+	_pause_sound.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_sound.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_pause_sound.add_theme_font_size_override("font_size", _font(22))
+	_pause_sound.add_theme_color_override("font_color", ACCENT)
+	sound_row.add_child(_pause_sound)
+	var louder := _rusty_button("+")
+	louder.custom_minimum_size = Vector2(70, 58)
+	louder.pressed.connect(func(): _pause_change_sound(10))
+	sound_row.add_child(louder)
+
+	_pause_vibration = _pause_option(col, "ВИБРАЦИЯ", _toggle_pause_vibration)
+	_pause_shake = _pause_option(col, "ТРЯСКА", _cycle_pause_shake)
+	_pause_effects = _pause_option(col, "ЭФФЕКТЫ", _toggle_pause_effects)
+
+	var map_btn := _rusty_button("ЗАВЕРШИТЬ РЕЙС И ВЫЙТИ НА КАРТУ", Color(0.85, 0.4, 0.25))
+	map_btn.custom_minimum_size = Vector2(0, 64)
+	map_btn.pressed.connect(_quit_run_from_pause)
+	col.add_child(map_btn)
+
+
+func _pause_option(parent: VBoxContainer, title: String, callback: Callable) -> Button:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = title
+	label.custom_minimum_size = Vector2(300, 58)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", _font(20))
+	label.add_theme_color_override("font_color", TEXT_DIM)
+	row.add_child(label)
+	var button := _rusty_button("")
+	button.custom_minimum_size = Vector2(240, 58)
+	button.pressed.connect(callback)
+	row.add_child(button)
+	return button
+
+
+func _show_pause() -> void:
+	if _pause_overlay == null or state.is_game_over:
+		return
+	_refresh_pause()
+	_pause_overlay.visible = true
+	get_tree().paused = true
+
+
+func _hide_pause() -> void:
+	get_tree().paused = false
+	if _pause_overlay != null:
+		_pause_overlay.visible = false
+
+
+func _refresh_pause() -> void:
+	if settings == null:
+		return
+	_pause_sound.text = "%d%%" % int(settings.get_value("sound"))
+	_pause_vibration.text = "ВКЛЮЧЕНА" if bool(settings.get_value("vibration")) else "ВЫКЛЮЧЕНА"
+	var shake_names := {0: "ВЫКЛ.", 50: "СРЕДНЯЯ", 100: "ПОЛНАЯ"}
+	_pause_shake.text = shake_names.get(int(settings.get_value("shake")), "ПОЛНАЯ")
+	_pause_effects.text = "ЭКОНОМНЫЕ" if String(settings.get_value("effects")) == "economy" else "ПОЛНЫЕ"
+
+
+func _pause_change_sound(delta: int) -> void:
+	if settings != null:
+		settings.set_value("sound", clampi(int(settings.get_value("sound")) + delta, 0, 100))
+	_refresh_pause()
+
+
+func _toggle_pause_vibration() -> void:
+	if settings != null:
+		settings.set_value("vibration", not bool(settings.get_value("vibration")))
+	_refresh_pause()
+
+
+func _cycle_pause_shake() -> void:
+	if settings != null:
+		var current := int(settings.get_value("shake"))
+		settings.set_value("shake", 50 if current == 0 else (100 if current == 50 else 0))
+	_refresh_pause()
+
+
+func _toggle_pause_effects() -> void:
+	if settings != null:
+		var economy := String(settings.get_value("effects")) == "economy"
+		settings.set_value("effects", "full" if economy else "economy")
+	_refresh_pause()
+
+
+func _quit_run_from_pause() -> void:
+	_hide_pause()
+	quit_to_map_pressed.emit()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and visible:
+		if _pause_overlay != null and _pause_overlay.visible:
+			_hide_pause()
+		else:
+			_show_pause()
+		get_viewport().set_input_as_handled()
 
 
 func _build_game_over() -> void:

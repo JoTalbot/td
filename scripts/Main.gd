@@ -142,6 +142,7 @@ func _ready() -> void:
 	hud.sell_pressed.connect(_on_sell_pressed)
 	hud.truck_upgrade_pressed.connect(_on_truck_upgrade)
 	hud.restart_pressed.connect(_on_restart_pressed)
+	hud.quit_to_map_pressed.connect(_on_quit_to_map)
 	hud.ability_pressed.connect(func(a):
 		if abilities.try_activate(a):
 			sfx.play("ability", 0.8)
@@ -734,5 +735,14 @@ func _on_truck_damaged(amount: int) -> void:
 
 func _on_restart_pressed() -> void:
 	# Релоад сцены = свежая фура, снова на карте
+	campaign.save_campaign()
+	get_tree().reload_current_scene()
+
+
+func _on_quit_to_map() -> void:
+	# Добровольный выход считается провалом рейса: груз режется честно,
+	# но игрок гарантированно возвращается на стоянку без зависшей паузы.
+	battle_active = false
+	campaign.fail_run()
 	campaign.save_campaign()
 	get_tree().reload_current_scene()
