@@ -90,12 +90,15 @@ func _process(_delta: float) -> void:
 			var btn: Button = _ability_buttons[id]
 			var def: Dictionary = AbilityData.DEFS[id]
 			var left: float = abilities.cooldown_left(id)
+			# С картинкой-иконкой эмодзи в подписи не нужен
+			var label := String(def["name"]) if btn.icon != null else "%s %s" % [def["icon"], def["name"]]
+			var cd_label := "%.0f с" % left if btn.icon != null else "%s %.0f с" % [def["icon"], left]
 			if state.is_game_over or left > 0.0:
 				btn.disabled = true
-				btn.text = "%s %.0f с" % [def["icon"], left] if not state.is_game_over else "%s %s" % [def["icon"], def["name"]]
+				btn.text = cd_label if not state.is_game_over else label
 			else:
 				btn.disabled = false
-				btn.text = "%s %s" % [def["icon"], def["name"]]
+				btn.text = label
 
 
 func _on_hp_changed(hp: int, max_hp: int) -> void:
@@ -215,6 +218,15 @@ func _build_bottom_bar() -> void:
 		var btn := _rusty_button("%s\n⚙ %d" % [def["name"], def["cost"]], def["color"])
 		btn.custom_minimum_size = Vector2(88, 68)
 		btn.add_theme_font_size_override("font_size", 13)
+		# Нарисованная иконка орудия: картинка сверху, цена строкой снизу
+		var icon_path: String = "res://assets/ui/w_%s.png" % id
+		if ResourceLoader.exists(icon_path):
+			btn.icon = load(icon_path)
+			btn.add_theme_constant_override("icon_max_width", 44)
+			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+			btn.text = "⚙ %d" % def["cost"]
+			btn.tooltip_text = def["name"]
 		btn.pressed.connect(func(): weapon_selected.emit(id))
 		row.add_child(btn)
 		_build_buttons[id] = btn
@@ -261,6 +273,12 @@ func _build_ability_bar() -> void:
 		var btn := _rusty_button("%s %s" % [def["icon"], def["name"]], def["color"])
 		btn.custom_minimum_size = Vector2(112, 56)
 		btn.add_theme_font_size_override("font_size", 16)
+		# Нарисованная иконка способности рядом с именем
+		var ab_icon: String = "res://assets/ui/ab_%s.svg" % id
+		if ResourceLoader.exists(ab_icon):
+			btn.icon = load(ab_icon)
+			btn.add_theme_constant_override("icon_max_width", 34)
+			btn.text = String(def["name"])
 		btn.tooltip_text = def["desc"]
 		btn.pressed.connect(func(): ability_pressed.emit(id))
 		col.add_child(btn)

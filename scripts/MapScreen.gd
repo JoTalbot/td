@@ -137,6 +137,17 @@ func _refresh_top() -> void:
 
 func _build_map() -> void:
 	var area_size := Vector2(704, 600)
+	# Рисованный фон пустоши под дорогами и кнопками городов
+	var bg_path := "res://assets/ui/map_bg.jpg"
+	if ResourceLoader.exists(bg_path):
+		var bg := TextureRect.new()
+		bg.texture = load(bg_path)
+		bg.position = Vector2(8, 70)
+		bg.size = area_size
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bg)
 	_map_area = MapCanvas.new()
 	_map_area.position = Vector2(8, 70)
 	_map_area.size = area_size
@@ -346,11 +357,23 @@ func _render_market(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
+		# Нарисованная иконка ресурса (png с движка или svg-заглушка)
+		var res_icon: String = "res://assets/ui/res_%s.png" % res
+		if not ResourceLoader.exists(res_icon):
+			res_icon = "res://assets/ui/res_%s.svg" % res
+		if ResourceLoader.exists(res_icon):
+			var tr := TextureRect.new()
+			tr.texture = load(res_icon)
+			tr.custom_minimum_size = Vector2(30, 30)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(tr)
 		var name_l := _mk_label(row, 15, TEXT_DIM)
-		name_l.custom_minimum_size = Vector2(240, 0)
+		name_l.custom_minimum_size = Vector2(200, 0)
 		var bp: int = campaign.buy_price(res, campaign.location)
 		var sp: int = int(campaign.price_of(res, campaign.location) * campaign.sell_rate(campaign.location))
-		name_l.text = "%s %s ⚙%d/⚙%d  (трюм: %d)" % [d["icon"], d["name"], bp, sp, campaign.cargo_qty(res)]
+		name_l.text = "%s ⚙%d/⚙%d  (трюм: %d)" % [d["name"], bp, sp, campaign.cargo_qty(res)]
 		var buy_b := _rusty_button("Купить", Color(0.7, 0.85, 0.5))
 		buy_b.custom_minimum_size = Vector2(110, 40)
 		buy_b.disabled = campaign.wallet < bp or campaign.cargo_space() < 1
