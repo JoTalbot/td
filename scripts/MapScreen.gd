@@ -25,8 +25,15 @@ var _loc_label: Label
 var _wallet_label: Label
 var _cargo_label: Label
 var _day_label: Label
+var _map_viewport: Control
+var _map_stage: Control
 var _map_area: Control
 var _city_buttons: Dictionary = {}
+var _map_zoom := 1.0
+var _map_pan := Vector2.ZERO
+var _map_touches: Dictionary = {}
+var _map_pinch_distance := 0.0
+var _map_mouse_dragging := false
 var _sheet: PanelContainer
 var _sheet_title: Label
 var _sheet_body: VBoxContainer
@@ -177,23 +184,32 @@ func _build_map() -> void:
 		viewport_size.x - 16.0 - _safe_insets.x - _safe_insets.z,
 		maxf(400.0, 536.0 - _safe_insets.y - _safe_insets.w))
 	var area_pos := Vector2(8 + _safe_insets.x, 140 + _safe_insets.y)
+	# Окно обрезает увеличенную карту, а stage двигает фон, дороги и города вместе.
+	_map_viewport = Control.new()
+	_map_viewport.position = area_pos
+	_map_viewport.size = area_size
+	_map_viewport.clip_contents = true
+	_map_viewport.mouse_filter = Control.MOUSE_FILTER_STOP
+	_map_viewport.gui_input.connect(_on_map_gui_input)
+	add_child(_map_viewport)
+	_map_stage = Control.new()
+	_map_stage.size = area_size
+	_map_stage.mouse_filter = Control.MOUSE_FILTER_PASS
+	_map_viewport.add_child(_map_stage)
 	# Рисованный фон пустоши под дорогами и кнопками городов
 	var bg_path := "res://assets/ui/map_bg.jpg"
 	if ResourceLoader.exists(bg_path):
 		var bg := TextureRect.new()
 		bg.texture = load(bg_path)
-		# Сначала разрешаем ужать текстуру: иначе её нативные 1408×768
-		# раздвигают весь портретный интерфейс за правый край.
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.position = area_pos
 		bg.size = area_size
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(bg)
+		_map_stage.add_child(bg)
 	_map_area = MapCanvas.new()
-	_map_area.position = area_pos
 	_map_area.size = area_size
-	add_child(_map_area)
+	_map_area.mouse_filter = Control.MOUSE_FILTER_PASS
+	_map_stage.add_child(_map_area)
 	for id in CampaignData.CITIES:
 		var c: Dictionary = CampaignData.CITIES[id]
 		var marker := CityMarker.new()
@@ -209,7 +225,14 @@ func _build_map() -> void:
 		# После входа в дерево принудительно ужимаем длинные названия до маркера.
 		marker.size = city_size
 		marker.position = city_pos
+		marker.mouse_filter = Control.MOUSE_FILTER_PASS
 		_city_buttons[id] = marker
+	var reset_zoom := _rusty_button("1:1", Color(0.55, 0.72, 0.82))
+	reset_zoom.custom_minimum_size = Vector2(72, 58)
+	reset_zoom.position = Vector2(area_size.x - 80, 8)
+	reset_zoom.tooltip_text = "Сбросить масштаб карты"
+	reset_zoom.pressed.connect(_reset_map_transform)
+	_map_viewport.add_child(reset_zoom)
 
 	# Нижний лист: инфо / рынок / контракты
 	_sheet = PanelContainer.new()
@@ -257,6 +280,68 @@ func _build_map() -> void:
 	_sheet_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sheet_body.add_theme_constant_override("separation", 6)
 	scroll.add_child(_sheet_body)
+
+
+func _on_map_gui_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_map_touches[event.index] = event.position
+		else:
+			_map_touches.erase(event.index)
+		if _map_touches.size() == 2:
+			var touch_points := _map_touches.values()
+			_map_pinch_distance = (touch_points[0] as Vector2).distance_to(touch_points[1] as Vector2)
+		else:
+			_map_pinch_distance = 0.0
+	elif event is InputEventScreenDrag:
+		_map_touches[event.index] = event.position
+		if _map_touches.size() >= 2:
+			var points := _map_touches.values()
+			var p0 := points[0] as Vector2
+			var p1 := points[1] as Vector2
+			var distance := p0.distance_to(p1)
+			if _map_pinch_distance > 0.0:
+				_set_map_zoom(_map_zoom * distance / _map_pinch_distance, (p0 + p1) * 0.5)
+			_map_pinch_distance = distance
+		else:
+			_map_pan += event.relative
+			_apply_map_transform()
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_map_mouse_dragging = event.pressed
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_set_map_zoom(_map_zoom * 1.15, event.position)
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_set_map_zoom(_map_zoom / 1.15, event.position)
+	elif event is InputEventMouseMotion and _map_mouse_dragging:
+		_map_pan += event.relative
+		_apply_map_transform()
+
+
+func _set_map_zoom(value: float, focus: Vector2) -> void:
+	var old_zoom := _map_zoom
+	_map_zoom = clampf(value, 1.0, 2.4)
+	if is_equal_approx(old_zoom, _map_zoom):
+		return
+	var world_point := (focus - _map_pan) / old_zoom
+	_map_pan = focus - world_point * _map_zoom
+	_apply_map_transform()
+
+
+func _apply_map_transform() -> void:
+	if _map_stage == null or _map_viewport == null:
+		return
+	var scaled := _map_stage.size * _map_zoom
+	_map_pan.x = clampf(_map_pan.x, minf(0.0, _map_viewport.size.x - scaled.x), 0.0)
+	_map_pan.y = clampf(_map_pan.y, minf(0.0, _map_viewport.size.y - scaled.y), 0.0)
+	_map_stage.scale = Vector2.ONE * _map_zoom
+	_map_stage.position = _map_pan
+
+
+func _reset_map_transform() -> void:
+	_map_zoom = 1.0
+	_map_pan = Vector2.ZERO
+	_apply_map_transform()
 
 
 func _redraw_map() -> void:
