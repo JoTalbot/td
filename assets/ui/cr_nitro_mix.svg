@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#2b241a"/>
+  <!-- баллон -->
+  <rect x="34" y="22" width="28" height="56" rx="12" fill="#b0703c" stroke="#c9a05a" stroke-width="3"/>
+  <rect x="42" y="14" width="12" height="10" rx="3" fill="#8d8578" stroke="#5a544a" stroke-width="2"/>
+  <!-- вентиль -->
+  <path d="M48 14 L48 8 M40 8 L56 8" stroke="#c9a05a" stroke-width="4" stroke-linecap="round"/>
+  <!-- пламя в окошке -->
+  <circle cx="48" cy="50" r="12" fill="#2b241a" stroke="#c9a05a" stroke-width="3"/>
+  <path d="M48 42 C53 47 54 52 48 57 C42 52 43 47 48 42 Z" fill="#c9562a"/>
+  <path d="M48 47 C51 50 51 53 48 55 C45 53 45 50 48 47 Z" fill="#e8b05a"/>
+  <!-- буква-плашка N2O намёк: молния форсажа -->
+  <path d="M66 30 L58 44 L66 44 L60 58" fill="none" stroke="#e8cf9a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

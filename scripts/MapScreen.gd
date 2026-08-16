@@ -615,16 +615,18 @@ func _render_lab(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
+		var ricon: bool = _add_row_icon(row, "res://assets/ui/r_%s.png" % id)
+		var rprefix: String = "" if ricon else "%s " % d["icon"]
 		var txt := _mk_label(row, 13, TEXT_DIM)
-		txt.custom_minimum_size = Vector2(440, 0)
+		txt.custom_minimum_size = Vector2(410, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.7, 0.8, 0.5))
 		b.custom_minimum_size = Vector2(110, 44)
 		if id in campaign.research_done:
-			txt.text = "%s %s ✅ — %s" % [d["icon"], d["name"], d["desc"]]
+			txt.text = "%s%s ✅ — %s" % [rprefix, d["name"], d["desc"]]
 			b.visible = false
 		elif id == campaign.research_active:
-			txt.text = "%s %s ⏳ — %s" % [d["icon"], d["name"], d["desc"]]
+			txt.text = "%s%s ⏳ — %s" % [rprefix, d["name"], d["desc"]]
 			b.visible = false
 		else:
 			var parts: Array = []
@@ -636,7 +638,7 @@ func _render_lab(is_here: bool) -> void:
 			parts.append("📐%d" % int(d["bp"]))
 			parts.append("🔬%dр" % int(d["runs"]))
 			var lab_ok: bool = campaign.research_level_req_met(id)
-			txt.text = "%s %s [лаб.%d] — %s  |  %s" % [d["icon"], d["name"], d["lab"], d["desc"], " ".join(parts)]
+			txt.text = "%s%s [лаб.%d] — %s  |  %s" % [rprefix, d["name"], d["lab"], d["desc"], " ".join(parts)]
 			txt.modulate = Color(1, 1, 1) if lab_ok else Color(1, 1, 1, 0.45)
 			b.text = "Начать"
 			b.disabled = not campaign.can_research(id)
@@ -653,12 +655,14 @@ func _render_lab(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
+		var cicon: bool = _add_row_icon(row, "res://assets/ui/cr_%s.svg" % id)
+		var cprefix: String = "" if cicon else "%s " % d["icon"]
 		var txt := _mk_label(row, 13, TEXT_DIM)
-		txt.custom_minimum_size = Vector2(440, 0)
+		txt.custom_minimum_size = Vector2(410, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.85, 0.7, 0.4))
 		b.custom_minimum_size = Vector2(110, 44)
-		txt.text = "%s %s ×%d — %s" % [d["icon"], d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
+		txt.text = "%s%s ×%d — %s" % [cprefix, d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
 		var req: String = d.get("research", "")
 		if req != "" and req not in campaign.research_done:
 			b.text = "🔒"
