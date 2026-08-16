@@ -41,6 +41,8 @@
 | `scripts/SoundFX.gd` | Процедурный синтез звука (PCM, без файлов): `_build_samples()` — банк, `play(name, vol, pitch)`; полифония 8, headless-безопасен |
 | `scripts/UserSettings.gd` | Пользовательские настройки UI/звука/вибрации/тряски/эффектов; отдельный JSON `user://user_settings.save` |
 | `scripts/RustButton.gd`, `scripts/RustHeader.gd` | Единые процедурные клёпаные кнопки и металлические заголовки; новые интерактивные элементы строить через них |
+| `scripts/CityMarker.gd` | Безрамочная метка города: большая рисованная эмблема, переносимая подпись, статусы стоянки/POI |
+| `scripts/SafeArea.gd` | Перевод Android safe area в координаты viewport; верхние/нижние панели не должны попадать под вырезы и системные жесты |
 | `scripts/RaiderCopter.gd` | Автожир рейдеров: парит над фурой, сбрасывает бомбы, потом камикадзе; в группе `enemies`, но НЕ в `enemies_alive` (не блокирует волну) |
 | `scripts/Weapon.gd` | Орудие на слоте: самодельный визуал, поиск ближайшей цели, стрельба; стволы вдоль +Z (после look_at — разворот на PI) |
 | `scripts/Projectile.gd` | Снаряды: bullet/flame/harpoon (замедление)/shell (сплэш) |

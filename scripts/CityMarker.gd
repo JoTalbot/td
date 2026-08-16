@@ -14,6 +14,8 @@ func setup(label: String, texture: Texture2D, font_size: int = 18) -> void:
 	custom_minimum_size = Vector2(142, 132)
 	size = custom_minimum_size
 	tooltip_text = label
+	# Сам Button без текста, но сохраняем единый минимум темы для UI-аудита.
+	add_theme_font_size_override("font_size", font_size)
 	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
 		var empty := StyleBoxFlat.new()
 		empty.bg_color = Color.TRANSPARENT

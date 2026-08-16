@@ -353,10 +353,11 @@ func refresh_truck_panel() -> void:
 		var costs: Array = def["costs"]
 		var btn: Button = _garage_buttons[id]
 		if lvl >= costs.size():
-			btn.text = "%s [МАКС] — %s" % [def["name"], def["desc"]]
+			btn.text = "%s • МАКС\n%s" % [def["name"].to_upper(), def["desc"]]
 			btn.disabled = true
 		else:
-			btn.text = "%s [ур.%d→%d] ⚙ %d — %s" % [def["name"], lvl, lvl + 1, costs[lvl], def["desc"]]
+			btn.text = "%s • УР. %d→%d • %d ЛОМА\n%s" % [
+				def["name"].to_upper(), lvl, lvl + 1, costs[lvl], def["desc"]]
 			btn.disabled = false
 
 
@@ -503,6 +504,9 @@ func _build_hint() -> void:
 	_hint_panel.gui_input.connect(_on_hint_gui_input)
 	add_child(_hint_panel)
 	_hint_label = Label.new()
+	# Явная ширина не даёт autowrap посчитать сотни однобуквенных строк,
+	# если пауза включена в тот же кадр, когда появилась подсказка.
+	_hint_label.custom_minimum_size = Vector2(560, 0)
 	_hint_label.add_theme_font_size_override("font_size", _font(20))
 	_hint_label.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -761,7 +765,7 @@ func _build_game_over() -> void:
 	for id in MetaProgress.DEFS:
 		var def: Dictionary = MetaProgress.DEFS[id]
 		var mbtn := _rusty_button("", Color(0.7, 0.85, 0.5))
-		mbtn.custom_minimum_size = Vector2(420, 58)
+		mbtn.custom_minimum_size = Vector2(600, 68)
 		mbtn.add_theme_font_size_override("font_size", _font(20))
 		mbtn.pressed.connect(func(): meta_upgrade_pressed.emit(id))
 		col.add_child(mbtn)
@@ -970,8 +974,9 @@ func refresh_meta_panel() -> void:
 		var cost: int = meta.cost_of(id)
 		var btn: Button = _meta_buttons[id]
 		if cost < 0:
-			btn.text = "%s %s [МАКС] — %s" % [def["icon"], def["name"], def["desc"]]
+			btn.text = "%s • МАКС\n%s" % [def["name"].to_upper(), def["desc"]]
 			btn.disabled = true
 		else:
-			btn.text = "%s %s [ур.%d→%d, 📐%d] — %s" % [def["icon"], def["name"], lvl, lvl + 1, cost, def["desc"]]
+			btn.text = "%s • УР. %d→%d • %d ЧЕРТЕЖЕЙ\n%s" % [
+				def["name"].to_upper(), lvl, lvl + 1, cost, def["desc"]]
 			btn.disabled = meta.blueprints < cost

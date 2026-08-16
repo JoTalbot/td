@@ -9,6 +9,8 @@ var _motion_tween: Tween
 func setup(label: String, accent := Color(0.95, 0.75, 0.35)) -> void:
 	text = label
 	_accent = accent
+	clip_text = true
+	text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	custom_minimum_size.y = 58.0
 	add_theme_font_size_override("font_size", 20)
 	add_theme_color_override("font_color", Color(1.0, 0.92, 0.76))

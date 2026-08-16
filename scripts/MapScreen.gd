@@ -460,7 +460,8 @@ func _render_market(is_here: bool) -> void:
 		name_l.custom_minimum_size = Vector2(300, 0)
 		var bp: int = campaign.buy_price(res, campaign.location)
 		var sp: int = int(campaign.price_of(res, campaign.location) * campaign.sell_rate(campaign.location))
-		name_l.text = "%s ⚙%d/⚙%d  (трюм: %d)" % [d["name"], bp, sp, campaign.cargo_qty(res)]
+		name_l.text = "%s • %d/%d • В ТРЮМЕ %d" % [d["name"], bp, sp, campaign.cargo_qty(res)]
+		name_l.tooltip_text = "Цена покупки / продажи"
 		var buy_b := _rusty_button("Купить", Color(0.7, 0.85, 0.5))
 		buy_b.custom_minimum_size = Vector2(120, 58)
 		buy_b.disabled = campaign.wallet < bp or campaign.cargo_space() < 1
@@ -515,7 +516,7 @@ func _render_hangar(is_here: bool) -> void:
 		row.add_child(sel)
 	# Кузня легендарок: трофеи плавим в орудия на следующий рейс
 	var fhead := _mk_label(_sheet_body, 21, Color(1.0, 0.8, 0.4))
-	fhead.text = "⚒ КУЗНЯ ТРОФЕЕВ"
+	fhead.text = "КУЗНЯ ТРОФЕЕВ"
 	_sheet_body.add_child(fhead)
 	for fid in CampaignData.LEGENDARY_RECIPES:
 		var ld: Dictionary = CampaignData.LEGENDARY_RECIPES[fid]
@@ -540,7 +541,7 @@ func _render_hangar(is_here: bool) -> void:
 		frow.add_child(fb)
 	# Кузня легендарных способностей: дороже, зато навсегда
 	var ahead := _mk_label(_sheet_body, 21, Color(0.55, 0.75, 1.0))
-	ahead.text = "⚒ КУЗНЯ СПОСОБНОСТЕЙ (навсегда)"
+	ahead.text = "КУЗНЯ СПОСОБНОСТЕЙ • НАВСЕГДА"
 	_sheet_body.add_child(ahead)
 	for aid in CampaignData.LEGENDARY_ABILITY_RECIPES:
 		var ad: Dictionary = CampaignData.LEGENDARY_ABILITY_RECIPES[aid]
@@ -575,7 +576,7 @@ func _render_showroom(is_here: bool) -> void:
 		l.text = "Шоурум при базе — загляни домой."
 		return
 	var head := _mk_label(_sheet_body, 20, Color(0.85, 0.78, 0.6))
-	head.text = "🔧 Запчасти: %d   ⚙ Лом: %d   🛠 Мастерская ур.%d" % [
+	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [
 		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
 	for id in CampaignData.HULL_ORDER:
 		var d: Dictionary = CampaignData.HULLS[id]
@@ -739,7 +740,7 @@ func _render_lab(is_here: bool) -> void:
 
 	# Крафт-модули
 	var ct := _mk_label(_sheet_body, 21, ACCENT)
-	ct.text = "— Крафт-модули (на 1 рейс) —"
+	ct.text = "КРАФТ • НА ОДИН РЕЙС"
 	for id in CampaignData.RECIPES:
 		var d: Dictionary = CampaignData.RECIPES[id]
 		var row := HBoxContainer.new()
@@ -755,7 +756,7 @@ func _render_lab(is_here: bool) -> void:
 		txt.text = "%s%s ×%d — %s" % [cprefix, d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
 		var req: String = d.get("research", "")
 		if req != "" and req not in campaign.research_done:
-			b.text = "🔒"
+			b.text = "ЗАКРЫТО"
 			b.disabled = true
 			txt.text += " [нужна теха «%s»]" % CampaignData.RESEARCH[req]["name"]
 			txt.modulate = Color(1, 1, 1, 0.45)
@@ -776,7 +777,7 @@ func _render_lab(is_here: bool) -> void:
 		# Модуль в следующий рейс
 		if int(campaign.inventory.get(id, 0)) > 0:
 			var taken: bool = campaign.pending.has(id)
-			var st := _rusty_button("В рейс" if not taken else "✅ взят", Color(0.9, 0.55, 0.25))
+			var st := _rusty_button("В рейс" if not taken else "ВЗЯТ", Color(0.9, 0.55, 0.25))
 			st.custom_minimum_size = Vector2(100, 58)
 			st.disabled = taken
 			var sid: String = id
