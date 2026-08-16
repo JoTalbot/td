@@ -75,6 +75,18 @@ func _build_visual() -> void:
 	# Подвес с бомбами — ржавые болванки по бокам
 	Junk.cyl(_body, 0.14, 0.5, Vector3(0.45, -0.25, 0.2), Junk.metal(Color(0.5, 0.3, 0.12), 0.8, 0.5))
 	Junk.cyl(_body, 0.14, 0.5, Vector3(-0.45, -0.25, 0.2), Junk.metal(Color(0.5, 0.3, 0.12), 0.8, 0.5))
+	if Junk.quality_high:
+		# Натяжные тросы, ступица, прицел и хвостовые сигнальные огни.
+		var cable := Junk.metal(Color(0.12, 0.11, 0.1), 0.55, 0.8)
+		for side in [-1.0, 1.0]:
+			Junk.cyl(_body, 0.018, 1.75, Vector3(side * 0.58, 0.72, 0), cable, Vector3(0, 0, side * 34))
+		Junk.cyl(_rotor, 0.2, 0.18, Vector3.ZERO, Junk.metal(Color(0.58, 0.3, 0.12), 0.5, 0.85))
+		Junk.box(_body, Vector3(0.18, 0.16, 0.24), Vector3(0, 0.4, 0.55), Junk.metal(Color(0.08, 0.1, 0.1), 0.22, 0.85))
+		var tail_light := Junk.box(_body, Vector3(0.12, 0.12, 0.08), Vector3(0, 0.3, -2.75), Junk.metal(Color(0.9, 0.12, 0.05), 0.3, 0.2))
+		var tlm := tail_light.material_override as StandardMaterial3D
+		tlm.emission_enabled = true
+		tlm.emission = Color(1.0, 0.08, 0.02)
+		tlm.emission_energy_multiplier = 2.0
 
 
 func take_damage(amount: int, p_state: Node) -> void:

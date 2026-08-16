@@ -171,10 +171,58 @@ static func explosion(scene: Node, pos: Vector3, scale := 1.0) -> void:
 	scene.add_child(p)
 	p.global_position = pos
 	p.emitting = true
+	if quality_high:
+		# Второй слой: тяжёлый дым с более долгим распадом.
+		var smoke := GPUParticles3D.new()
+		smoke.amount = maxi(8, int(round(14.0 * particle_scale)))
+		smoke.lifetime = 1.15
+		smoke.one_shot = true
+		smoke.explosiveness = 0.88
+		var smoke_process := ParticleProcessMaterial.new()
+		smoke_process.direction = Vector3(0, 1, 0)
+		smoke_process.spread = 120.0
+		smoke_process.initial_velocity_min = 1.5 * scale
+		smoke_process.initial_velocity_max = 4.0 * scale
+		smoke_process.gravity = Vector3(0, 0.8, 0)
+		smoke_process.scale_min = 0.35 * scale
+		smoke_process.scale_max = 0.9 * scale
+		smoke_process.color = Color(0.12, 0.095, 0.075, 0.62)
+		smoke.process_material = smoke_process
+		var smoke_mesh := SphereMesh.new()
+		smoke_mesh.radius = 0.38
+		smoke_mesh.height = 0.76
+		var smoke_mat := StandardMaterial3D.new()
+		smoke_mat.albedo_color = Color(0.1, 0.085, 0.07, 0.55)
+		smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		smoke_mesh.material = smoke_mat
+		smoke.draw_pass_1 = smoke_mesh
+		p.add_child(smoke)
+		smoke.emitting = true
+		# Короткая ударная сфера подчёркивает силу взрыва.
+		var shock := MeshInstance3D.new()
+		var shock_mesh := SphereMesh.new()
+		shock_mesh.radius = 0.35
+		shock_mesh.height = 0.7
+		shock.mesh = shock_mesh
+		var shock_mat := StandardMaterial3D.new()
+		shock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		shock_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		shock_mat.albedo_color = Color(1.0, 0.5, 0.12, 0.32)
+		shock_mat.emission_enabled = true
+		shock_mat.emission = Color(1.0, 0.25, 0.04)
+		shock_mat.emission_energy_multiplier = 3.0
+		shock.material_override = shock_mat
+		p.add_child(shock)
+		var shock_tween := shock.create_tween()
+		shock_tween.set_parallel(true)
+		shock_tween.tween_property(shock, "scale", Vector3.ONE * 5.5 * scale, 0.22)
+		shock_tween.tween_property(shock, "transparency", 1.0, 0.22)
+		shock_tween.chain().tween_callback(shock.queue_free)
 	if live >= 4 or not perf_explosion_lights:
 		# Свет — самое дорогое на мобильном рендерере: дальше 4 вспышек только искры
 		var tw0 := p.create_tween()
-		tw0.tween_interval(0.9)
+		tw0.tween_interval(1.35 if quality_high else 0.9)
 		tw0.tween_callback(p.queue_free)
 		return
 	var light := OmniLight3D.new()

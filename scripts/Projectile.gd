@@ -77,6 +77,28 @@ func _ready() -> void:
 			mesh.mesh = s3
 	mesh.material_override = m
 	add_child(mesh)
+	if Junk.quality_high:
+		if kind == "bullet":
+			var tracer := MeshInstance3D.new()
+			var tracer_mesh := BoxMesh.new()
+			tracer_mesh.size = Vector3(0.025, 0.025, 1.15)
+			tracer.mesh = tracer_mesh
+			var tracer_mat := m.duplicate() as StandardMaterial3D
+			tracer_mat.emission_energy_multiplier = 4.5
+			tracer.material_override = tracer_mat
+			tracer.position.z = -0.35
+			add_child(tracer)
+		elif kind == "flame":
+			var halo := MeshInstance3D.new()
+			var halo_mesh := SphereMesh.new()
+			halo_mesh.radius = 0.34
+			halo_mesh.height = 0.68
+			halo.mesh = halo_mesh
+			var halo_mat := m.duplicate() as StandardMaterial3D
+			halo_mat.albedo_color = Color(color.r, color.g * 0.7, 0.02, 0.24)
+			halo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			halo.material_override = halo_mat
+			add_child(halo)
 	if kind == "mortar":
 		var fin := MeshInstance3D.new()
 		var fm := BoxMesh.new()
@@ -85,6 +107,10 @@ func _ready() -> void:
 		fin.position = Vector3(0, 0.3, 0)
 		fin.material_override = m
 		mesh.add_child(fin)
+		if Junk.quality_high:
+			var fin2 := fin.duplicate() as MeshInstance3D
+			fin2.rotation_degrees.y = 90
+			mesh.add_child(fin2)
 
 
 func _process(delta: float) -> void:

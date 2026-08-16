@@ -69,6 +69,8 @@ func _ready() -> void:
 		"trainloko": _build_trainloko()
 		"traincar": _build_traincar()
 		_: _build_buggy()
+	if Junk.quality_high:
+		_add_quality_details()
 	_build_hp_bar()
 	Junk.dust_trail(self, Vector3(0, 0.1, -1.5), 30, 0.7)
 	if sab:
@@ -80,6 +82,25 @@ func _add_sab_hood() -> void:
 	Junk.box(_body, Vector3(0.42, 0.5, 0.42), Vector3(0, 1.35, -0.2),
 		Junk.metal(Color(0.08, 0.07, 0.09), 0.95, 0.0))
 	scale = Vector3.ONE * 1.05
+
+
+func _add_quality_details() -> void:
+	# Общие мелочи связывают все рейдерские машины единым языком хлама.
+	var dark := Junk.metal(Color(0.11, 0.095, 0.08), 0.58, 0.78)
+	var copper := Junk.metal(Color(0.55, 0.27, 0.11), 0.62, 0.76)
+	var width := 2.3 if is_boss else (1.75 if enemy_type in ["ram", "trainloko", "traincar"] else 1.25)
+	Junk.box(_body, Vector3(width, 0.1, 0.12), Vector3(0, 0.42, 1.15 if not is_boss else 2.45), dark)
+	for side in [-1.0, 1.0]:
+		Junk.cyl(_body, 0.028, 0.7, Vector3(side * width * 0.42, 1.35, 0.15), copper, Vector3(0, 0, side * 18))
+		var marker := Junk.box(_body, Vector3(0.12, 0.12, 0.06), Vector3(side * width * 0.35, 0.78, 1.22 if not is_boss else 2.52), Junk.metal(Color(0.95, 0.32, 0.08), 0.35, 0.35))
+		var material := marker.material_override as StandardMaterial3D
+		material.emission_enabled = true
+		material.emission = Color(1.0, 0.16, 0.035)
+		material.emission_energy_multiplier = 1.1
+	# Заплатка с кривыми заклёпками на капоте.
+	var patch := Junk.box(_body, Vector3(width * 0.48, 0.055, 0.48), Vector3(0.25, 1.13 if not is_boss else 2.05, 0.55), Junk.rust(_rng), Vector3(0, 8, 4))
+	for x in [-0.16, 0.16]:
+		Junk.cyl(patch, 0.018, 0.07, Vector3(x, 0.04, 0), dark)
 
 
 func _build_buggy() -> void:

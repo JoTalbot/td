@@ -37,6 +37,21 @@ func _ready() -> void:
 
 
 func _build_distant_mesas() -> void:
+	# Огромный пыльный диск солнца — эмиссия без дополнительного источника света.
+	var sun_disc := MeshInstance3D.new()
+	var sun_mesh := SphereMesh.new()
+	sun_mesh.radius = 7.5
+	sun_mesh.height = 15.0
+	sun_disc.mesh = sun_mesh
+	sun_disc.position = Vector3(-58, 38, 105)
+	var sun_mat := StandardMaterial3D.new()
+	sun_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sun_mat.albedo_color = Color(1.0, 0.38, 0.11)
+	sun_mat.emission_enabled = true
+	sun_mat.emission = Color(1.0, 0.22, 0.045)
+	sun_mat.emission_energy_multiplier = 2.8
+	sun_disc.material_override = sun_mat
+	add_child(sun_disc)
 	# Силуэты на горизонте дают глубину без теней и дорогих текстур.
 	var mesa_mat := Junk.metal(Color(0.25, 0.105, 0.055), 1.0, 0.0)
 	for i in 14:

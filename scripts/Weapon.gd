@@ -14,6 +14,7 @@ var _cooldown := 0.0
 var _jam_until := 0.0  # до этого момента (сек) оружие заклинено диверсантом
 var _turret: Node3D
 var _flash: OmniLight3D
+var _muzzle_flash: MeshInstance3D = null
 var _select_ring: MeshInstance3D
 
 
@@ -143,6 +144,29 @@ func _build_visual() -> void:
 			Junk.cyl(_turret, 0.05, 0.7, Vector3(-0.3, 0.2, -0.15), Junk.metal(Color(0.35, 0.32, 0.28), 0.7, 0.7), Vector3(0, 0, -35))
 			# Ящик мин рядом
 			Junk.box(_turret, Vector3(0.4, 0.28, 0.3), Vector3(0.42, 0.16, -0.25), Junk.metal(Color(0.45, 0.35, 0.15), 0.85, 0.4))
+	if Junk.quality_high:
+		# Прицел, силовой кабель и крепёж превращают примитив в собранный механизм.
+		var detail_dark := Junk.metal(Color(0.11, 0.095, 0.08), 0.5, 0.82)
+		for a in 6:
+			var angle := TAU * a / 6.0
+			Junk.cyl(self, 0.018, 0.07, Vector3(cos(angle) * 0.25, 0.29, sin(angle) * 0.25), detail_dark)
+		Junk.cyl(_turret, 0.025, 0.62, Vector3(-0.26, 0.08, -0.1), Junk.metal(Color(0.5, 0.22, 0.08), 0.75, 0.55), Vector3(65, 0, 15))
+		Junk.box(_turret, Vector3(0.13, 0.18, 0.26), Vector3(0.22, 0.38, 0.12), detail_dark)
+		_muzzle_flash = MeshInstance3D.new()
+		var flash_mesh := SphereMesh.new()
+		flash_mesh.radius = 0.18
+		flash_mesh.height = 0.36
+		_muzzle_flash.mesh = flash_mesh
+		_muzzle_flash.position = Vector3(0, 0.2, 0.92)
+		var flash_mat := StandardMaterial3D.new()
+		flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		flash_mat.albedo_color = Color(1.0, 0.52, 0.12)
+		flash_mat.emission_enabled = true
+		flash_mat.emission = Color(1.0, 0.3, 0.04)
+		flash_mat.emission_energy_multiplier = 4.0
+		_muzzle_flash.material_override = flash_mat
+		_muzzle_flash.visible = false
+		_turret.add_child(_muzzle_flash)
 
 	_flash = OmniLight3D.new()
 	_flash.light_color = Color(1.0, 0.75, 0.35)
@@ -224,6 +248,12 @@ func _find_target() -> Node3D:
 func _shoot(target: Node3D) -> void:
 	_flash.light_energy = 2.5
 	_flash.visible = true
+	if _muzzle_flash != null:
+		_muzzle_flash.visible = true
+		_muzzle_flash.scale = Vector3.ONE * 0.35
+		var muzzle_tween := create_tween()
+		muzzle_tween.tween_property(_muzzle_flash, "scale", Vector3.ONE * 1.8, 0.045)
+		muzzle_tween.tween_callback(func(): if _muzzle_flash != null: _muzzle_flash.visible = false)
 	# Процедурный звук выстрела по виду снаряда
 	if state != null and state.sfx != null:
 		var kind_sound := {"bullet": "shot", "flame": "flame", "harpoon": "harpoon", "shell": "cannon", "mortar": "mortar", "zap": "zap"}

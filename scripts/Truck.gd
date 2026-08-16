@@ -305,6 +305,24 @@ func _build_cab() -> void:
 		lm.emission_enabled = true
 		lm.emission = Color(1.0, 0.9, 0.6)
 		lm.emission_energy_multiplier = 1.6
+		if Junk.quality_high:
+			var beam := OmniLight3D.new()
+			beam.light_color = Color(1.0, 0.78, 0.42)
+			beam.light_energy = 0.7
+			beam.omni_range = 4.0
+			lamp.add_child(beam)
+	if Junk.quality_high:
+		# Капотные рёбра, дверные заплаты, зеркала и россыпь настоящих заклёпок.
+		for x in [-0.72, -0.36, 0.0, 0.36, 0.72]:
+			Junk.box(cab, Vector3(0.055, 0.08, 1.65), Vector3(x, 1.43, 1.2), Junk.metal(Color(0.16, 0.13, 0.11), 0.6, 0.72))
+		for side in [-1.0, 1.0]:
+			var door := Junk.box(cab, Vector3(0.08, 0.95, 1.0), Vector3(side * 1.22, 1.42, -0.62), Junk.rust(_rng), Vector3(0, 0, side * 3.0))
+			for y in [-0.32, 0.32]:
+				for z in [-0.34, 0.34]:
+					Junk.cyl(door, 0.025, 0.1, Vector3(side * 0.05, y, z), Junk.metal(Color(0.62, 0.54, 0.42), 0.45, 0.82), Vector3(0, 0, 90))
+			var mirror_arm := Junk.cyl(cab, 0.035, 0.62, Vector3(side * 1.43, 1.95, -0.05), Junk.metal(Color(0.18, 0.16, 0.14), 0.55, 0.78), Vector3(0, 0, 90))
+			Junk.box(mirror_arm, Vector3(0.08, 0.28, 0.38), Vector3(0, 0.32, 0), Junk.metal(Color(0.07, 0.08, 0.08), 0.18, 0.9))
+		Junk.box(cab, Vector3(0.75, 0.22, 0.05), Vector3(0, 0.5, 2.63), Junk.metal(Color(0.74, 0.5, 0.2), 0.5, 0.65))
 	# Колёса кабины
 	for side in [-1.0, 1.0]:
 		_wheels.append(Junk.wheel(cab, 0.55, 0.4, Vector3(side * 1.25, 0.55, 1.5)))
@@ -321,6 +339,13 @@ func _build_trailer() -> void:
 	Junk.box(trailer, Vector3(2.9, 0.18, 8.6), Vector3(0, 1.0, 0), Junk.metal(Color(0.33, 0.28, 0.22), 0.8, 0.5))
 	# Цистерна под платформой (как War Rig)
 	Junk.cyl(trailer, 0.8, 7.6, Vector3(0, 0.45, 0), Junk.metal(Color(0.38, 0.3, 0.2), 0.75, 0.65), Vector3(90, 0, 0))
+	if Junk.quality_high:
+		# Стяжные пояса, люки и трубопровод делают цистерну промышленной, а не игрушечной.
+		for z in [-3.0, -1.5, 0.0, 1.5, 3.0]:
+			Junk.cyl(trailer, 0.84, 0.12, Vector3(0, 0.45, z), Junk.metal(Color(0.19, 0.16, 0.14), 0.52, 0.82), Vector3(90, 0, 0))
+		Junk.cyl(trailer, 0.27, 0.16, Vector3(0, 1.08, 1.5), Junk.metal(Color(0.5, 0.35, 0.18), 0.6, 0.7))
+		for side in [-1.0, 1.0]:
+			Junk.cyl(trailer, 0.045, 6.8, Vector3(side * 0.95, 0.78, 0), Junk.metal(Color(0.16, 0.14, 0.12), 0.55, 0.75), Vector3(90, 0, 0))
 	# Борта с заклёпками
 	for side in [-1.0, 1.0]:
 		var wall := Junk.box(trailer, Vector3(0.12, 0.5, 8.6), Vector3(side * 1.45, 1.3, 0), Junk.rust(_rng))
