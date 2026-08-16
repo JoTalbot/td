@@ -1,8 +1,8 @@
 extends Node
 ## Состояние кампании: кошелёк (лом), грузовой трюм, контракты,
+## текущий город, день. Сейв в user://campaign.save (JSON).
 
 signal achievement_unlocked(id: String, data: Dictionary)
-## текущий город, день. Сейв в user://campaign.save (JSON).
 
 const CampaignData := preload("res://scripts/CampaignData.gd")
 
