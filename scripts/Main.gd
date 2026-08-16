@@ -156,6 +156,9 @@ func _ready() -> void:
 	campaign.name = "Campaign"
 	campaign.meta = meta
 	add_child(campaign)
+	campaign.achievement_unlocked.connect(func(_id, data):
+		hud.show_achievement(data)
+		sfx.play("earn", 1.0, 1.15))
 
 	map_screen = MapScreen.new()
 	map_screen.name = "MapScreen"
@@ -196,14 +199,18 @@ func _on_travel(city_id: String) -> void:
 		return
 	_destination = city_id
 	_route_meta = CampaignData.route_meta(campaign.location, city_id)
-	campaign.note_route(campaign.location, city_id)
 	waves.run_length = 4 + int(route[0]) * 2
-	waves.danger = float(route[1])
+	waves.danger = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, city_id)
+	waves.bonus_mult *= campaign.route_mastery_reward_mult(campaign.location, city_id)
 	# Первые выезды на голой багги — учебный профиль: короче и мягче
 	var noob := campaign.runs_finished < 2 and campaign.hull_current == "buggy"
 	if noob:
 		waves.run_length = mini(waves.run_length, 3)
 		waves.danger = minf(waves.danger, 0.7)
+	var scout_contract: Dictionary = campaign.active_scout_for(city_id)
+	if not scout_contract.is_empty():
+		waves.run_length += 1
+		waves.danger += float(scout_contract.get("danger_bonus", 0.2))
 	_run_loot.clear()
 	_run_trophies.clear()
 	_boarded_pending.clear()
@@ -227,6 +234,9 @@ func _on_travel(city_id: String) -> void:
 	elif tags != "":
 		hud.flash_message(tags.strip_edges())
 	_apply_campaign_effects()
+	if not scout_contract.is_empty():
+		waves.extra_count += 3
+		hud.flash_message("РАЗВЕДКОНТРАКТ: +1 волна, усиленные рейдеры, повышенная награда!")
 	_spawn_escort_if_needed(city_id)
 	_sync_legendary_abilities()
 	# Голой платформе в пустоши не место: штатный пулемёт с базы (продажа за 0)
@@ -400,6 +410,8 @@ func _on_run_completed() -> void:
 			sfx.play("earn", 1.0)
 		else:
 			sfx.play("boss", 0.7)
+	# Мастерство трассы растёт только за живое успешное прибытие.
+	campaign.note_route(campaign.location, _destination)
 	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
 	summary["escort"] = escort_pay
 	waves.ally = null

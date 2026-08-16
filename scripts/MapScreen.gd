@@ -394,6 +394,7 @@ func _redraw_map() -> void:
 		if marker.visible:
 			marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
 	(_map_area as MapCanvas).set_discovered(campaign.discovered_cities)
+	(_map_area as MapCanvas).set_mastery(campaign.route_mastery)
 	var selected_to := ""
 	if _selected != campaign.location and not CampaignData.route_between(campaign.location, _selected).is_empty():
 		selected_to = _selected
@@ -499,8 +500,10 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			route_tags = " • КАРАВАН"
 		var route_meta: Dictionary = CampaignData.route_meta(campaign.location, _selected)
 		var route_name := String(route_meta.get("name", "Безымянный тракт"))
-		route_info.text = "%s • %d ВОЛН • ОПАСНОСТЬ %.1f%s" % [
-			route_name.to_upper(), 4 + int(route[0]) * 2, float(route[1]), route_tags]
+		var mastery_level: int = campaign.route_mastery_level(campaign.location, _selected)
+		var effective_danger: float = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, _selected)
+		route_info.text = "%s • МАСТЕРСТВО %d/3 • %d ВОЛН • ОПАСНОСТЬ %.2f%s" % [
+			route_name.to_upper(), mastery_level, 4 + int(route[0]) * 2, effective_danger, route_tags]
 		route_info.tooltip_text = String(route_meta.get("desc", "Подсвеченная дорога ведёт в выбранный город"))
 		var preview: Dictionary = CampaignData.route_preview(campaign.location, _selected)
 		var preview_row := HBoxContainer.new()
@@ -509,8 +512,10 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		_sheet_body.add_child(preview_row)
 		_status_icon(preview_row, "scrap", 34)
 		var forecast := _mk_label(preview_row, 19, Color(0.78, 0.9, 0.62))
-		forecast.text = "ПРОГНОЗ • ЛОМ ~%d • ЛУТ ~%d • РЕПУТАЦИЯ +%d" % [
-			int(preview.get("scrap", 0)), int(preview.get("loot", 0)), int(preview.get("rep", 1))]
+		var mastery_scrap := int(int(preview.get("scrap", 0)) * campaign.route_mastery_reward_mult(campaign.location, _selected))
+		var mastery_count: int = campaign.route_mastery_count(campaign.location, _selected)
+		forecast.text = "ПРОГНОЗ • ЛОМ ~%d • ЛУТ ~%d • РЕПУТАЦИЯ +%d  |  ПРОЕЗДОВ %d" % [
+			mastery_scrap, int(preview.get("loot", 0)), int(preview.get("rep", 1)), mastery_count]
 	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
 		var poi: Dictionary = campaign.poi_at(_selected)
@@ -631,14 +636,26 @@ func _render_city_specials(city: String) -> void:
 		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s\nНАГРАДА: %s" % [
 			stage["title"], stage["text"], _cost_text(stage["needs"]), _reward_text(stage["reward"])]
 		story_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		var story_btn := _rusty_button("ПЕРЕДАТЬ И ПРОДОЛЖИТЬ", Color(0.9, 0.58, 0.28))
-		story_btn.custom_minimum_size = Vector2(0, 62)
-		story_btn.disabled = not campaign.can_advance_story(city)
-		story_btn.pressed.connect(func():
-			if campaign.advance_story(city):
-				_play_earn()
-				_render_sheet())
-		_sheet_body.add_child(story_btn)
+		var choices := HBoxContainer.new()
+		choices.add_theme_constant_override("separation", 8)
+		_sheet_body.add_child(choices)
+		_add_story_choice(choices, city, "ПОМОЧЬ ФРАКЦИИ", "loyal", Color(0.65, 0.82, 0.48))
+		_add_story_choice(choices, city, "ВЗЯТЬ ПЛАТУ", "profit", Color(0.88, 0.65, 0.3))
+		if campaign.story_stage(city) == (CampaignData.CITY_STORIES[city] as Array).size() - 1:
+			_add_story_choice(choices, city, "ПРЕДАТЬ", "betray", Color(0.9, 0.3, 0.2))
+
+
+func _add_story_choice(parent: HBoxContainer, city: String, label: String, choice: String, color: Color) -> void:
+	var button := _rusty_button(label, color)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(0, 62)
+	button.add_theme_font_size_override("font_size", _font(18))
+	button.disabled = not campaign.can_advance_story(city)
+	button.pressed.connect(func():
+		if campaign.advance_story(city, choice):
+			_play_earn()
+			_render_sheet())
+	parent.add_child(button)
 
 
 func _cost_text(cost: Dictionary) -> String:
@@ -1182,6 +1199,11 @@ class MapCanvas:
 	var selected_a := ""
 	var selected_b := ""
 	var discovered: Array = []
+	var mastery: Dictionary = {}
+
+	func set_mastery(values: Dictionary) -> void:
+		mastery = values.duplicate(true)
+		queue_redraw()
 
 	func set_discovered(cities: Array) -> void:
 		discovered = cities.duplicate()
@@ -1193,6 +1215,14 @@ class MapCanvas:
 		queue_redraw()
 
 	func _draw() -> void:
+		# Полупрозрачные зоны влияния фракций лежат под дорогами и эмблемами.
+		for city in discovered:
+			if not CDATA.CITIES.has(city):
+				continue
+			var city_data: Dictionary = CDATA.CITIES[city]
+			var hue := fposmod(float(abs(String(city_data.get("faction", city)).hash()) % 360) / 360.0, 1.0)
+			var territory := Color.from_hsv(hue, 0.55, 0.8, 0.14)
+			draw_circle((city_data["pos"] as Vector2) * size, 68.0, territory)
 		for r: Array in CDATA.ROUTES:
 			if String(r[0]) not in discovered or String(r[1]) not in discovered:
 				continue
@@ -1213,6 +1243,11 @@ class MapCanvas:
 			else:
 				draw_line(a, b, col, 4.0, true)
 			draw_circle(a, 5.0, Color(1.0, 0.48, 0.12) if is_selected else col)
+			var mastery_count := int(mastery.get(CDATA.route_key(String(r[0]), String(r[1])), 0))
+			var mastery_level := mini(int(mastery_count / 2), 3)
+			var mastery_mid := (a + b) * 0.5
+			for i in mastery_level:
+				draw_circle(mastery_mid + Vector2((i - (mastery_level - 1) * 0.5) * 12.0, 12), 4.0, Color(1.0, 0.78, 0.25, 0.95))
 			# Метки трасс в середине линии
 			var marks := ""
 			if float(r[3]) >= 1.4:

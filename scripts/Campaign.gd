@@ -1,5 +1,7 @@
 extends Node
 ## Состояние кампании: кошелёк (лом), грузовой трюм, контракты,
+
+signal achievement_unlocked(id: String, data: Dictionary)
 ## текущий город, день. Сейв в user://campaign.save (JSON).
 
 const CampaignData := preload("res://scripts/CampaignData.gd")
@@ -30,7 +32,9 @@ var leg_abilities: Array = []      # легендарные способност
 var service_buffs: Array = []      # городские услуги на следующий рейс
 var discovered_cities: Array = ["citadel"]
 var story_progress: Dictionary = {} # city -> следующий этап сюжетной цепочки
+var story_choices: Dictionary = {}  # city -> выбранные решения по этапам
 var visited_routes: Array = []       # ключи именованных трасс
+var route_mastery: Dictionary = {}  # route_key -> число успешных прохождений
 var achievements: Array = []         # автоматически выданные достижения
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
@@ -77,7 +81,9 @@ func load_campaign() -> void:
 	leg_abilities = data.get("leg_abilities", [])
 	service_buffs = data.get("service_buffs", [])
 	story_progress = data.get("story_progress", {})
+	story_choices = data.get("story_choices", {})
 	visited_routes = data.get("visited_routes", [])
+	route_mastery = data.get("route_mastery", {})
 	achievements = data.get("achievements", [])
 	if data.has("discovered_cities"):
 		discovered_cities = data.get("discovered_cities", [location])
@@ -123,7 +129,9 @@ func save_campaign() -> void:
 		"service_buffs": service_buffs,
 		"discovered_cities": discovered_cities,
 		"story_progress": story_progress,
+		"story_choices": story_choices,
 		"visited_routes": visited_routes,
+		"route_mastery": route_mastery,
 		"achievements": achievements,
 		"hulls_owned": hulls_owned,
 		"hull_current": hull_current,
@@ -144,10 +152,28 @@ func discover_around(city: String) -> void:
 
 func note_route(a: String, b: String) -> void:
 	var key := CampaignData.route_key(a, b)
-	if not CampaignData.route_meta(a, b).is_empty() and key not in visited_routes:
-		visited_routes.append(key)
+	if not CampaignData.route_meta(a, b).is_empty():
+		if key not in visited_routes:
+			visited_routes.append(key)
+		route_mastery[key] = int(route_mastery.get(key, 0)) + 1
 	check_achievements()
 	save_campaign()
+
+
+func route_mastery_count(a: String, b: String) -> int:
+	return int(route_mastery.get(CampaignData.route_key(a, b), 0))
+
+
+func route_mastery_level(a: String, b: String) -> int:
+	return mini(int(route_mastery_count(a, b) / 2), 3)
+
+
+func route_mastery_reward_mult(a: String, b: String) -> float:
+	return 1.0 + route_mastery_level(a, b) * 0.05
+
+
+func route_mastery_danger_mult(a: String, b: String) -> float:
+	return 1.0 - route_mastery_level(a, b) * 0.05
 
 
 func check_achievements() -> Array[String]:
@@ -167,6 +193,7 @@ func check_achievements() -> Array[String]:
 			achievements.append(id)
 			unlocked.append(id)
 			_grant_achievement_reward(CampaignData.ACHIEVEMENTS[id]["reward"])
+			achievement_unlocked.emit(id, CampaignData.ACHIEVEMENTS[id])
 	if not unlocked.is_empty():
 		save_campaign()
 	return unlocked
@@ -285,7 +312,7 @@ func can_advance_story(city: String) -> bool:
 	return true
 
 
-func advance_story(city: String) -> bool:
+func advance_story(city: String, choice: String = "loyal") -> bool:
 	if not can_advance_story(city):
 		return false
 	var stage := story_current(city)
@@ -296,8 +323,16 @@ func advance_story(city: String) -> bool:
 			trophies[trophy_id] = int(trophies.get(trophy_id, 0)) - amount
 		else:
 			take_cargo(key, amount)
-	for key in stage["reward"]:
-		var amount := int(stage["reward"][key])
+	var reward: Dictionary = stage["reward"].duplicate(true)
+	match choice:
+		"profit":
+			reward["rep"] = int(int(reward.get("rep", 0)) / 2)
+			reward["scrap"] = int(reward.get("scrap", 0)) + 100
+		"betray":
+			reward["rep"] = -15
+			reward["scrap"] = int(reward.get("scrap", 0)) + 250
+	for key in reward:
+		var amount := int(reward[key])
 		match String(key):
 			"rep": gain_rep(city, amount)
 			"scrap": wallet += amount
@@ -306,6 +341,9 @@ func advance_story(city: String) -> bool:
 					meta.blueprints += amount
 					meta.save_meta()
 			_: add_cargo(key, amount)
+	if not story_choices.has(city):
+		story_choices[city] = []
+	(story_choices[city] as Array).append(choice)
 	story_progress[city] = story_stage(city) + 1
 	check_achievements()
 	save_campaign()
@@ -689,6 +727,16 @@ func _generate_offers(city: String) -> Array:
 				var dests3 := CampaignData.neighbors(city)
 				c["dest"] = dests3[rng.randi() % dests3.size()]
 				c["reward"] = rng.randi_range(int(tpl["pay_min"]), int(tpl["pay_max"]))
+			"scout":
+				var unknown := intel_candidates()
+				if unknown.is_empty():
+					c["type"] = "reach"
+					var fallback := CampaignData.neighbors(city)
+					c["dest"] = fallback[rng.randi() % fallback.size()]
+				else:
+					c["dest"] = unknown[rng.randi() % unknown.size()]
+					c["danger_bonus"] = 0.2
+				c["reward"] = rng.randi_range(int(tpl["pay_min"]), int(tpl["pay_max"]))
 		out.append(c)
 	return out
 
@@ -702,6 +750,11 @@ func accept_contract(city: String, uid: String) -> bool:
 			var c: Dictionary = list[i]
 			if c["type"] == "bounty":
 				c["start_kills"] = kills_total
+			elif c["type"] == "scout":
+				var target := String(c.get("dest", ""))
+				if target != "" and target not in discovered_cities:
+					discovered_cities.append(target)
+					check_achievements()
 			contracts.append(c)
 			list.remove_at(i)
 			save_campaign()
@@ -741,6 +794,9 @@ func contract_text(c: Dictionary) -> String:
 		"escort":
 			var dn3: String = CampaignData.CITIES.get(c["dest"], {}).get("name", "?")
 			return "🛡 Сопроводить броневик до %s (награда ⚙%d)" % [dn3, c["reward"]]
+		"scout":
+			var dn4: String = CampaignData.CITIES.get(c["dest"], {}).get("name", "?")
+			return "🔭 Разведать %s: усиленный рейс (награда ⚙%d)" % [dn4, c["reward"]]
 	return "?"
 
 
@@ -748,6 +804,13 @@ func contract_text(c: Dictionary) -> String:
 func active_escort_for(city: String) -> Dictionary:
 	for c in contracts:
 		if c["type"] == "escort" and c["dest"] == city:
+			return c
+	return {}
+
+
+func active_scout_for(city: String) -> Dictionary:
+	for c in contracts:
+		if c["type"] == "scout" and c["dest"] == city:
 			return c
 	return {}
 
@@ -920,7 +983,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary
 	var done: Array = []
 	for i in range(contracts.size() - 1, -1, -1):
 		var c: Dictionary = contracts[i]
-		if c["type"] == "reach" and c["dest"] == city:
+		if c["type"] in ["reach", "scout"] and c["dest"] == city:
 			var origin: String = c.get("origin", "")
 			c["reward"] = int(int(c["reward"]) * (1.0 + 0.05 * float(rep_level(origin))))
 			wallet += int(c["reward"])

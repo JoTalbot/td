@@ -54,6 +54,11 @@ var _pause_vibration: Button
 var _pause_shake: Button
 var _pause_effects: Button
 var _quit_confirm: Control
+var _achievement_panel: PanelContainer
+var _achievement_title: Label
+var _achievement_desc: Label
+var _achievement_queue: Array = []
+var _achievement_showing := false
 var _safe_insets := Vector4.ZERO
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
@@ -76,6 +81,7 @@ func _ready() -> void:
 	_build_encounter()
 	_build_hint()
 	_build_pause_menu()
+	_build_achievement_popup()
 
 	state.scrap_changed.connect(func(v): _scrap_label.text = "ЛОМ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
@@ -571,6 +577,71 @@ func flash_message(text: String) -> void:
 	var tw := create_tween()
 	tw.tween_interval(1.2)
 	tw.tween_property(_message_label, "modulate:a", 0.0, 0.6)
+
+
+func _build_achievement_popup() -> void:
+	_achievement_panel = PanelContainer.new()
+	_achievement_panel.anchor_left = 0.5
+	_achievement_panel.anchor_right = 0.5
+	_achievement_panel.anchor_top = 0.18
+	_achievement_panel.anchor_bottom = 0.18
+	_achievement_panel.offset_left = -310
+	_achievement_panel.offset_right = 310
+	_achievement_panel.offset_top = 0
+	_achievement_panel.offset_bottom = 150
+	_achievement_panel.add_theme_stylebox_override("panel", _styled_panel(Color(1.0, 0.72, 0.25)))
+	_achievement_panel.visible = false
+	add_child(_achievement_panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_achievement_panel.add_child(row)
+	_status_icon(row, "record", 70)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(col)
+	_achievement_title = Label.new()
+	_achievement_title.add_theme_font_size_override("font_size", _font(26))
+	_achievement_title.add_theme_color_override("font_color", Color(1.0, 0.78, 0.3))
+	col.add_child(_achievement_title)
+	_achievement_desc = Label.new()
+	_achievement_desc.add_theme_font_size_override("font_size", _font(19))
+	_achievement_desc.add_theme_color_override("font_color", TEXT_DIM)
+	_achievement_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_achievement_desc)
+
+
+func show_achievement(data: Dictionary) -> void:
+	_achievement_queue.append(data.duplicate(true))
+	if not _achievement_showing:
+		_show_next_achievement()
+
+
+func _show_next_achievement() -> void:
+	if _achievement_queue.is_empty():
+		_achievement_showing = false
+		_achievement_panel.visible = false
+		return
+	_achievement_showing = true
+	var data: Dictionary = _achievement_queue.pop_front()
+	_achievement_title.text = "ДОСТИЖЕНИЕ • %s" % String(data.get("name", ""))
+	_achievement_desc.text = "%s\nНАГРАДА: %s" % [data.get("desc", ""), _achievement_reward_text(data.get("reward", {}))]
+	_achievement_panel.visible = true
+	_achievement_panel.modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_property(_achievement_panel, "modulate:a", 1.0, 0.18)
+	tween.tween_interval(2.8)
+	tween.tween_property(_achievement_panel, "modulate:a", 0.0, 0.3)
+	tween.tween_callback(_show_next_achievement)
+
+
+func _achievement_reward_text(reward: Dictionary) -> String:
+	var parts: Array[String] = []
+	if reward.has("scrap"):
+		parts.append("%d лома" % int(reward["scrap"]))
+	if reward.has("bp"):
+		parts.append("%d чертежей" % int(reward["bp"]))
+	return ", ".join(parts)
 
 
 func _build_pause_menu() -> void:

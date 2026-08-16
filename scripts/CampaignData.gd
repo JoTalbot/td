@@ -376,6 +376,7 @@ const CONTRACT_POOL := [
 	{"type": "bounty", "label": "Перебить %d рейдеров в рейсах", "qty_min": 10, "qty_max": 20, "pay_min": 60, "pay_max": 120},
 	{"type": "reach", "label": "Доехать до %s живым", "pay_min": 50, "pay_max": 90},
 	{"type": "escort", "label": "Сопроводить броневик до %s", "pay_min": 120, "pay_max": 200},
+	{"type": "scout", "label": "Разведать неизвестный город %s", "pay_min": 160, "pay_max": 240},
 ]
 
 ## Сезонные даты пустоши (реальный календарь): особые правила на пару дней.
