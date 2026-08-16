@@ -163,6 +163,12 @@ func _ready() -> void:
 	hud.sfx = sfx
 	map_screen.sfx = sfx
 	tutorial.setup(self, hud, state, waves, truck, meta)
+	# Crossout-прогрессия: собираем платформу из выбранного в шоуруме корпуса.
+	# Корпус влияет на число слотов (геометрия Truck) и запас HP.
+	truck.set_hull(campaign.hull_current)
+	var hull_mult := float(CampaignData.HULLS.get(campaign.hull_current, {}).get("hp_mult", 1.0))
+	state.max_hp = int(round(float(state.max_hp) * hull_mult))
+	state.hp = state.max_hp
 	_sync_legendary_abilities()
 
 	# Старт — на карте; бой начинается с выбора маршрута
@@ -201,6 +207,14 @@ func _on_travel(city_id: String) -> void:
 	_apply_campaign_effects()
 	_spawn_escort_if_needed(city_id)
 	_sync_legendary_abilities()
+	# Голой платформе в пустоши не место: штатный пулемёт с базы (продажа за 0)
+	if truck.weapons.is_empty():
+		var pw: Node3D = WeaponScript.new()
+		pw.setup("mgun", state)
+		pw.slot_index = 0
+		truck.mount_weapon(0, pw)
+		pw.set_meta("free_start", true)
+		hud.flash_message("🔧 Штатный пулемёт с базы на борту — больше стволов пока нет!")
 	tutorial.notify("travel")
 	waves.start()
 
