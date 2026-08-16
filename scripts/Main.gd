@@ -314,7 +314,7 @@ func _apply_campaign_effects() -> void:
 	if "copper_heads" in campaign.research_done:
 		state.damage_mult = 1.12
 	if "convoy" in campaign.research_done:
-		waves.bonus_mult = 1.15
+		waves.bonus_mult *= 1.15
 	if "alliance_plating" in campaign.research_done:
 		state.add_max_hp(int(state.max_hp * 0.1))
 	if "mercenary_routes" in campaign.research_done:
