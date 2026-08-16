@@ -161,10 +161,12 @@ func _build_map() -> void:
 	if ResourceLoader.exists(bg_path):
 		var bg := TextureRect.new()
 		bg.texture = load(bg_path)
-		bg.position = Vector2(8, 140)
-		bg.size = area_size
+		# Сначала разрешаем ужать текстуру: иначе её нативные 1408×768
+		# раздвигают весь портретный интерфейс за правый край.
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.position = Vector2(8, 140)
+		bg.size = area_size
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
 	_map_area = MapCanvas.new()
@@ -174,8 +176,11 @@ func _build_map() -> void:
 	for id in CampaignData.CITIES:
 		var c: Dictionary = CampaignData.CITIES[id]
 		var btn := _rusty_button("%s\n%s" % [c["icon"], c["name"]], ACCENT)
-		btn.custom_minimum_size = Vector2(150, 62)
-		btn.add_theme_font_size_override("font_size", 20)
+		var city_size := Vector2(170, 108)
+		btn.custom_minimum_size = city_size
+		btn.size = city_size
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		# Нарисованная эмблема города над именем
 		var cicon: String = "res://assets/ui/c_%s.png" % id
 		if ResourceLoader.exists(cicon):
@@ -184,7 +189,10 @@ func _build_map() -> void:
 			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 			btn.text = String(c["name"])
-		btn.position = c["pos"] * area_size - Vector2(75, 31)
+		var city_pos: Vector2 = c["pos"] * area_size - city_size * 0.5
+		city_pos.x = clampf(city_pos.x, 0.0, area_size.x - city_size.x)
+		city_pos.y = clampf(city_pos.y, 0.0, area_size.y - city_size.y)
+		btn.position = city_pos
 		btn.pressed.connect(func(): _select(id))
 		_map_area.add_child(btn)
 		_city_buttons[id] = btn
@@ -554,7 +562,8 @@ func _render_showroom(is_here: bool) -> void:
 		var slots_w := "слот" if n == 1 else ("слота" if n < 5 else "слотов")
 		txt.text = "%s%s — %d %s • HP ×%.2f\n%s" % [prefix, d["name"], n, slots_w, float(d["hp_mult"]), d["desc"]]
 		var btn := _rusty_button("", Color(0.95, 0.7, 0.35))
-		btn.custom_minimum_size = Vector2(270, 58)
+		btn.custom_minimum_size = Vector2(230, 58)
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		var hid: String = id
 		if id == campaign.hull_current:
 			btn.text = "✓ В строю"
@@ -566,7 +575,8 @@ func _render_showroom(is_here: bool) -> void:
 					hull_changed.emit()
 					_render_sheet())
 		else:
-			btn.text = "Собрать: 🔧%d ⚙%d маст.%d" % [int(d["parts"]), int(d["scrap"]), int(d["workshop"])]
+			btn.text = "СОБРАТЬ  🔧%d  ⚙%d  •%d" % [int(d["parts"]), int(d["scrap"]), int(d["workshop"])]
+			btn.tooltip_text = "Нужна мастерская ур.%d" % int(d["workshop"])
 			btn.disabled = not campaign.can_build_hull(id)
 			btn.pressed.connect(func():
 				if campaign.build_hull(hid):

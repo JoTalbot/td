@@ -198,7 +198,9 @@ func _build_bottom_bar() -> void:
 	panel.anchor_right = 0.5
 	panel.offset_left = -356
 	panel.offset_right = 356
-	panel.offset_top = -102
+	# Иконки и крупная цена требуют 137 px; резервируем высоту вверх,
+	# чтобы панель не вылезала ниже портретного экрана.
+	panel.offset_top = -151
 	panel.offset_bottom = -12
 	add_child(panel)
 
