@@ -104,3 +104,4 @@ jobs:
         with:
           files: build/RustRoadTD.apk
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

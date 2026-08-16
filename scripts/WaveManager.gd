@@ -35,6 +35,8 @@ var ally: Node3D = null
 var ambush_every := 0
 ## Разведконтракт: финальную волну возглавляет бронированный Дозорный.
 var scout_boss := false
+## Командир фракции на финальной волне обычного рейса.
+var commander_type := ""
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -134,6 +136,9 @@ func _launch_wave() -> void:
 	if scout_boss and run_length > 0 and wave_index == run_length:
 		_spawn_queue.append({"type": "scoutboss", "hp_scale": hp_scale})
 		boss_event.emit("ДОЗОРНЫЙ-КАРТОГРАФ перекрыл путь! Последний бой разведрейса!")
+	elif commander_type != "" and run_length > 0 and wave_index == run_length:
+		_spawn_queue.append({"type": commander_type, "hp_scale": hp_scale})
+		boss_event.emit("КОМАНДИР ФРАКЦИИ вышел удерживать дорогу!")
 	elif wave_index % 5 == 0:
 		if wave_index % 15 == 0:
 			# Каждая пятнадцатая — Военный Поезд: локомотив + сцеп вагонов
@@ -181,16 +186,15 @@ func _spawn(data: Dictionary) -> void:
 		_spawn_ace(data)
 		return
 	var enemy: Node3D = EnemyScript.new()
-	if t == "boss" or t == "scoutboss":
+	if t in ["boss", "scoutboss", "bonepriest"]:
 		enemy.enemy_type = t
 		enemy.is_boss = true
-		# Дозорный разведконтракта быстрее и ценнее обычного тягача.
-		var scout_mult := 1.25 if t == "scoutboss" else 1.0
-		enemy.max_hp = int(300.0 * (1.0 + (wave_index - 1) * 0.15) * danger * scout_mult)
-		enemy.chase_speed = 7.4 if t == "scoutboss" else 6.5
-		enemy.reward = 110 if t == "scoutboss" else 70
-		enemy.attack_damage = 15 if t == "scoutboss" else 12
-		enemy.attack_interval = 2.2 if t == "scoutboss" else 2.5
+		var boss_mult := 1.25 if t == "scoutboss" else (1.18 if t == "bonepriest" else 1.0)
+		enemy.max_hp = int(300.0 * (1.0 + (wave_index - 1) * 0.15) * danger * boss_mult)
+		enemy.chase_speed = 7.4 if t == "scoutboss" else (6.8 if t == "bonepriest" else 6.5)
+		enemy.reward = 120 if t == "bonepriest" else (110 if t == "scoutboss" else 70)
+		enemy.attack_damage = 16 if t == "bonepriest" else (15 if t == "scoutboss" else 12)
+		enemy.attack_interval = 2.25 if t == "bonepriest" else (2.2 if t == "scoutboss" else 2.5)
 		enemy.attack_offset = Vector3(0, 0, -11.0)
 		enemy.phase_announced.connect(func(text: String): boss_event.emit(text))
 		enemy.spawn_minions.connect(_on_boss_spawn_minions)

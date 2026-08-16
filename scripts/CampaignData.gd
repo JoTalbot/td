@@ -167,6 +167,11 @@ const ROUTE_META := {
 }
 
 ## Уникальные услуги новых городов: одноразовый бонус на следующий рейс.
+## Командиры появляются на дорогах, которые фракция удерживает несколько дней.
+const FACTION_COMMANDERS := {
+	"bonewall": {"name": "Костяной Жрец", "type": "bonepriest", "hold_days": 2},
+}
+
 const CITY_SERVICES := {
 	"bonewall": {"name": "Костяная обшивка", "desc": "+15% HP в следующем рейсе", "buff": "bone_plating", "scrap": 40, "needs": {"parts": 2}},
 	"copperpit": {"name": "Медный прицел", "desc": "+12% урона в следующем рейсе", "buff": "copper_sights", "scrap": 50, "needs": {"metal": 2}},
@@ -366,6 +371,7 @@ const TROPHIES := {
 	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2, "parts": 4}},
 	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3, "parts": 5}},
 	"scoutboss": {"name": "Дозорный-картограф", "icon": "🧭", "chance": 1.0, "scrap_price": 180, "salvage": {"metal": 7, "chips": 4, "parts": 6}},
+	"bonepriest": {"name": "Тотем Костяного Жреца", "icon": "🦴", "chance": 1.0, "scrap_price": 210, "salvage": {"metal": 6, "food": 3, "parts": 7}},
 	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3, "parts": 6}},
 	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2, "parts": 3}},
 }

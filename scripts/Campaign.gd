@@ -39,6 +39,7 @@ var route_mastery: Dictionary = {}  # route_key -> число успешных �
 var mastered_routes: Array = []     # награда за уровень 3 уже выдана
 var route_cosmetics: Dictionary = {"signs": true, "horns": true, "mast": true, "badge": true}
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
+var route_control_age: Dictionary = {} # route_key -> дней непрерывного контроля
 var war_log: Array = []              # последние захваты дорог
 var achievements: Array = []         # автоматически выданные достижения
 var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
@@ -98,6 +99,7 @@ func load_campaign() -> void:
 	mastered_routes = data.get("mastered_routes", [])
 	route_cosmetics = data.get("route_cosmetics", {"signs": true, "horns": true, "mast": true, "badge": true})
 	route_control = data.get("route_control", {})
+	route_control_age = data.get("route_control_age", {})
 	war_log = data.get("war_log", [])
 	achievements = data.get("achievements", [])
 	achievement_stats = data.get("achievement_stats", {"trade": 0, "trophies": 0})
@@ -157,6 +159,7 @@ func save_campaign() -> void:
 		"mastered_routes": mastered_routes,
 		"route_cosmetics": route_cosmetics,
 		"route_control": route_control,
+		"route_control_age": route_control_age,
 		"war_log": war_log,
 		"achievements": achievements,
 		"achievement_stats": achievement_stats,
@@ -241,15 +244,28 @@ func route_controller(a: String, b: String) -> String:
 	return a if a < b else b
 
 
+func route_commander(a: String, b: String) -> String:
+	var key := CampaignData.route_key(a, b)
+	var owner := route_controller(a, b)
+	var commander: Dictionary = CampaignData.FACTION_COMMANDERS.get(owner, {})
+	if commander.is_empty() or int(route_control_age.get(key, 0)) < int(commander.get("hold_days", 999)):
+		return ""
+	return String(commander.get("type", ""))
+
+
 func advance_faction_war() -> void:
 	if CampaignData.ROUTES.is_empty():
 		return
+	# Все удерживаемые дороги стареют на день; смена владельца сбрасывает срок.
+	for controlled_key in route_control:
+		route_control_age[controlled_key] = int(route_control_age.get(controlled_key, 0)) + 1
 	var route: Array = CampaignData.ROUTES[(day * 7 + runs_finished * 3) % CampaignData.ROUTES.size()]
 	var key := CampaignData.route_key(String(route[0]), String(route[1]))
 	var owner := String(route[0]) if (day + runs_finished) % 2 == 0 else String(route[1])
 	var previous := String(route_control.get(key, ""))
 	route_control[key] = owner
 	if previous != owner:
+		route_control_age[key] = 0
 		var route_name := String(CampaignData.route_meta(String(route[0]), String(route[1])).get("name", "Безымянная дорога"))
 		war_log.push_front({"day": day, "route": key, "name": route_name, "owner": owner, "previous": previous})
 		if war_log.size() > 20:

@@ -11,6 +11,7 @@ const RustButton := preload("res://scripts/RustButton.gd")
 const RustHeader := preload("res://scripts/RustHeader.gd")
 const CityMarker := preload("res://scripts/CityMarker.gd")
 const SafeArea := preload("res://scripts/SafeArea.gd")
+const TruckPreview := preload("res://scripts/TruckPreview.gd")
 
 var campaign: Node = null
 var settings: Node = null
@@ -460,6 +461,9 @@ func _render_sheet() -> void:
 	elif _view == "warlog":
 		_sheet_title.text = "ЖУРНАЛ ВОЙНЫ"
 		_render_war_log()
+	elif _view == "front":
+		_sheet_title.text = "ФРОНТ ВОЙНЫ"
+		_render_war_front()
 	else:
 		_sheet_title.text = String(c["name"])
 		_render_info(c, is_here, route)
@@ -622,10 +626,39 @@ func _render_war_campaign(city: String) -> void:
 		row.add_child(support)
 	else:
 		label.text = "НЕДЕЛЯ ВОЙНЫ • %s\nОЧКИ %d/15 • ЦЕЛИ 4 / 8 / 15" % [campaign.war_faction_name(), campaign.war_points]
+	var war_nav := HBoxContainer.new()
+	war_nav.add_theme_constant_override("separation", 8)
+	_sheet_body.add_child(war_nav)
+	var front := _rusty_button("КАРТА ФРОНТА", Color(0.78, 0.42, 0.24))
+	front.custom_minimum_size = Vector2(260, 58)
+	front.pressed.connect(func(): _open_view("front"))
+	war_nav.add_child(front)
 	var journal := _rusty_button("ЖУРНАЛ ЗАХВАТОВ", Color(0.68, 0.52, 0.32))
 	journal.custom_minimum_size = Vector2(260, 58)
 	journal.pressed.connect(func(): _open_view("warlog"))
-	_sheet_body.add_child(journal)
+	war_nav.add_child(journal)
+
+
+func _render_war_front() -> void:
+	var summary := _mk_label(_sheet_body, 20, Color(0.95, 0.68, 0.35))
+	summary.text = "НЕДЕЛЬНАЯ СТОРОНА: %s • ОЧКИ %d/15" % [campaign.war_faction_name(), campaign.war_points]
+	for route in CampaignData.ROUTES:
+		var a := String(route[0])
+		var b := String(route[1])
+		var key := CampaignData.route_key(a, b)
+		var controller: String = campaign.route_controller(a, b)
+		var age := int(campaign.route_control_age.get(key, 0))
+		var commander: String = campaign.route_commander(a, b)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		_sheet_body.add_child(row)
+		_status_icon(row, "warning" if commander != "" else "route", 38)
+		var label := _mk_label(row, 19, TEXT_DIM)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var route_name := String(CampaignData.route_meta(a, b).get("name", "%s — %s" % [CampaignData.CITIES[a]["name"], CampaignData.CITIES[b]["name"]]))
+		var faction := String(CampaignData.CITIES.get(controller, {}).get("faction", controller))
+		label.text = "%s • %s • %d дн.%s" % [route_name, faction, age, " • КОМАНДИР" if commander != "" else ""]
 
 
 func _render_war_log() -> void:
@@ -916,6 +949,9 @@ func _render_showroom(is_here: bool) -> void:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Шоурум при базе — загляни домой."
 		return
+	var preview := TruckPreview.new()
+	preview.setup(campaign.hull_current, campaign.mastered_routes.size(), campaign.route_cosmetics)
+	_sheet_body.add_child(preview)
 	var head := _mk_label(_sheet_body, 20, Color(0.85, 0.78, 0.6))
 	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [
 		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]

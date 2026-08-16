@@ -206,6 +206,7 @@ func _on_travel(city_id: String) -> void:
 	waves.danger = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, city_id)
 	waves.bonus_mult *= campaign.route_mastery_reward_mult(campaign.location, city_id)
 	var route_controller: String = campaign.route_controller(campaign.location, city_id)
+	waves.commander_type = campaign.route_commander(campaign.location, city_id)
 	var friendly_control := campaign.rep_level(route_controller) >= 2
 	if friendly_control:
 		waves.danger *= 0.95
@@ -251,6 +252,9 @@ func _on_travel(city_id: String) -> void:
 	if not scout_contract.is_empty():
 		waves.extra_count += 3
 		hud.flash_message("РАЗВЕДКОНТРАКТ: +1 волна, усиленные рейдеры, повышенная награда!")
+	elif waves.commander_type != "":
+		var commander: Dictionary = CampaignData.FACTION_COMMANDERS.get(route_controller, {})
+		hud.flash_message("РАЗВЕДКА: дорогу защищает командир «%s»!" % commander.get("name", "неизвестный"))
 	_spawn_escort_if_needed(city_id)
 	_sync_legendary_abilities()
 	# Голой платформе в пустоши не место: штатный пулемёт с базы (продажа за 0)
@@ -449,7 +453,7 @@ func _on_enemy_killed(type: String) -> void:
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
 	# Звук взрыва и тряска: боссы гремят сильнее
-	if type in ["boss", "ace", "scoutboss"]:
+	if type in ["boss", "ace", "scoutboss", "bonepriest"]:
 		sfx.play("big_boom", 0.9)
 		camera_rig.add_trauma(0.5)
 	else:

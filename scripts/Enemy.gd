@@ -64,6 +64,7 @@ func _ready() -> void:
 		"ram": _build_ram()
 		"boss": _build_boss()
 		"scoutboss": _build_scoutboss()
+		"bonepriest": _build_bonepriest()
 		"trainloko": _build_trainloko()
 		"traincar": _build_traincar()
 		_: _build_buggy()
@@ -217,6 +218,32 @@ func _build_scoutboss() -> void:
 	Junk.box(_body, Vector3(0.75, 0.42, 0.05), Vector3(0.42, 3.65, -0.4), Junk.metal(Color(0.3, 0.12, 0.08), 0.95, 0.0), Vector3(0, 0, -8))
 
 
+## Костяной Жрец: командир Сборщиков с клеткой из рёбер и тотемом.
+func _build_bonepriest() -> void:
+	_build_boss()
+	var bone := Junk.metal(Color(0.78, 0.68, 0.48), 0.92, 0.08)
+	var dark := Junk.metal(Color(0.22, 0.1, 0.06), 0.9, 0.25)
+	# Рёберная клетка над кабиной.
+	for side in [-1.0, 1.0]:
+		for i in 3:
+			Junk.cyl(_body, 0.075, 1.7, Vector3(side * (0.65 + i * 0.16), 2.9, 0.4 - i * 0.35), bone, Vector3(0, 0, side * 24))
+	# Высокий тотем из позвонков.
+	Junk.cyl(_body, 0.12, 2.0, Vector3(0, 3.2, -0.7), dark)
+	for y in [2.55, 2.9, 3.25, 3.6, 3.95]:
+		Junk.cyl(_body, 0.18, 0.16, Vector3(0, y, -0.7), bone)
+	Junk.box(_body, Vector3(0.48, 0.55, 0.28), Vector3(0, 4.25, -0.7), bone)
+	Junk.spike(_body, 0.09, 0.55, Vector3(-0.28, 4.5, -0.7), Vector3(0, 0, -24))
+	Junk.spike(_body, 0.09, 0.55, Vector3(0.28, 4.5, -0.7), Vector3(0, 0, 24))
+	# Курильницы с красным светом по бортам.
+	for side in [-1.0, 1.0]:
+		var brazier := Junk.cyl(_body, 0.2, 0.22, Vector3(side * 1.15, 2.2, -0.8), dark)
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(1.0, 0.22, 0.08)
+		glow.light_energy = 1.1
+		glow.omni_range = 3.0
+		brazier.add_child(glow)
+
+
 func _build_hp_bar() -> void:
 	_hp_bar = MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -334,12 +361,16 @@ func _set_phase(p: int) -> void:
 		_rage_light.omni_range = 4.5
 		_rage_light.position = Vector3(0, 2.2, 1.5)
 		_body.add_child(_rage_light)
-		phase_announced.emit("😡 Босс в ЯРОСТИ: быстрее и злее!")
+		if enemy_type == "bonepriest":
+			spawn_minions.emit(2)
+			phase_announced.emit("КОСТЯНОЙ ЖРЕЦ поднял первую свиту!")
+		else:
+			phase_announced.emit("😡 Босс в ЯРОСТИ: быстрее и злее!")
 	elif p == 3:
 		# Отчаяние: зовёт байкеров и идёт на разгонные тараны
-		spawn_minions.emit(2)
+		spawn_minions.emit(4 if enemy_type == "bonepriest" else 2)
 		_charge_timer = 4.0
-		phase_announced.emit("💀 Босс обезумел: берегись разгона!")
+		phase_announced.emit("ЖРЕЦ созвал костяную орду!" if enemy_type == "bonepriest" else "💀 Босс обезумел: берегись разгона!")
 
 
 var _slow_mult := 1.0
