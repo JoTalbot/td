@@ -146,6 +146,19 @@ func _font(base: int) -> int:
 	return settings.font_size(base) if settings != null else base
 
 
+func _status_icon(parent: Control, id: String, px: int = 30) -> TextureRect:
+	var tr := TextureRect.new()
+	var path := "res://assets/ui/st_%s.svg" % id
+	if ResourceLoader.exists(path):
+		tr.texture = load(path)
+	tr.custom_minimum_size = Vector2(px, px)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(tr)
+	return tr
+
+
 func _rusty_button(text: String, accent := ACCENT) -> Button:
 	var btn := RustButton.new()
 	btn.setup(text, accent)
@@ -165,10 +178,11 @@ func _build_top_bar() -> void:
 	add_child(panel)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 5)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
 
+	_status_icon(row, "scrap", 30)
 	_scrap_label = Label.new()
 	_scrap_label.add_theme_color_override("font_color", ACCENT)
 	_scrap_label.add_theme_font_size_override("font_size", _font(26))
@@ -767,6 +781,10 @@ func _build_game_over() -> void:
 		var mbtn := _rusty_button("", Color(0.7, 0.85, 0.5))
 		mbtn.custom_minimum_size = Vector2(600, 68)
 		mbtn.add_theme_font_size_override("font_size", _font(20))
+		var bp_icon := "res://assets/ui/st_blueprint.svg"
+		if ResourceLoader.exists(bp_icon):
+			mbtn.icon = load(bp_icon)
+			mbtn.add_theme_constant_override("icon_max_width", 34)
 		mbtn.pressed.connect(func(): meta_upgrade_pressed.emit(id))
 		col.add_child(mbtn)
 		_meta_buttons[id] = mbtn

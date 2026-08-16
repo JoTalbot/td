@@ -108,28 +108,35 @@ func _build_chrome() -> void:
 	top.offset_left = 8 + _safe_insets.x
 	top.offset_right = -8 - _safe_insets.z
 	top.offset_top = 8 + _safe_insets.y
-	top.offset_bottom = 130 + _safe_insets.y
+	top.offset_bottom = 160 + _safe_insets.y
 	add_child(top)
 	# Две строки не дают крупным статусам слипаться на узком портретном экране.
 	var top_col := VBoxContainer.new()
 	top_col.add_theme_constant_override("separation", 5)
 	top.add_child(top_col)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 24)
+	row.add_theme_constant_override("separation", 10)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	top_col.add_child(row)
 	_loc_label = _mk_label(row, 24, ACCENT)
+	_status_icon(row, "scrap", 30)
 	_wallet_label = _mk_label(row, 24, Color(0.95, 0.75, 0.35))
+	_status_icon(row, "cargo", 30)
 	_cargo_label = _mk_label(row, 24, Color(0.8, 0.85, 0.6))
 	var settings_btn := _rusty_button("⚙", Color(0.55, 0.72, 0.82))
 	settings_btn.custom_minimum_size = Vector2(62, 58)
 	settings_btn.tooltip_text = "Настройки"
 	settings_btn.pressed.connect(func(): _open_view("settings"))
 	row.add_child(settings_btn)
-	_day_label = _mk_label(top_col, 22, TEXT_DIM)
+	var day_row := HBoxContainer.new()
+	day_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	day_row.add_theme_constant_override("separation", 8)
+	top_col.add_child(day_row)
+	_status_icon(day_row, "record", 28)
+	_day_label = _mk_label(day_row, 22, TEXT_DIM)
+	_day_label.custom_minimum_size = Vector2(520, 0)
 	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_day_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_day_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
 func _mk_label(parent: Control, size: int, color: Color) -> Label:
@@ -142,6 +149,19 @@ func _mk_label(parent: Control, size: int, color: Color) -> Label:
 
 ## Маленькая нарисованная иконка в начало строки списка.
 ## Возвращает true, если ассет нашёлся (тогда эмодзи в тексте можно опустить).
+func _status_icon(parent: Control, id: String, px: int = 30) -> TextureRect:
+	var tr := TextureRect.new()
+	var path := "res://assets/ui/st_%s.svg" % id
+	if ResourceLoader.exists(path):
+		tr.texture = load(path)
+	tr.custom_minimum_size = Vector2(px, px)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(tr)
+	return tr
+
+
 func _add_row_icon(row: HBoxContainer, path: String, px: int = 30) -> bool:
 	if not ResourceLoader.exists(path):
 		return false
@@ -182,8 +202,8 @@ func _build_map() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var area_size := Vector2(
 		viewport_size.x - 16.0 - _safe_insets.x - _safe_insets.z,
-		maxf(400.0, 536.0 - _safe_insets.y - _safe_insets.w))
-	var area_pos := Vector2(8 + _safe_insets.x, 140 + _safe_insets.y)
+		maxf(370.0, 506.0 - _safe_insets.y - _safe_insets.w))
+	var area_pos := Vector2(8 + _safe_insets.x, 170 + _safe_insets.y)
 	# Окно обрезает увеличенную карту, а stage двигает фон, дороги и города вместе.
 	_map_viewport = Control.new()
 	_map_viewport.position = area_pos
@@ -427,20 +447,29 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	spec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Фракция и наше положение в ней
 	var rep_lvl: int = campaign.rep_level(_selected)
-	var frac := _mk_label(_sheet_body, 19, Color(0.7, 0.85, 0.9).lerp(Color(0.95, 0.8, 0.4), rep_lvl / 4.0))
+	var rep_row := HBoxContainer.new()
+	rep_row.add_theme_constant_override("separation", 8)
+	_sheet_body.add_child(rep_row)
+	_status_icon(rep_row, "rep", 34)
+	var frac := _mk_label(rep_row, 19, Color(0.7, 0.85, 0.9).lerp(Color(0.95, 0.8, 0.4), rep_lvl / 4.0))
 	frac.text = "%s • %s • %d/100  |  скидка %d%% • скупка +%d%%" % [
 		c.get("faction", "Фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected),
 		rep_lvl * 4, rep_lvl * 3]
 	frac.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	frac.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if not is_here and not route.is_empty():
-		var route_info := _mk_label(_sheet_body, 20,
+		var route_row := HBoxContainer.new()
+		route_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		route_row.add_theme_constant_override("separation", 10)
+		_sheet_body.add_child(route_row)
+		_status_icon(route_row, "warning" if float(route[1]) >= 1.4 else "route", 38)
+		var route_info := _mk_label(route_row, 20,
 			Color(1.0, 0.48, 0.25) if float(route[1]) >= 1.4 else Color(0.95, 0.78, 0.42))
 		var route_tags := ""
 		if CampaignData.route_is_caravan(campaign.location, _selected):
 			route_tags = " • КАРАВАН"
 		route_info.text = "МАРШРУТ • %d ВОЛН • ОПАСНОСТЬ %.1f%s" % [
 			4 + int(route[0]) * 2, float(route[1]), route_tags]
-		route_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		route_info.tooltip_text = "Подсвеченная дорога ведёт из текущего города в выбранный"
 	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
