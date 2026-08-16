@@ -40,6 +40,10 @@ var mastered_routes: Array = []     # награда за уровень 3 уж�
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
 var achievements: Array = []         # автоматически выданные достижения
 var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
+var war_week := -1
+var war_side := ""               # город выбранной фракции на текущую неделю
+var war_points := 0
+var war_claimed: Array = []        # пороги 5/12/25
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
 var hull_current := "buggy"
@@ -51,6 +55,7 @@ func _ready() -> void:
 	day_seed = int(Time.get_unix_time_from_system() / 86400.0)
 	var had_save := FileAccess.file_exists(SAVE_PATH)
 	load_campaign()
+	_sync_war_week()
 	if not had_save:
 		discover_around(location)
 		save_campaign()
@@ -92,6 +97,11 @@ func load_campaign() -> void:
 	route_control = data.get("route_control", {})
 	achievements = data.get("achievements", [])
 	achievement_stats = data.get("achievement_stats", {"trade": 0, "trophies": 0})
+	war_week = int(data.get("war_week", -1))
+	war_side = String(data.get("war_side", ""))
+	war_points = int(data.get("war_points", 0))
+	war_claimed = data.get("war_claimed", [])
+	_sync_war_week()
 	if data.has("discovered_cities"):
 		discovered_cities = data.get("discovered_cities", [location])
 	else:
@@ -143,6 +153,10 @@ func save_campaign() -> void:
 		"route_control": route_control,
 		"achievements": achievements,
 		"achievement_stats": achievement_stats,
+		"war_week": war_week,
+		"war_side": war_side,
+		"war_points": war_points,
+		"war_claimed": war_claimed,
 		"hulls_owned": hulls_owned,
 		"hull_current": hull_current,
 	}))
@@ -175,6 +189,7 @@ func note_route(a: String, b: String) -> void:
 				meta.save_meta()
 			var route_name := String(CampaignData.route_meta(a, b).get("name", "Трасса"))
 			route_mastered.emit({"name": "МАСТЕР: %s" % route_name, "desc": "Трасса освоена. Торговая скидка растёт на 3%.", "reward": {"scrap": 150, "bp": 1}})
+	_add_war_points(a, b)
 	check_achievements()
 	save_campaign()
 
@@ -208,6 +223,49 @@ func advance_faction_war() -> void:
 	var route: Array = CampaignData.ROUTES[(day * 7 + runs_finished * 3) % CampaignData.ROUTES.size()]
 	var owner := String(route[0]) if (day + runs_finished) % 2 == 0 else String(route[1])
 	route_control[CampaignData.route_key(String(route[0]), String(route[1]))] = owner
+
+
+func _current_war_week() -> int:
+	return int(Time.get_unix_time_from_system() / 604800.0)
+
+
+func _sync_war_week() -> void:
+	var current := _current_war_week()
+	if war_week != current:
+		war_week = current
+		war_side = ""
+		war_points = 0
+		war_claimed.clear()
+
+
+func choose_war_side(city: String) -> bool:
+	_sync_war_week()
+	if war_side != "" or not CampaignData.CITIES.has(city):
+		return false
+	war_side = city
+	save_campaign()
+	return true
+
+
+func war_faction_name() -> String:
+	return String(CampaignData.CITIES.get(war_side, {}).get("faction", "Фракция не выбрана"))
+
+
+func _add_war_points(a: String, b: String) -> void:
+	_sync_war_week()
+	if war_side == "":
+		return
+	war_points += 2 if route_controller(a, b) == war_side else 1
+	for threshold in [5, 12, 25]:
+		if war_points >= threshold and threshold not in war_claimed:
+			war_claimed.append(threshold)
+			var reward := {"scrap": 100 if threshold == 5 else (200 if threshold == 12 else 350)}
+			if threshold >= 12:
+				reward["bp"] = 1 if threshold == 12 else 2
+			_grant_achievement_reward(reward)
+			achievement_unlocked.emit("war_%d" % threshold, {
+				"name": "НЕДЕЛЯ ВОЙНЫ • %d" % threshold,
+				"desc": "Цель поддержки фракции выполнена.", "reward": reward})
 
 
 func check_achievements() -> Array[String]:
@@ -669,8 +727,20 @@ func sell_trophy(t: String) -> int:
 
 
 ## --- Исследования (лаборатория, тикают рейсами как в EVE) ---
+func has_story_ending(ending: String) -> bool:
+	for city in CampaignData.CITY_STORIES:
+		if story_ending(city) == ending:
+			return true
+	return false
+
+
+func research_ending_req_met(id: String) -> bool:
+	var ending := String(CampaignData.RESEARCH[id].get("ending", ""))
+	return ending == "" or has_story_ending(ending)
+
+
 func research_level_req_met(id: String) -> bool:
-	return bld_level("lab") >= int(CampaignData.RESEARCH[id]["lab"])
+	return bld_level("lab") >= int(CampaignData.RESEARCH[id]["lab"]) and research_ending_req_met(id)
 
 
 func can_research(id: String) -> bool:

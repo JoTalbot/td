@@ -63,6 +63,7 @@ func _ready() -> void:
 		"biker": _build_biker()
 		"ram": _build_ram()
 		"boss": _build_boss()
+		"scoutboss": _build_scoutboss()
 		"trainloko": _build_trainloko()
 		"traincar": _build_traincar()
 		_: _build_buggy()
@@ -188,6 +189,32 @@ func _build_boss() -> void:
 	for side in [-1.0, 1.0]:
 		for zi in 3:
 			_wheels.append(Junk.wheel(_body, 0.6, 0.45, Vector3(side * 1.25, 0.6, -1.4 + zi * 1.4)))
+
+
+## Дозорный-картограф: босс-тягач с антеннами, прожектором и картами на броне.
+func _build_scoutboss() -> void:
+	_build_boss()
+	var copper := Junk.metal(Color(0.58, 0.28, 0.12), 0.65, 0.75)
+	# Высокая мачта и перекрёстные антенны.
+	Junk.cyl(_body, 0.07, 2.4, Vector3(0, 3.0, -0.4), copper)
+	Junk.cyl(_body, 0.04, 1.4, Vector3(0, 4.05, -0.4), copper, Vector3(0, 0, 90))
+	for x in [-0.65, 0.65]:
+		Junk.spike(_body, 0.05, 0.55, Vector3(x, 4.05, -0.4), Vector3(0, 0, 90 if x > 0 else -90))
+	# Прожектор разведки.
+	var lamp := Junk.cyl(_body, 0.28, 0.22, Vector3(0, 2.65, 2.15), Junk.metal(Color(0.9, 0.72, 0.28), 0.35, 0.8), Vector3(90, 0, 0))
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.72, 0.28)
+	light.light_energy = 2.0
+	light.omni_range = 7.0
+	lamp.add_child(light)
+	# Карты и маршрутные листы, приклёпанные к бортам.
+	for side in [-1.0, 1.0]:
+		var plate := Junk.box(_body, Vector3(0.08, 0.8, 1.25), Vector3(side * 1.16, 1.55, 0.45), Junk.metal(Color(0.62, 0.48, 0.28), 0.95, 0.05))
+		plate.rotation_degrees.z = side * 4.0
+		for z in [-0.35, 0.0, 0.35]:
+			Junk.cyl(plate, 0.025, 0.09, Vector3(side * 0.05, 0.0, z), copper, Vector3(0, 0, 90))
+	# Флаги-разведчики на мачте.
+	Junk.box(_body, Vector3(0.75, 0.42, 0.05), Vector3(0.42, 3.65, -0.4), Junk.metal(Color(0.3, 0.12, 0.08), 0.95, 0.0), Vector3(0, 0, -8))
 
 
 func _build_hp_bar() -> void:

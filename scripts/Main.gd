@@ -310,6 +310,12 @@ func _apply_campaign_effects() -> void:
 		state.damage_mult = 1.12
 	if "convoy" in campaign.research_done:
 		waves.bonus_mult = 1.15
+	if "alliance_plating" in campaign.research_done:
+		state.add_max_hp(int(state.max_hp * 0.1))
+	if "mercenary_routes" in campaign.research_done:
+		waves.bonus_mult *= 1.1
+	if "traitor_ammo" in campaign.research_done:
+		state.damage_mult *= 1.12
 	# Мета-мастерская: стартовые орудия оружейной кладовой (продаются за 0)
 	for wtype in MetaProgress.START_WEAPONS.get(meta.level_of("arsenal"), []):
 		var slot := -1
@@ -442,7 +448,7 @@ func _on_enemy_killed(type: String) -> void:
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
 	# Звук взрыва и тряска: боссы гремят сильнее
-	if type == "boss" or type == "ace":
+	if type in ["boss", "ace", "scoutboss"]:
 		sfx.play("big_boom", 0.9)
 		camera_rig.add_trauma(0.5)
 	else:

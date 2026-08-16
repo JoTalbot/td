@@ -182,7 +182,7 @@ func _spawn(data: Dictionary) -> void:
 		return
 	var enemy: Node3D = EnemyScript.new()
 	if t == "boss" or t == "scoutboss":
-		enemy.enemy_type = "boss"
+		enemy.enemy_type = t
 		enemy.is_boss = true
 		# Дозорный разведконтракта быстрее и ценнее обычного тягача.
 		var scout_mult := 1.25 if t == "scoutboss" else 1.0

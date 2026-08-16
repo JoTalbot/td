@@ -297,6 +297,18 @@ const RESEARCH := {
 		"lab": 3, "runs": 2, "bp": 4,
 		"cost": {"scrap": 200, "metal": 10, "chips": 5},
 	},
+	"alliance_plating": {
+		"name": "Союзная обшивка", "icon": "🤝", "desc": "+10% HP с начала рейса; нужен союзный финал",
+		"lab": 2, "runs": 2, "bp": 3, "ending": "allied", "cost": {"scrap": 160, "metal": 8, "parts": 4},
+	},
+	"mercenary_routes": {
+		"name": "Наёмные маршруты", "icon": "⚖", "desc": "+10% наград за волны; нужен деловой финал",
+		"lab": 2, "runs": 2, "bp": 3, "ending": "mercenary", "cost": {"scrap": 180, "chips": 4, "fuel": 3},
+	},
+	"traitor_ammo": {
+		"name": "Чёрные боеприпасы", "icon": "🗡", "desc": "+12% урона; нужен финал-предательство",
+		"lab": 3, "runs": 3, "bp": 4, "ending": "betrayed", "cost": {"scrap": 220, "ammo": 8, "chips": 5},
+	},
 }
 
 ## Крафт-модули на рейс (расходники). research — какая теха открывает рецепт.
@@ -353,6 +365,7 @@ const TROPHIES := {
 	"copter": {"name": "Автожир", "icon": "🚁", "chance": 0.10, "scrap_price": 35, "salvage": {"metal": 2, "chips": 1, "parts": 2}},
 	"boss":   {"name": "Босс-тягач", "icon": "☠️", "chance": 1.0, "scrap_price": 120, "salvage": {"metal": 8, "chips": 2, "parts": 4}},
 	"ace":    {"name": "Корсар", "icon": "🛩", "chance": 1.0, "scrap_price": 150, "salvage": {"metal": 6, "chips": 3, "parts": 5}},
+	"scoutboss": {"name": "Дозорный-картограф", "icon": "🧭", "chance": 1.0, "scrap_price": 180, "salvage": {"metal": 7, "chips": 4, "parts": 6}},
 	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3, "parts": 6}},
 	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2, "parts": 3}},
 }

@@ -536,6 +536,7 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			pbtn.pressed.connect(func(): _resolve_poi_at(_selected))
 			prow.add_child(pbtn)
 	if is_here:
+		_render_war_campaign(_selected)
 		_render_city_specials(_selected)
 	var achievements_btn := _rusty_button("ДОСТИЖЕНИЯ • %d/%d" % [
 		campaign.achievements.size(), CampaignData.ACHIEVEMENTS.size()], Color(0.82, 0.64, 0.3))
@@ -598,6 +599,26 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	else:
 		var nope := _mk_label(btns, 20, Color(0.6, 0.5, 0.4))
 		nope.text = "Прямой дороги нет — езжай через соседей."
+
+
+func _render_war_campaign(city: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_sheet_body.add_child(row)
+	_status_icon(row, "warning", 42)
+	var label := _mk_label(row, 19, Color(0.9, 0.62, 0.35))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if campaign.war_side == "":
+		label.text = "НЕДЕЛЯ ВОЙНЫ • выберите фракцию поддержки"
+		var support := _rusty_button("ПОДДЕРЖАТЬ", Color(0.88, 0.52, 0.25))
+		support.custom_minimum_size = Vector2(190, 60)
+		support.pressed.connect(func():
+			if campaign.choose_war_side(city):
+				_render_sheet())
+		row.add_child(support)
+	else:
+		label.text = "НЕДЕЛЯ ВОЙНЫ • %s\nОЧКИ %d/25 • ЦЕЛИ 5 / 12 / 25" % [campaign.war_faction_name(), campaign.war_points]
 
 
 func _render_city_specials(city: String) -> void:
@@ -1025,6 +1046,10 @@ func _render_lab(is_here: bool) -> void:
 			parts.append("🔬%dр" % int(d["runs"]))
 			var lab_ok: bool = campaign.research_level_req_met(id)
 			txt.text = "%s%s [лаб.%d] — %s  |  %s" % [rprefix, d["name"], d["lab"], d["desc"], " ".join(parts)]
+			var ending_req := String(d.get("ending", ""))
+			if ending_req != "" and not campaign.research_ending_req_met(id):
+				var ending_names := {"allied": "СОЮЗ", "mercenary": "ПАРТНЁРСТВО", "betrayed": "ПРЕДАТЕЛЬСТВО"}
+				txt.text += "  [НУЖЕН ФИНАЛ: %s]" % ending_names.get(ending_req, ending_req)
 			txt.modulate = Color(1, 1, 1) if lab_ok else Color(1, 1, 1, 0.45)
 			b.text = "Начать"
 			b.disabled = not campaign.can_research(id)
