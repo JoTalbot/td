@@ -14,7 +14,7 @@ var _mouse_dragging := false
 var _manual_timer := 0.0
 
 
-func setup(hull_id: String, mastered_count: int, cosmetics: Dictionary) -> void:
+func setup(hull_id: String, mastered_count: int, cosmetics: Dictionary, paint: String = "rust") -> void:
 	custom_minimum_size = Vector2(640, 230)
 	stretch = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -39,6 +39,7 @@ func setup(hull_id: String, mastered_count: int, cosmetics: Dictionary) -> void:
 	_truck = Truck.new()
 	_truck.hull_id = hull_id
 	_pivot.add_child(_truck)
+	_truck.apply_paint_scheme(paint)
 	_truck.apply_route_cosmetics(mastered_count, cosmetics)
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-50, -35, 0)

@@ -483,6 +483,46 @@ func reapply_upgrades() -> void:
 			apply_upgrade(id)
 
 
+## Фракционная окраска поверх базового ржавого корпуса — лёгкие панели и полосы.
+func apply_paint_scheme(id: String) -> void:
+	var old := get_node_or_null("PaintScheme")
+	if old != null:
+		remove_child(old)
+		old.queue_free()
+	if id == "rust":
+		return
+	var root := Node3D.new()
+	root.name = "PaintScheme"
+	add_child(root)
+	var main_color := Color(0.72, 0.62, 0.42)
+	var accent := Color(0.28, 0.12, 0.07)
+	match id:
+		"bone":
+			main_color = Color(0.78, 0.68, 0.48)
+			accent = Color(0.32, 0.15, 0.08)
+		"copper":
+			main_color = Color(0.68, 0.3, 0.1)
+			accent = Color(0.13, 0.16, 0.16)
+		"war":
+			main_color = Color(0.12, 0.11, 0.1)
+			accent = Color(0.72, 0.12, 0.055)
+	var paint := Junk.metal(main_color, 0.72, 0.5)
+	var stripe := Junk.metal(accent, 0.62, 0.62)
+	# Полоса капота и дверные эмблемы.
+	Junk.box(root, Vector3(0.48, 0.08, 1.9), Vector3(0, 1.45, _cab_z + 1.2), paint)
+	for side in [-1.0, 1.0]:
+		Junk.box(root, Vector3(0.07, 0.62, 0.85), Vector3(side * 1.24, 1.55, _cab_z - 0.55), paint, Vector3(0, 0, side * 4.0))
+		Junk.box(root, Vector3(0.075, 0.16, _bed_len * 0.72), Vector3(side * (_bed_w * 0.52 + 0.02), 1.48, -_bed_len * 0.04), stripe, Vector3(0, 0, side * 2.0))
+	if id == "bone":
+		for x in [-0.55, 0.0, 0.55]:
+			Junk.spike(root, 0.07, 0.42, Vector3(x, 2.7, _cab_z + 0.2))
+	elif id == "copper":
+		for x in [-0.55, 0.55]:
+			Junk.cyl(root, 0.12, 0.09, Vector3(x, 2.55, _cab_z + 0.3), paint)
+	elif id == "war":
+		Junk.box(root, Vector3(1.65, 0.12, 0.06), Vector3(0, 2.2, _cab_z + 0.82), stripe, Vector3(0, 0, -18))
+
+
 ## Косметика мастерства трасс: видимые знаки, костяные трофеи и медная мачта.
 func apply_route_cosmetics(mastered_count: int, enabled: Dictionary = {}) -> void:
 	var old := get_node_or_null("RouteCosmetics")
@@ -592,11 +632,16 @@ func repair_rate() -> float:
 
 func _process(delta: float) -> void:
 	# Колёса крутятся, корпус слегка трясётся, дрон облетает грузовик.
-	for w in _wheels:
-		(w as MeshInstance3D).rotate_object_local(Vector3.UP, delta * 9.0)
 	_shake_phase += delta * 13.0
+	for i in _wheels.size():
+		var wheel := _wheels[i] as MeshInstance3D
+		wheel.rotate_object_local(Vector3.UP, delta * 9.0)
+		if Junk.quality_high:
+			var base_y := float(wheel.get_meta("base_y", wheel.position.y))
+			wheel.position.y = base_y + sin(_shake_phase * 0.75 + i * 1.7) * 0.035
 	position.y = sin(_shake_phase) * 0.035
 	rotation.z = sin(_shake_phase * 0.7) * 0.006
+	rotation.x = sin(_shake_phase * 0.43) * (0.004 if Junk.quality_high else 0.002)
 	if _drone != null:
 		_drone_phase += delta * 1.2
 		_drone.position = Vector3(sin(_drone_phase) * 2.2, 3.4 + sin(_drone_phase * 2.3) * 0.3, cos(_drone_phase) * 4.0)

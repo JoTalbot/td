@@ -968,8 +968,15 @@ func _render_showroom(is_here: bool) -> void:
 		l.text = "Шоурум при базе — загляни домой."
 		return
 	var preview := TruckPreview.new()
-	preview.setup(campaign.hull_current, campaign.mastered_routes.size(), campaign.route_cosmetics)
+	preview.setup(campaign.hull_current, campaign.mastered_routes.size(), campaign.route_cosmetics, campaign.truck_paint)
 	_sheet_body.add_child(preview)
+	var paint_title := _mk_label(_sheet_body, 21, Color(0.82, 0.64, 0.34))
+	paint_title.text = "РАСКРАСКА КОРПУСА"
+	var paint_row := HBoxContainer.new()
+	paint_row.add_theme_constant_override("separation", 8)
+	_sheet_body.add_child(paint_row)
+	for paint in [["rust", "РЖАВЧИНА"], ["bone", "КОСТЬ"], ["copper", "МЕДЬ"], ["war", "ВОЙНА"]]:
+		_add_paint_button(paint_row, String(paint[0]), String(paint[1]))
 	var head := _mk_label(_sheet_body, 20, Color(0.85, 0.78, 0.6))
 	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [
 		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
@@ -1018,6 +1025,21 @@ func _render_showroom(is_here: bool) -> void:
 					hull_changed.emit()
 					_render_sheet())
 		row.add_child(btn)
+
+
+func _add_paint_button(parent: HBoxContainer, id: String, label: String) -> void:
+	var available: bool = id in campaign.available_paints()
+	var selected: bool = campaign.truck_paint == id
+	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНО" if selected else ("ВЫБРАТЬ" if available else "ЗАКРЫТО")],
+		Color(0.72, 0.42, 0.18) if selected else Color(0.46, 0.4, 0.32))
+	button.custom_minimum_size = Vector2(156, 64)
+	button.add_theme_font_size_override("font_size", _font(18))
+	button.disabled = not available or selected
+	button.pressed.connect(func():
+		if campaign.select_truck_paint(id):
+			hull_changed.emit()
+			_render_sheet())
+	parent.add_child(button)
 
 
 func _add_cosmetic_toggle(parent: HBoxContainer, id: String, label: String) -> void:

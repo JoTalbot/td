@@ -85,6 +85,7 @@ static func wheel(parent: Node3D, radius: float, width: float, pos: Vector3) -> 
 	w.mesh = mesh
 	w.rotation_degrees = Vector3(0, 0, 90)
 	w.position = pos
+	w.set_meta("base_y", pos.y)
 	w.material_override = metal(Color(0.08, 0.08, 0.08), 0.95, 0.1)
 	parent.add_child(w)
 	var hub := MeshInstance3D.new()

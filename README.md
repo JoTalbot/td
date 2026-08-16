@@ -4,7 +4,7 @@
 
 ![Godot 4.2](https://img.shields.io/badge/Godot-4.2-478cbf) ![Android](https://img.shields.io/badge/Platform-Android-3ddc84) ![License MIT](https://img.shields.io/badge/License-MIT-yellow)
 
-Стабильная версия: **v2.4.1**. В `main` начата разработка **v2.5.0-alpha.3-dev** — см. [дорожную карту](docs/ROADMAP_2.5.md).
+Стабильная версия: **v2.4.1**. В `main` начата тестирование **v2.5.0-alpha.3** — см. [дорожную карту](docs/ROADMAP_2.5.md).
 
 ## Концепция
 

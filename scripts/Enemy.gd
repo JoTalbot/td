@@ -463,10 +463,15 @@ func _process(delta: float) -> void:
 		_slow_timer -= delta
 		if _slow_timer <= 0.0:
 			_slow_mult = 1.0
-	for w in _wheels:
-		(w as MeshInstance3D).rotate_object_local(Vector3.UP, delta * 12.0)
 	_bob += delta * 11.0
+	for i in _wheels.size():
+		var wheel := _wheels[i] as MeshInstance3D
+		wheel.rotate_object_local(Vector3.UP, delta * 12.0)
+		if Junk.quality_high:
+			var base_y := float(wheel.get_meta("base_y", wheel.position.y))
+			wheel.position.y = base_y + sin(_bob * 0.8 + i * 1.4) * 0.028
 	_body.position.y = sin(_bob) * 0.04
+	_body.rotation.x = sin(_bob * 0.42) * (0.012 if Junk.quality_high else 0.0)
 	# Маркер угона пульсирует, чтобы его заметили в гуще боя
 	if _hook_mark != null:
 		var s := 1.0 + 0.25 * sin(_bob * 0.9)

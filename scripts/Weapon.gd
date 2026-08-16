@@ -254,6 +254,11 @@ func _shoot(target: Node3D) -> void:
 		var muzzle_tween := create_tween()
 		muzzle_tween.tween_property(_muzzle_flash, "scale", Vector3.ONE * 1.8, 0.045)
 		muzzle_tween.tween_callback(func(): if _muzzle_flash != null: _muzzle_flash.visible = false)
+	if Junk.quality_high:
+		var recoil := 0.08 if _def()["kind"] in ["bullet", "flame", "zap"] else 0.22
+		var recoil_tween := create_tween()
+		recoil_tween.tween_property(_turret, "position:z", -recoil, 0.045)
+		recoil_tween.tween_property(_turret, "position:z", 0.0, 0.16).set_trans(Tween.TRANS_BACK)
 	# Процедурный звук выстрела по виду снаряда
 	if state != null and state.sfx != null:
 		var kind_sound := {"bullet": "shot", "flame": "flame", "harpoon": "harpoon", "shell": "cannon", "mortar": "mortar", "zap": "zap"}

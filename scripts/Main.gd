@@ -21,6 +21,7 @@ const MapScreen := preload("res://scripts/MapScreen.gd")
 const Tutorial := preload("res://scripts/Tutorial.gd")
 const UserSettings := preload("res://scripts/UserSettings.gd")
 const Junk := preload("res://scripts/Junk.gd")
+const WeatherFX := preload("res://scripts/WeatherFX.gd")
 
 var truck: Truck
 var wasteland: Wasteland
@@ -36,6 +37,7 @@ var meta: MetaProgress
 var campaign: Campaign
 var map_screen: MapScreen
 var user_settings: UserSettings
+var weather: WeatherFX
 var world_env: Environment
 var _earned_blueprints := 0
 ## Рейс идёт (тапы по сцене работают только в бою)
@@ -99,6 +101,11 @@ func _ready() -> void:
 	truck = Truck.new()
 	truck.name = "Truck"
 	add_child(truck)
+
+	weather = WeatherFX.new()
+	weather.name = "WeatherFX"
+	add_child(weather)
+	weather.setup(world_env, truck)
 
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
@@ -173,6 +180,7 @@ func _ready() -> void:
 
 	waves.boss_event.connect(hud.flash_message)
 	events.announced.connect(hud.flash_message)
+	weather.announced.connect(hud.flash_message)
 	events.encounter.connect(hud.show_encounter)
 	hud.meta_upgrade_pressed.connect(_on_meta_upgrade)
 	state.game_over.connect(_on_game_over)
@@ -181,7 +189,7 @@ func _ready() -> void:
 	state.weapon_jam_requested.connect(_on_weapon_jam_requested)
 	# Звуковая полировка: горн волны, рык босса
 	waves.wave_started.connect(func(_i): sfx.play("horn", 0.7))
-	waves.boss_event.connect(func(_t): sfx.play("boss", 0.85); camera_rig.add_trauma(0.3))
+	waves.boss_event.connect(_on_boss_event_fx)
 	hud.sfx = sfx
 	map_screen.sfx = sfx
 	tutorial.setup(self, hud, state, waves, truck, meta)
@@ -231,6 +239,7 @@ func _on_travel(city_id: String) -> void:
 	map_screen.hide_screen()
 	hud.visible = true
 	battle_active = true
+	weather.set_active(true)
 	hud.flash_message("🚚 Рейс: %s → %s" % [
 		CampaignData.CITIES[campaign.location]["name"],
 		CampaignData.CITIES[city_id]["name"]])
@@ -308,6 +317,7 @@ func _spawn_escort_if_needed(city_id: String) -> void:
 
 ## Постоянные техи и staged-модули применяются один раз на старте рейса.
 func _apply_campaign_effects() -> void:
+	truck.apply_paint_scheme(campaign.truck_paint)
 	truck.apply_route_cosmetics(campaign.mastered_routes.size(), campaign.route_cosmetics)
 	if "plating" in campaign.research_done:
 		state.add_max_hp(40)
@@ -425,6 +435,9 @@ func _mount_legendary(item: String) -> void:
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
 func _on_run_completed() -> void:
 	battle_active = false
+	weather.set_active(false)
+	if Junk.quality_high:
+		camera_rig.cinematic_focus(truck, truck, 1.4)
 	tutorial.notify("arrival")
 	# Эскорт решается ДО arrive: фургон жив — фракция платит щедро
 	var escort_pay := 0
@@ -490,6 +503,7 @@ func _on_enemy_killed(type: String) -> void:
 ## Вызывать на свежей сцене (до монтировки орудий) или из шоурума на карте.
 func _apply_hull() -> void:
 	truck.set_hull(campaign.hull_current)
+	truck.apply_paint_scheme(campaign.truck_paint)
 	truck.apply_route_cosmetics(campaign.mastered_routes.size(), campaign.route_cosmetics)
 	var base := state.START_HP + meta.bonus_start_hp()
 	var hull_mult := float(CampaignData.HULLS.get(campaign.hull_current, {}).get("hp_mult", 1.0))
@@ -518,6 +532,7 @@ func _on_weapon_jam_requested() -> void:
 ## Конец рейса смертью фуры: чертежи капают, груз в трюме пополам.
 func _on_game_over() -> void:
 	battle_active = false
+	weather.set_active(false)
 	tutorial.notify("gameover")
 	sfx.play("big_boom", 1.0)
 	camera_rig.add_trauma(1.0)
@@ -532,6 +547,30 @@ func _on_meta_upgrade(id: String) -> void:
 	else:
 		hud.flash_message("Мало чертежей!")
 	hud.refresh_meta_panel()
+
+
+func _on_boss_event_fx(text: String) -> void:
+	sfx.play("boss", 0.85)
+	camera_rig.add_trauma(0.3)
+	var intro := "горизонте" in text or "КОРСАР в" in text or "ВОЕННЫЙ ПОЕЗД" in text \
+		or "перекрыл путь" in text or "КОМАНДИР ФРАКЦИИ" in text
+	if intro and Junk.quality_high:
+		_queue_boss_cinematic()
+
+
+func _queue_boss_cinematic() -> void:
+	var timer := create_tween()
+	timer.tween_interval(0.9)
+	timer.tween_callback(func():
+		if not battle_active:
+			return
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			if not is_instance_valid(enemy):
+				continue
+			var boss_like: bool = ("is_boss" in enemy and enemy.is_boss) or ("is_ace" in enemy and enemy.is_ace)
+			if boss_like and not enemy.is_dying:
+				camera_rig.cinematic_focus(enemy, truck, 2.1)
+				break)
 
 
 func _configure_environment_quality() -> void:

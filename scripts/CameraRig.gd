@@ -13,6 +13,9 @@ var _last_pinch_dist := 0.0
 var _gesturing := false
 var _trauma := 0.0           # тряска камеры: 0..1, затухает сама
 var trauma_scale := 1.0      # пользовательская интенсивность 0..1
+var _cinematic_target: Node3D = null
+var _cinematic_return: Node3D = null
+var _cinematic_timer := 0.0
 
 
 ## Встряхнуть камеру (таран, взрыв босса). Сила ~0.15..0.8.
@@ -39,8 +42,31 @@ func is_gesturing() -> bool:
 	return _gesturing
 
 
+## Короткий кинематографический пролёт к боссу с возвратом на фуру.
+func cinematic_focus(target: Node3D, return_target: Node3D, duration: float = 2.2) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	_cinematic_target = target
+	_cinematic_return = return_target
+	_cinematic_timer = duration
+	var tween := create_tween()
+	tween.tween_property(camera, "fov", 47.0, 0.35)
+	tween.tween_interval(maxf(duration - 0.8, 0.2))
+	tween.tween_property(camera, "fov", 60.0, 0.45)
+
+
 ## Тряска: оффсеты дрожат пропорционально квадрату trauma, затухают плавно.
 func _process(delta: float) -> void:
+	if _cinematic_timer > 0.0:
+		_cinematic_timer -= delta
+		if _cinematic_target != null and is_instance_valid(_cinematic_target):
+			_pivot.position = _pivot.position.lerp(_cinematic_target.global_position + Vector3.UP * 1.2, minf(delta * 3.5, 1.0))
+			_update_transform()
+		if _cinematic_timer <= 0.0:
+			if _cinematic_return != null and is_instance_valid(_cinematic_return):
+				_pivot.position = _cinematic_return.global_position + Vector3.UP
+				_update_transform()
+			_cinematic_target = null
 	_trauma = maxf(_trauma - delta * 1.8, 0.0)
 	if _trauma > 0.0:
 		var p := _trauma * _trauma
@@ -59,6 +85,8 @@ func _update_transform() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _cinematic_timer > 0.0:
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_touches[event.index] = event.position

@@ -38,6 +38,7 @@ var visited_routes: Array = []       # ключи именованных тра�
 var route_mastery: Dictionary = {}  # route_key -> число успешных прохождений
 var mastered_routes: Array = []     # награда за уровень 3 уже выдана
 var route_cosmetics: Dictionary = {"signs": true, "horns": true, "mast": true, "badge": true}
+var truck_paint := "rust"
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
 var route_control_age: Dictionary = {} # route_key -> дней непрерывного контроля
 var war_log: Array = []              # последние захваты дорог
@@ -98,6 +99,7 @@ func load_campaign() -> void:
 	route_mastery = data.get("route_mastery", {})
 	mastered_routes = data.get("mastered_routes", [])
 	route_cosmetics = data.get("route_cosmetics", {"signs": true, "horns": true, "mast": true, "badge": true})
+	truck_paint = String(data.get("truck_paint", "rust"))
 	route_control = data.get("route_control", {})
 	route_control_age = data.get("route_control_age", {})
 	war_log = data.get("war_log", [])
@@ -158,6 +160,7 @@ func save_campaign() -> void:
 		"route_mastery": route_mastery,
 		"mastered_routes": mastered_routes,
 		"route_cosmetics": route_cosmetics,
+		"truck_paint": truck_paint,
 		"route_control": route_control,
 		"route_control_age": route_control_age,
 		"war_log": war_log,
@@ -225,6 +228,25 @@ func toggle_route_cosmetic(id: String) -> bool:
 	if not cosmetic_unlocked(id):
 		return false
 	route_cosmetics[id] = not bool(route_cosmetics.get(id, true))
+	save_campaign()
+	return true
+
+
+func available_paints() -> Array[String]:
+	var out: Array[String] = ["rust"]
+	if story_ending("bonewall") in ["allied", "mercenary"]:
+		out.append("bone")
+	if story_ending("copperpit") in ["allied", "mercenary"]:
+		out.append("copper")
+	if mastered_routes.size() >= 3:
+		out.append("war")
+	return out
+
+
+func select_truck_paint(id: String) -> bool:
+	if id not in available_paints():
+		return false
+	truck_paint = id
 	save_campaign()
 	return true
 
