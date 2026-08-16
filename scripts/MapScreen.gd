@@ -168,9 +168,15 @@ func _build_map() -> void:
 	_sheet.add_child(col)
 	_sheet_title = _mk_label(col, 20, ACCENT)
 	_sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Лист может быть длинным (ангар, лаборатория) — крутим вертикально
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
 	_sheet_body = VBoxContainer.new()
+	_sheet_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sheet_body.add_theme_constant_override("separation", 6)
-	col.add_child(_sheet_body)
+	scroll.add_child(_sheet_body)
 
 
 func _redraw_map() -> void:
@@ -558,7 +564,7 @@ func _render_lab(is_here: bool) -> void:
 		txt.custom_minimum_size = Vector2(440, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.7, 0.8, 0.5))
-		b.custom_minimum_size = Vector2(110, 38)
+		b.custom_minimum_size = Vector2(110, 44)
 		if id in campaign.research_done:
 			txt.text = "%s %s ✅ — %s" % [d["icon"], d["name"], d["desc"]]
 			b.visible = false
@@ -596,7 +602,7 @@ func _render_lab(is_here: bool) -> void:
 		txt.custom_minimum_size = Vector2(440, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.85, 0.7, 0.4))
-		b.custom_minimum_size = Vector2(110, 38)
+		b.custom_minimum_size = Vector2(110, 44)
 		txt.text = "%s %s ×%d — %s" % [d["icon"], d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
 		var req: String = d.get("research", "")
 		if req != "" and req not in campaign.research_done:
@@ -622,7 +628,7 @@ func _render_lab(is_here: bool) -> void:
 		if int(campaign.inventory.get(id, 0)) > 0:
 			var taken: bool = campaign.pending.has(id)
 			var st := _rusty_button("В рейс" if not taken else "✅ взят", Color(0.9, 0.55, 0.25))
-			st.custom_minimum_size = Vector2(90, 38)
+			st.custom_minimum_size = Vector2(90, 44)
 			st.disabled = taken
 			var sid: String = id
 			st.pressed.connect(func(): campaign.stage_item(sid); _render_sheet())
