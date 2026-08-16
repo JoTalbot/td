@@ -181,6 +181,11 @@ func _on_travel(city_id: String) -> void:
 	_destination = city_id
 	waves.run_length = 4 + int(route[0]) * 2
 	waves.danger = float(route[1])
+	# Первые выезды на голой багги — учебный профиль: короче и мягче
+	var noob := campaign.runs_finished < 2 and campaign.hull_current == "buggy"
+	if noob:
+		waves.run_length = mini(waves.run_length, 3)
+		waves.danger = minf(waves.danger, 0.7)
 	_run_loot.clear()
 	_run_trophies.clear()
 	_boarded_pending.clear()
@@ -211,7 +216,12 @@ func _on_travel(city_id: String) -> void:
 		pw.slot_index = 0
 		truck.mount_weapon(0, pw)
 		pw.set_meta("free_start", true)
-		hud.flash_message("🔧 Штатный пулемёт с базы на борту — больше стволов пока нет!")
+		if noob:
+			# «Бабушкин пулемёт»: механик базы подтянул ствол до 2-го уровня
+			pw.upgrade()
+			hud.flash_message("🔧 Штатный пулемёт, подтянутый механиком базы — держись за него!")
+		else:
+			hud.flash_message("🔧 Штатный пулемёт с базы на борту — больше стволов пока нет!")
 	tutorial.notify("travel")
 	waves.start()
 

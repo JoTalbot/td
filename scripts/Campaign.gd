@@ -16,6 +16,7 @@ var day_seed := 0                  # настоящая дата — дневн�
 var contracts: Array = []          # активные контракты
 var offers: Dictionary = {}        # city -> контракты на доске
 var kills_total := 0
+var runs_finished := 0            # завершённые рейсы (для облегчения первых выездов)
 var buildings: Dictionary = {}     # bld_id -> level
 var research_done: Array = []      # завершённые техи
 var research_active := ""          # текущее исследование (id), "" — свободно
@@ -54,6 +55,7 @@ func load_campaign() -> void:
 	contracts = data.get("contracts", [])
 	offers = data.get("offers", {})
 	kills_total = int(data.get("kills_total", 0))
+	runs_finished = int(data.get("runs_finished", 0))
 	buildings = data.get("buildings", {})
 	research_done = data.get("research_done", [])
 	research_active = data.get("research_active", "")
@@ -89,6 +91,7 @@ func save_campaign() -> void:
 		"contracts": contracts,
 		"offers": offers,
 		"kills_total": kills_total,
+		"runs_finished": runs_finished,
 		"buildings": buildings,
 		"research_done": research_done,
 		"research_active": research_active,
@@ -686,6 +689,7 @@ func resolve_poi(city: String) -> Dictionary:
 func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary = {}) -> Dictionary:
 	location = city
 	day += 1
+	runs_finished += 1
 	wallet += run_scrap
 	var loot_in := {}
 	var scrap_fallback := 0
@@ -754,6 +758,7 @@ func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary
 
 ## Рейс провален: груз пополам, лом рейса сгорел.
 func fail_run() -> void:
+	runs_finished += 1
 	day += 1
 	for res in cargo.keys():
 		var loss := int(ceil(int(cargo[res]) * 0.5))
