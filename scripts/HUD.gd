@@ -638,6 +638,10 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 	title.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
+	# Арт-баннер: ворота города на закате
+	var art_path := "res://assets/ui/art_arrival.jpg"
+	if ResourceLoader.exists(art_path):
+		col.add_child(_art_banner(art_path))
 	var scrap_l := Label.new()
 	scrap_l.text = "⚙ Лом рейса: +%d" % int(summary.get("scrap", 0))
 	scrap_l.add_theme_font_size_override("font_size", 18)
@@ -745,9 +749,28 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 	panel.visible = true
 
 
+## Арт-баннер для модалок (assets/ui/art_*.jpg), не перехватывает ввод.
+func _art_banner(path: String) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture = load(path)
+	tr.custom_minimum_size = Vector2(520, 200)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
+
+
 func show_game_over(wave: int, earned: int = 0) -> void:
 	var subtitle := _game_over_panel.find_child("Subtitle", true, false) as Label
 	subtitle.text = "Вы отбились от %d волн рейдеров" % wave
+	# Арт-баннер: сгоревшая фура в пустоши (вставляется один раз, после подзаголовка)
+	var art_path := "res://assets/ui/art_gameover.jpg"
+	var gocol := _game_over_panel.find_child("Col", true, false)
+	if ResourceLoader.exists(art_path) and gocol.find_child("ArtBanner", false, false) == null:
+		var banner := _art_banner(art_path)
+		banner.name = "ArtBanner"
+		gocol.add_child(banner)
+		gocol.move_child(banner, subtitle.get_index() + 1)
 	_earned_label.text = "+ 📐 %d чертежей добыто из руин" % earned
 	# Рекорд волн — живёт в мета-сейве между сессиями
 	var record_label := _game_over_panel.find_child("Record", true, false) as Label

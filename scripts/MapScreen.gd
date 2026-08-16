@@ -157,6 +157,14 @@ func _build_map() -> void:
 		var btn := _rusty_button("%s\n%s" % [c["icon"], c["name"]], ACCENT)
 		btn.custom_minimum_size = Vector2(150, 62)
 		btn.add_theme_font_size_override("font_size", 15)
+		# Нарисованная эмблема города над именем
+		var cicon: String = "res://assets/ui/c_%s.png" % id
+		if ResourceLoader.exists(cicon):
+			btn.icon = load(cicon)
+			btn.add_theme_constant_override("icon_max_width", 38)
+			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+			btn.text = String(c["name"])
 		btn.position = c["pos"] * area_size - Vector2(75, 31)
 		btn.pressed.connect(func(): _select(id))
 		_map_area.add_child(btn)
@@ -199,7 +207,11 @@ func _redraw_map() -> void:
 			mark = " 📍"
 		if not campaign.poi_at(id).is_empty():
 			mark += " ❓"
-		btn.text = "%s\n%s%s" % [c["icon"], c["name"], mark]
+		# С нарисованной эмблемой эмодзи города не нужен
+		if btn.icon != null:
+			btn.text = "%s%s" % [c["name"], mark]
+		else:
+			btn.text = "%s\n%s%s" % [c["icon"], c["name"], mark]
 	_map_area.queue_redraw()
 
 
