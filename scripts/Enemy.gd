@@ -34,6 +34,11 @@ var ally: Node3D = null      # эскорт-фургон: если задан и
 var sab := false
 var _sab_done := false
 
+## Абордаж: добитую (HP < 30%) лёгкую тачку игрок может угнать тапом — целиком в ангар.
+const BOARDABLE := ["buggy", "biker", "ram", "traincar"]
+var hook_attempted := false        # один бросок крюка на тачку
+var _hook_mark: MeshInstance3D = null
+
 ## Позиция "пристройки" рядом с грузовиком (смещение от его центра).
 var attack_offset := Vector3(4.0, 0, -2.0)
 
@@ -210,6 +215,72 @@ func take_damage(amount: int, p_state: Node) -> void:
 		_die(p_state)
 	elif is_boss:
 		_update_boss_phase(ratio)
+	else:
+		_check_hook_mark()
+
+
+## --- Абордаж ---
+
+## Тачку можно угнать: тип лёгкий, живая, жестоко бита, крюк ещё не бросали.
+func boardable() -> bool:
+	return (not is_dying) and (not hook_attempted) and enemy_type in BOARDABLE \
+		and hp > 0 and float(hp) / float(max_hp) < 0.3
+
+
+## Мигающий янтарный ромбик над добитой тачкой: «жми — угоняй!»
+func _check_hook_mark() -> void:
+	if boardable() and _hook_mark == null:
+		_hook_mark = MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.55, 0.55)
+		_hook_mark.mesh = q
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(1.0, 0.62, 0.15)
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_hook_mark.material_override = m
+		_hook_mark.position.y = 2.9 if is_boss else 2.2
+		add_child(_hook_mark)
+
+
+func _drop_hook_mark() -> void:
+	if _hook_mark != null:
+		_hook_mark.queue_free()
+		_hook_mark = null
+
+
+## Крюк впился: тачку тянет назад по тросу (те же тормоза, что у гарпуна).
+func apply_hook() -> void:
+	_slow_mult = 0.35
+	_slow_timer = 2.5
+
+
+## Крюк сорвался: рейдер озверел — бьёт больнее и чаще.
+func enrage() -> void:
+	attack_damage = int(ceil(attack_damage * 1.4))
+	attack_interval = maxf(attack_interval * 0.8, 0.6)
+	chase_speed *= 1.15
+	_drop_hook_mark()
+
+
+## Удачный угон: трос поддёрнул тачку и унёс с трассы — без взрыва и без лома,
+## награда — целый трофей в ангаре. Смерть учитываем (волна/контракты).
+func capture() -> void:
+	if is_dying:
+		return
+	is_dying = true
+	_drop_hook_mark()
+	died.emit(0)
+	var dir := signf(global_position.x)
+	if dir == 0.0:
+		dir = 1.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(self, "position:z", position.z - 24.0, 0.9).set_ease(Tween.EASE_IN)
+	tw.tween_property(self, "position:y", position.y + 3.0, 0.9).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "position:x", position.x + dir * 4.0, 0.9)
+	tw.tween_property(_body, "rotation:y", dir * 0.9, 0.9)
+	tw.chain().tween_callback(queue_free)
 
 
 ## Смена фаз по порогам HP: 70% — ярость, 40% — отчаяние.
@@ -279,6 +350,10 @@ func _process(delta: float) -> void:
 		(w as MeshInstance3D).rotate_object_local(Vector3.UP, delta * 12.0)
 	_bob += delta * 11.0
 	_body.position.y = sin(_bob) * 0.04
+	# Маркер угона пульсирует, чтобы его заметили в гуще боя
+	if _hook_mark != null:
+		var s := 1.0 + 0.25 * sin(_bob * 0.9)
+		_hook_mark.scale = Vector3(s, s, s)
 
 	# Цель: союзный фургон, если метим в него, иначе фура
 	var anchor: Node3D = truck

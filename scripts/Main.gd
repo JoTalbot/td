@@ -42,6 +42,11 @@ var _destination := ""
 ## Лут, набранный в рейсе (в трюм попадёт по прибытии)
 var _run_loot: Dictionary = {}
 var _run_trophies: Dictionary = {}
+## Абордаж: шанс удачного броска крюка (вынесен в var — смок-тесты ставят 0/1).
+var board_chance := 0.65
+## Тачки, угнанные в этом рейсе по типам — чтоб случайный захват не сработал дважды.
+var _boarded_pending: Dictionary = {}
+var _boarding_hint_shown := false
 ## Ремкомплект из крафта: раз за рейс автопочинка при HP < 25%
 var _repair_kit_ready := false
 var _ally: Node3D = null          # действующий эскорт-фургон (null — не нанимали)
@@ -175,6 +180,8 @@ func _on_travel(city_id: String) -> void:
 	waves.danger = float(route[1])
 	_run_loot.clear()
 	_run_trophies.clear()
+	_boarded_pending.clear()
+	_boarding_hint_shown = false
 	events._encounters_done = 0   # встречи на трассе — заново каждый рейс
 	map_screen.hide_screen()
 	hud.visible = true
@@ -352,9 +359,12 @@ func _on_enemy_killed(type: String) -> void:
 		camera_rig.add_trauma(0.5)
 	else:
 		sfx.play("explosion", 0.45, randf_range(0.9, 1.15))
-	# Угон: целая тачка выхвачена из-под обломков — в ангар по прибытии
+	# Угон: целая тачка выхвачена из-под обломков — в ангар по прибытии.
+	# Абордаж уже зачёл свой трофей принудительно — не крутим шанс дважды.
 	var tpl: Dictionary = CampaignData.TROPHIES.get(type, {})
-	if not tpl.is_empty() and randf() < float(tpl["chance"]):
+	if int(_boarded_pending.get(type, 0)) > 0:
+		_boarded_pending[type] = int(_boarded_pending[type]) - 1
+	elif not tpl.is_empty() and randf() < float(tpl["chance"]):
 		_run_trophies[type] = int(_run_trophies.get(type, 0)) + 1
 		hud.flash_message("🛻 Захвачен трофей: %s %s!" % [tpl["icon"], tpl["name"]])
 		sfx.play("earn", 0.8)
@@ -502,7 +512,50 @@ func _handle_tap(screen_pos: Vector2) -> void:
 		# Новичок тапает слот, не выбрав орудие — подсказываем порядок действий
 		hud.flash_message("⬇ Сначала выберите орудие на панели снизу!")
 		return
+	# Абордаж: тап по обочине рядом с добитой тачкой — бросок крюка
+	if _try_board_at(screen_pos):
+		return
 	_deselect_weapon()
+
+
+## Тап по дороге (не по слотам фуры): находим ближайшую годную к угону тачку.
+func _try_board_at(screen_pos: Vector2) -> bool:
+	if state.is_game_over or not waves.active:
+		return false
+	var cam := camera_rig.camera
+	var best: Node3D = null
+	var best_d := 110.0   # px — щедрая мишень под палец
+	for e: Node in get_tree().get_nodes_in_group("enemies"):
+		if not ("boardable" in e) or not e.boardable():
+			continue
+		if cam.is_position_behind(e.global_position):
+			continue
+		var sp: Vector2 = cam.unproject_position(e.global_position + Vector3(0, 1.2, 0))
+		var d: float = sp.distance_to(screen_pos)
+		if d < best_d:
+			best_d = d
+			best = e
+	if best == null:
+		return false
+	_attempt_board(best)
+	return true
+
+
+## Бросок крюка: успех — тачка целиком в ангар, провал — рейдер озверевает.
+func _attempt_board(e: Node3D) -> void:
+	e.hook_attempted = true
+	e.apply_hook()
+	var tpl: Dictionary = CampaignData.TROPHIES.get(e.enemy_type, {})
+	if randf() < board_chance:
+		_run_trophies[e.enemy_type] = int(_run_trophies.get(e.enemy_type, 0)) + 1
+		_boarded_pending[e.enemy_type] = int(_boarded_pending.get(e.enemy_type, 0)) + 1
+		hud.flash_message("⚓ УГНАЛИ: %s %s — целёхонькая, в ангар!" % [tpl.get("icon", "🛻"), tpl.get("name", e.enemy_type)])
+		sfx.play("earn", 0.8)
+		e.capture()
+	else:
+		e.enrage()
+		hud.flash_message("⚓ Крюк сорвался! %s озверела!" % tpl.get("name", "Тачка"))
+		sfx.play("jam", 0.6)
 
 
 func _try_mount(slot: int) -> void:
@@ -602,6 +655,14 @@ func _process(delta: float) -> void:
 		var mech_rate := meta.mechanic_rate()
 		if mech_rate > 0.0:
 			state.heal(mech_rate * delta)
+	# Первый угонимый раз в жизни: подсказываем про абордаж один раз на игрока
+	if battle_active and not _boarding_hint_shown and not meta.tutorial_seen("boarding"):
+		for e: Node in get_tree().get_nodes_in_group("enemies"):
+			if "boardable" in e and e.boardable():
+				_boarding_hint_shown = true
+				meta.mark_tutorial("boarding")
+				hud.flash_message("⚓ Тачка при смерти — ЖМИ на неё и УГОНЯЙ в ангар!")
+				break
 
 
 ## Урон по фуре: тряска камеры пропорциональна влётушему урону.
