@@ -51,7 +51,7 @@
 | `scripts/GameState.gd` | Металлолом, HP фуры (max_hp растёт от брони), ремонт дробным накоплением; `reward_mult` (мета), `weapon_range_mult` (события), неуязвимость (щит) |
 | `scripts/MetaProgress.gd` | Мета-прогрессия: чертежи с рейсов, 4 постоянных улучшения × 3 уровня, сейв JSON в `user://meta_progress.save` |
 | `scripts/CampaignData.gd` | Данные кампании: 5 городов пустоши, 6 ресурсов, дороги (расстояние/опасность), шаблоны контрактов, здания базы, техи RESEARCH, рецепты RECIPES |
-| `scripts/Campaign.gd` | Состояние кампании: кошелёк, трюм (вместимость), цены с дневным джиттером, контракты, находки дня (`poi_at()/resolve_poi()`), `arrive()/fail_run()`; сейв `user://campaign.save` |
+| `scripts/Campaign.gd` | Состояние кампании: кошелёк, трюм, контракты, туман войны (`discovered_cities`), услуги городов, сюжет фракций, находки дня, `arrive()/fail_run()`; сейв `user://campaign.save` |
 | `scripts/MapScreen.gd` | Экран карты (CanvasLayer поверх боя): холст дорог, кнопки городов, рынок (купить/продать), доска контрактов; сигнал `travel_requested` в Main |
 | `scripts/HUD.gd` | UI кодом: верх (лом, HP-бар, волна), арсенал, ГАРАЖ (апгрейды фуры), панель орудия, game over |
 

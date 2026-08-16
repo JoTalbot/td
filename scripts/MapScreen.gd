@@ -591,7 +591,8 @@ func _render_city_specials(city: String) -> void:
 		var service_text := _mk_label(service_row, 19, Color(0.82, 0.88, 0.58))
 		service_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		service_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		service_text.text = "УСЛУГА • %s\n%s" % [service["name"], service["desc"]]
+		service_text.text = "УСЛУГА • %s\n%s\nНУЖНО: %s" % [
+			service["name"], service["desc"], _cost_text(service["needs"])]
 		var buy_service := _rusty_button("ЗАКАЗАТЬ • %d ЛОМА" % int(service["scrap"]), Color(0.72, 0.82, 0.48))
 		buy_service.custom_minimum_size = Vector2(230, 64)
 		buy_service.disabled = not campaign.can_buy_city_service(city)
@@ -606,8 +607,8 @@ func _render_city_specials(city: String) -> void:
 		if stage.is_empty():
 			story_label.text = "ИСТОРИЯ ФРАКЦИИ • ЦЕПОЧКА ЗАВЕРШЕНА"
 			return
-		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s" % [
-			stage["title"], stage["text"], _cost_text(stage["needs"])]
+		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s\nНАГРАДА: %s" % [
+			stage["title"], stage["text"], _cost_text(stage["needs"]), _reward_text(stage["reward"])]
 		story_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var story_btn := _rusty_button("ПЕРЕДАТЬ И ПРОДОЛЖИТЬ", Color(0.9, 0.58, 0.28))
 		story_btn.custom_minimum_size = Vector2(0, 62)
@@ -629,6 +630,15 @@ func _cost_text(cost: Dictionary) -> String:
 		else:
 			name = String(CampaignData.RESOURCES.get(name, {}).get("name", name))
 		parts.append("%s ×%d" % [name, int(cost[key])])
+	return ", ".join(parts)
+
+
+func _reward_text(reward: Dictionary) -> String:
+	var parts: Array[String] = []
+	for key in reward:
+		var names := {"rep": "репутация", "scrap": "лом", "bp": "чертежи"}
+		var name := String(names.get(key, CampaignData.RESOURCES.get(key, {}).get("name", key)))
+		parts.append("%s +%d" % [name, int(reward[key])])
 	return ", ".join(parts)
 
 

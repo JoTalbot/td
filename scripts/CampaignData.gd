@@ -159,7 +159,7 @@ const ROUTES := [
 ## modifier применяется в Main на весь рейс.
 const ROUTE_META := {
 	"bartertown|citadel": {"name": "Старый караванный тракт", "desc": "Торговцы платят за охрану дороги.", "modifier": "reward", "value": 1.12},
-	"citadel|bonewall": {"name": "Костяная гряда", "desc": "Белая пыль укрепляет костяную обшивку.", "modifier": "armor", "value": 0.15},
+	"bonewall|citadel": {"name": "Костяная гряда", "desc": "Белая пыль укрепляет костяную обшивку.", "modifier": "armor", "value": 0.15},
 	"bartertown|copperpit": {"name": "Медный разлом", "desc": "В отвалах часто попадаются полезные детали.", "modifier": "loot", "value": 0.12},
 	"copperpit|rusthaven": {"name": "Шахтёрский караван", "desc": "Богатый конвой повышает награду.", "modifier": "reward", "value": 1.20},
 	"rusthaven|salttown": {"name": "Берег мёртвых судов", "desc": "Соляная мгла режет дальность орудий.", "modifier": "range", "value": 0.85},
