@@ -17,6 +17,7 @@ const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const RustButton := preload("res://scripts/RustButton.gd")
 const RustHeader := preload("res://scripts/RustHeader.gd")
+const SafeArea := preload("res://scripts/SafeArea.gd")
 
 var state: Node
 var waves: Node
@@ -52,6 +53,7 @@ var _pause_sound: Label
 var _pause_vibration: Button
 var _pause_shake: Button
 var _pause_effects: Button
+var _safe_insets := Vector4.ZERO
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
 const BORDER := Color(0.55, 0.4, 0.2)
@@ -62,6 +64,7 @@ const TEXT_DIM := Color(0.85, 0.78, 0.65)
 func _ready() -> void:
 	# Меню паузы должно принимать нажатия при остановленном дереве сцены.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_safe_insets = SafeArea.insets(get_viewport().get_visible_rect().size)
 	_build_top_bar()
 	_build_bottom_bar()
 	_build_weapon_panel()
@@ -156,9 +159,9 @@ func _build_top_bar() -> void:
 	panel.add_theme_stylebox_override("panel", _styled_panel())
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -350
-	panel.offset_right = 350
-	panel.offset_top = 8
+	panel.offset_left = -350 + _safe_insets.x
+	panel.offset_right = 350 - _safe_insets.z
+	panel.offset_top = 8 + _safe_insets.y
 	add_child(panel)
 
 	var row := HBoxContainer.new()
@@ -220,12 +223,12 @@ func _build_bottom_bar() -> void:
 	panel.anchor_bottom = 1.0
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -356
-	panel.offset_right = 356
+	panel.offset_left = -356 + _safe_insets.x
+	panel.offset_right = 356 - _safe_insets.z
 	# Иконки и крупная цена требуют 137 px; резервируем высоту вверх,
 	# чтобы панель не вылезала ниже портретного экрана.
-	panel.offset_top = -151
-	panel.offset_bottom = -12
+	panel.offset_top = -151 - _safe_insets.w
+	panel.offset_bottom = -12 - _safe_insets.w
 	add_child(panel)
 
 	var row := HBoxContainer.new()
@@ -268,8 +271,8 @@ func _build_ability_bar() -> void:
 	_ability_panel.anchor_right = 0.0
 	_ability_panel.anchor_top = 0.5
 	_ability_panel.anchor_bottom = 0.5
-	_ability_panel.offset_left = 10
-	_ability_panel.offset_right = 184
+	_ability_panel.offset_left = 10 + _safe_insets.x
+	_ability_panel.offset_right = 184 + _safe_insets.x
 	_ability_panel.offset_top = -205
 	_ability_panel.offset_bottom = 205
 	add_child(_ability_panel)
@@ -319,8 +322,8 @@ func _build_garage() -> void:
 	_garage_panel.anchor_bottom = 1.0
 	_garage_panel.offset_left = -340
 	_garage_panel.offset_right = 340
-	_garage_panel.offset_top = -470
-	_garage_panel.offset_bottom = -112
+	_garage_panel.offset_top = -470 - _safe_insets.w
+	_garage_panel.offset_bottom = -112 - _safe_insets.w
 	_garage_panel.visible = false
 	add_child(_garage_panel)
 
@@ -361,6 +364,9 @@ func _toggle_garage() -> void:
 	_garage_panel.visible = not _garage_panel.visible
 	if _garage_panel.visible:
 		refresh_truck_panel()
+		_garage_panel.modulate.a = 0.2
+		var reveal := create_tween()
+		reveal.tween_property(_garage_panel, "modulate:a", 1.0, 0.16)
 
 
 func _build_weapon_panel() -> void:
@@ -370,8 +376,8 @@ func _build_weapon_panel() -> void:
 	_weapon_panel.anchor_right = 1.0
 	_weapon_panel.anchor_top = 0.5
 	_weapon_panel.anchor_bottom = 0.5
-	_weapon_panel.offset_left = -300
-	_weapon_panel.offset_right = -10
+	_weapon_panel.offset_left = -300 - _safe_insets.z
+	_weapon_panel.offset_right = -10 - _safe_insets.z
 	_weapon_panel.offset_top = -160
 	_weapon_panel.offset_bottom = 160
 	_weapon_panel.visible = false
@@ -427,8 +433,8 @@ func _build_encounter() -> void:
 	_encounter_panel.anchor_right = 1.0
 	_encounter_panel.anchor_top = 0.17
 	_encounter_panel.anchor_bottom = 0.17
-	_encounter_panel.offset_left = -360
-	_encounter_panel.offset_right = -10
+	_encounter_panel.offset_left = -360 - _safe_insets.z
+	_encounter_panel.offset_right = -10 - _safe_insets.z
 	_encounter_panel.offset_top = 0
 	_encounter_panel.offset_bottom = 340
 	_encounter_panel.visible = false
@@ -491,8 +497,8 @@ func _build_hint() -> void:
 	_hint_panel.anchor_bottom = 0.27
 	_hint_panel.offset_left = -300
 	_hint_panel.offset_right = 300
-	_hint_panel.offset_top = 0
-	_hint_panel.offset_bottom = 84
+	_hint_panel.offset_top = _safe_insets.y
+	_hint_panel.offset_bottom = 84 + _safe_insets.y
 	_hint_panel.visible = false
 	_hint_panel.gui_input.connect(_on_hint_gui_input)
 	add_child(_hint_panel)
@@ -638,7 +644,11 @@ func _show_pause() -> void:
 		return
 	_refresh_pause()
 	_pause_overlay.visible = true
+	_pause_overlay.modulate.a = 0.0
 	get_tree().paused = true
+	var reveal := create_tween()
+	reveal.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	reveal.tween_property(_pause_overlay, "modulate:a", 1.0, 0.14)
 
 
 func _hide_pause() -> void:

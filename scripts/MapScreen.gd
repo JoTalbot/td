@@ -10,6 +10,7 @@ const CampaignData := preload("res://scripts/CampaignData.gd")
 const RustButton := preload("res://scripts/RustButton.gd")
 const RustHeader := preload("res://scripts/RustHeader.gd")
 const CityMarker := preload("res://scripts/CityMarker.gd")
+const SafeArea := preload("res://scripts/SafeArea.gd")
 
 var campaign: Node = null
 var settings: Node = null
@@ -30,12 +31,14 @@ var _sheet: PanelContainer
 var _sheet_title: Label
 var _sheet_body: VBoxContainer
 var _nav_buttons: Dictionary = {}
+var _safe_insets := Vector4.ZERO
 var _selected := ""
 var _view := "info"   # info | market | contracts | hangar | base | lab | showroom
 
 
 func _ready() -> void:
 	layer = 20
+	_safe_insets = SafeArea.insets(get_viewport().get_visible_rect().size)
 	_build_chrome()
 	_build_map()
 	_select(campaign.location)
@@ -95,10 +98,10 @@ func _build_chrome() -> void:
 	top.add_theme_stylebox_override("panel", _styled_panel())
 	top.anchor_left = 0.0
 	top.anchor_right = 1.0
-	top.offset_left = 8
-	top.offset_right = -8
-	top.offset_top = 8
-	top.offset_bottom = 130
+	top.offset_left = 8 + _safe_insets.x
+	top.offset_right = -8 - _safe_insets.z
+	top.offset_top = 8 + _safe_insets.y
+	top.offset_bottom = 130 + _safe_insets.y
 	add_child(top)
 	# Две строки не дают крупным статусам слипаться на узком портретном экране.
 	var top_col := VBoxContainer.new()
@@ -169,7 +172,11 @@ func _refresh_top() -> void:
 
 
 func _build_map() -> void:
-	var area_size := Vector2(704, 536)
+	var viewport_size := get_viewport().get_visible_rect().size
+	var area_size := Vector2(
+		viewport_size.x - 16.0 - _safe_insets.x - _safe_insets.z,
+		maxf(400.0, 536.0 - _safe_insets.y - _safe_insets.w))
+	var area_pos := Vector2(8 + _safe_insets.x, 140 + _safe_insets.y)
 	# Рисованный фон пустоши под дорогами и кнопками городов
 	var bg_path := "res://assets/ui/map_bg.jpg"
 	if ResourceLoader.exists(bg_path):
@@ -179,12 +186,12 @@ func _build_map() -> void:
 		# раздвигают весь портретный интерфейс за правый край.
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.position = Vector2(8, 140)
+		bg.position = area_pos
 		bg.size = area_size
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
 	_map_area = MapCanvas.new()
-	_map_area.position = Vector2(8, 140)
+	_map_area.position = area_pos
 	_map_area.size = area_size
 	add_child(_map_area)
 	for id in CampaignData.CITIES:
@@ -211,10 +218,10 @@ func _build_map() -> void:
 	_sheet.anchor_right = 1.0
 	_sheet.anchor_top = 1.0
 	_sheet.anchor_bottom = 1.0
-	_sheet.offset_left = 8
-	_sheet.offset_right = -8
-	_sheet.offset_top = -594
-	_sheet.offset_bottom = -10
+	_sheet.offset_left = 8 + _safe_insets.x
+	_sheet.offset_right = -8 - _safe_insets.z
+	_sheet.offset_top = -594 - _safe_insets.w
+	_sheet.offset_bottom = -10 - _safe_insets.w
 	add_child(_sheet)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
@@ -312,6 +319,10 @@ func _render_sheet() -> void:
 	else:
 		_sheet_title.text = String(c["name"])
 		_render_info(c, is_here, route)
+	_sheet_body.modulate.a = 0.35
+	var reveal := create_tween()
+	reveal.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	reveal.tween_property(_sheet_body, "modulate:a", 1.0, 0.16)
 
 
 func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:

@@ -4,6 +4,13 @@ extends Label
 var _accent := Color(0.95, 0.75, 0.35)
 
 
+func _ready() -> void:
+	modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tween.tween_property(self, "modulate:a", 1.0, 0.18)
+
+
 func setup(label: String, font_size: int = 24, accent := Color(0.95, 0.75, 0.35)) -> void:
 	text = label
 	_accent = accent

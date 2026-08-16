@@ -3,6 +3,7 @@ extends Button
 ## Фон, фаски, тени, заклёпки и царапины рисуются процедурно — без тяжёлых текстур.
 
 var _accent := Color(0.95, 0.75, 0.35)
+var _motion_tween: Tween
 
 
 func setup(label: String, accent := Color(0.95, 0.75, 0.35)) -> void:
@@ -27,6 +28,12 @@ func setup(label: String, accent := Color(0.95, 0.75, 0.35)) -> void:
 		Color(0.13, 0.085, 0.05, 1.0), accent.darkened(0.12), true))
 	add_theme_stylebox_override("disabled", _plate_style(
 		Color(0.095, 0.075, 0.055, 0.94), Color(0.3, 0.26, 0.21), false))
+	resized.connect(_update_pivot)
+	mouse_entered.connect(_animate_hover.bind(true))
+	mouse_exited.connect(_animate_hover.bind(false))
+	button_down.connect(_animate_down)
+	button_up.connect(_animate_up)
+	_update_pivot()
 	queue_redraw()
 
 
@@ -50,6 +57,35 @@ func _plate_style(bg: Color, edge: Color, inset: bool) -> StyleBoxFlat:
 	sb.shadow_size = 5 if not inset else 2
 	sb.shadow_offset = Vector2(2, 3) if not inset else Vector2(1, 1)
 	return sb
+
+
+func _update_pivot() -> void:
+	pivot_offset = size * 0.5
+
+
+func _animate_hover(on: bool) -> void:
+	if disabled:
+		return
+	_motion(Vector2.ONE * (1.025 if on else 1.0), 0.1)
+
+
+func _animate_down() -> void:
+	if not disabled:
+		_motion(Vector2(0.965, 0.965), 0.055)
+
+
+func _animate_up() -> void:
+	if not disabled:
+		_motion(Vector2.ONE, 0.11)
+
+
+func _motion(target: Vector2, duration: float) -> void:
+	if _motion_tween != null and _motion_tween.is_valid():
+		_motion_tween.kill()
+	_motion_tween = create_tween()
+	_motion_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_motion_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_motion_tween.tween_property(self, "scale", target, duration)
 
 
 func _draw() -> void:
