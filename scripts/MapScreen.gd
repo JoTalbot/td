@@ -263,6 +263,10 @@ func _redraw_map() -> void:
 	for id in _city_buttons:
 		var marker: CityMarker = _city_buttons[id]
 		marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
+	var selected_to := ""
+	if _selected != campaign.location and not CampaignData.route_between(campaign.location, _selected).is_empty():
+		selected_to = _selected
+	(_map_area as MapCanvas).select_route(campaign.location, selected_to)
 	_map_area.queue_redraw()
 
 
@@ -339,10 +343,20 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	# Фракция и наше положение в ней
 	var rep_lvl: int = campaign.rep_level(_selected)
 	var frac := _mk_label(_sheet_body, 19, Color(0.7, 0.85, 0.9).lerp(Color(0.95, 0.8, 0.4), rep_lvl / 4.0))
-	frac.text = "🎪 %s — отношение: %s (%d/100). Скидка -%d%%, скупка +%d%%, контракты +%d%%" % [
-		c.get("faction", "фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected),
-		rep_lvl * 4, rep_lvl * 3, rep_lvl * 5]
+	frac.text = "%s • %s • %d/100  |  скидка %d%% • скупка +%d%%" % [
+		c.get("faction", "Фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected),
+		rep_lvl * 4, rep_lvl * 3]
 	frac.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if not is_here and not route.is_empty():
+		var route_info := _mk_label(_sheet_body, 20,
+			Color(1.0, 0.48, 0.25) if float(route[1]) >= 1.4 else Color(0.95, 0.78, 0.42))
+		var route_tags := ""
+		if CampaignData.route_is_caravan(campaign.location, _selected):
+			route_tags = " • КАРАВАН"
+		route_info.text = "МАРШРУТ • %d ВОЛН • ОПАСНОСТЬ %.1f%s" % [
+			4 + int(route[0]) * 2, float(route[1]), route_tags]
+		route_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		route_info.tooltip_text = "Подсвеченная дорога ведёт из текущего города в выбранный"
 	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
 		var poi: Dictionary = campaign.poi_at(_selected)
@@ -890,18 +904,33 @@ func _reset_tutorial() -> void:
 class MapCanvas:
 	extends Control
 	const CDATA := preload("res://scripts/CampaignData.gd")
+	var selected_a := ""
+	var selected_b := ""
+
+	func select_route(a: String, b: String) -> void:
+		selected_a = a
+		selected_b = b
+		queue_redraw()
 
 	func _draw() -> void:
 		for r: Array in CDATA.ROUTES:
 			var a: Vector2 = (CDATA.CITIES[r[0]]["pos"] as Vector2) * size
 			var b: Vector2 = (CDATA.CITIES[r[1]]["pos"] as Vector2) * size
+			var is_selected: bool = selected_b != "" and (
+				(String(r[0]) == selected_a and String(r[1]) == selected_b) or
+				(String(r[1]) == selected_a and String(r[0]) == selected_b))
 			var col := Color(0.45, 0.35, 0.2, 0.9)
 			if float(r[3]) >= 1.4:
 				col = Color(0.8, 0.18, 0.1, 0.95)   # смертельная трасса
 			elif float(r[3]) >= 1.2:
 				col = Color(0.6, 0.3, 0.15, 0.9)
-			draw_line(a, b, col, 4.0, true)
-			draw_circle(a, 5.0, col)
+			if is_selected:
+				draw_line(a, b, Color(0.12, 0.045, 0.015, 0.9), 13.0, true)
+				draw_line(a, b, Color(1.0, 0.48, 0.12, 1.0), 7.0, true)
+				draw_circle((a + b) * 0.5, 7.0, Color(1.0, 0.78, 0.25, 1.0))
+			else:
+				draw_line(a, b, col, 4.0, true)
+			draw_circle(a, 5.0, Color(1.0, 0.48, 0.12) if is_selected else col)
 			# Метки трасс в середине линии
 			var marks := ""
 			if float(r[3]) >= 1.4:
