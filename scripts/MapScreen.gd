@@ -3,6 +3,8 @@ extends CanvasLayer
 ## Всё рисуется кодом — процедурный UI в духе проекта.
 
 signal travel_requested(city_id: String)
+## Игрок сменил корпус в шоуруме — Main пересобирает платформу.
+signal hull_changed
 
 const CampaignData := preload("res://scripts/CampaignData.gd")
 
@@ -265,6 +267,9 @@ func _render_sheet() -> void:
 	elif _view == "hangar":
 		_sheet_title.text = "%s %s — АНГАР ТРОФЕЕВ" % [c["icon"], c["name"]]
 		_render_hangar(is_here)
+	elif _view == "showroom":
+		_sheet_title.text = "%s %s — ШОУРУМ ПЛАТФОРМ" % [c["icon"], c["name"]]
+		_render_showroom(is_here)
 	else:
 		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
 		_render_info(c, is_here, route)
@@ -336,6 +341,14 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			lb.disabled = campaign.bld_level("lab") == 0
 			lb.pressed.connect(func(): _view = "lab"; _render_sheet())
 			btns2.add_child(lb)
+			var sr := _rusty_button("🛠 Шоурум", Color(0.95, 0.7, 0.35))
+			sr.custom_minimum_size = Vector2(170, 52)
+			var hicon: String = "res://assets/ui/h_%s.png" % campaign.hull_current
+			if ResourceLoader.exists(hicon):
+				sr.icon = load(hicon)
+				sr.add_theme_constant_override("icon_max_width", 34)
+			sr.pressed.connect(func(): _view = "showroom"; _render_sheet())
+			btns2.add_child(sr)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
 		var tags := ""
@@ -403,13 +416,13 @@ func _render_market(is_here: bool) -> void:
 		var sp: int = int(campaign.price_of(res, campaign.location) * campaign.sell_rate(campaign.location))
 		name_l.text = "%s ⚙%d/⚙%d  (трюм: %d)" % [d["name"], bp, sp, campaign.cargo_qty(res)]
 		var buy_b := _rusty_button("Купить", Color(0.7, 0.85, 0.5))
-		buy_b.custom_minimum_size = Vector2(110, 40)
+		buy_b.custom_minimum_size = Vector2(120, 48)
 		buy_b.disabled = campaign.wallet < bp or campaign.cargo_space() < 1
 		var r: String = res
 		buy_b.pressed.connect(func(): if campaign.buy(r, 1): _play_earn(); _render_sheet())
 		row.add_child(buy_b)
 		var sell_b := _rusty_button("Продать", Color(0.9, 0.6, 0.3))
-		sell_b.custom_minimum_size = Vector2(110, 40)
+		sell_b.custom_minimum_size = Vector2(120, 48)
 		sell_b.disabled = campaign.cargo_qty(res) < 1
 		sell_b.pressed.connect(func(): if campaign.sell(r, 1): _play_earn(); _render_sheet())
 		row.add_child(sell_b)
@@ -451,11 +464,11 @@ func _render_hangar(is_here: bool) -> void:
 		lab.text = "%s%s ×%d — распил: %s" % [prefix, d["name"], have, " ".join(parts)]
 		var tid: String = t
 		var scr := _rusty_button("Разобрать", Color(0.75, 0.7, 0.55))
-		scr.custom_minimum_size = Vector2(130, 40)
+		scr.custom_minimum_size = Vector2(140, 48)
 		scr.pressed.connect(func(): campaign.scrap_trophy(tid); _render_sheet())
 		row.add_child(scr)
 		var sel := _rusty_button("⚙%d" % int(d["scrap_price"]), Color(0.9, 0.6, 0.3))
-		sel.custom_minimum_size = Vector2(90, 40)
+		sel.custom_minimum_size = Vector2(100, 48)
 		sel.pressed.connect(func(): campaign.sell_trophy(tid); _render_sheet())
 		row.add_child(sel)
 	# Кузня легендарок: трофеи плавим в орудия на следующий рейс
@@ -475,7 +488,7 @@ func _render_hangar(is_here: bool) -> void:
 		flab.custom_minimum_size = Vector2(440, 0)
 		flab.text = "%s %s — %s  [нужно: %s]" % [ld["icon"], ld["name"], ld["desc"], " ".join(needs)]
 		var fb := _rusty_button("Сковать", Color(1.0, 0.8, 0.4))
-		fb.custom_minimum_size = Vector2(120, 40)
+		fb.custom_minimum_size = Vector2(130, 48)
 		fb.disabled = not campaign.can_forge(fid)
 		var ffid: String = fid
 		fb.pressed.connect(func():
@@ -500,7 +513,7 @@ func _render_hangar(is_here: bool) -> void:
 		alab.custom_minimum_size = Vector2(440, 0)
 		alab.text = "%s %s — %s  [нужно: %s]" % [ad["icon"], ad["name"], ad["desc"], " ".join(aneeds)]
 		var ab := _rusty_button("Сковать", Color(0.55, 0.75, 1.0))
-		ab.custom_minimum_size = Vector2(120, 40)
+		ab.custom_minimum_size = Vector2(130, 48)
 		var already: bool = campaign.leg_abilities.has(String(ad["ability"]))
 		ab.disabled = already or not campaign.can_forge_ability(aid)
 		if already:
@@ -511,6 +524,55 @@ func _render_hangar(is_here: bool) -> void:
 			_play_earn()
 			_render_sheet())
 		arow.add_child(ab)
+
+
+## Шоурум: лесенка корпусов. Собираем из запчастей (только дома), выбираем рабочую.
+func _render_showroom(is_here: bool) -> void:
+	var back := _rusty_button("← К описанию")
+	back.custom_minimum_size = Vector2(170, 44)
+	back.pressed.connect(func(): _view = "info"; _render_sheet())
+	_sheet_body.add_child(back)
+	if not is_here:
+		var l := _mk_label(_sheet_body, 15, Color(0.7, 0.55, 0.4))
+		l.text = "Шоурум при базе — загляни домой."
+		return
+	var head := _mk_label(_sheet_body, 15, Color(0.85, 0.78, 0.6))
+	head.text = "🔧 Запчасти: %d   ⚙ Лом: %d   🛠 Мастерская ур.%d" % [
+		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
+	for id in CampaignData.HULL_ORDER:
+		var d: Dictionary = CampaignData.HULLS[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_sheet_body.add_child(row)
+		var has_icon: bool = _add_row_icon(row, "res://assets/ui/h_%s.png" % id, 48)
+		var prefix: String = "" if has_icon else "%s " % d["icon"]
+		var txt := _mk_label(row, 15, TEXT_DIM)
+		txt.custom_minimum_size = Vector2(330, 0)
+		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var n: int = int(d["slots"])
+		var slots_w := "слот" if n == 1 else ("слота" if n < 5 else "слотов")
+		txt.text = "%s%s — %d %s • HP ×%.2f\n%s" % [prefix, d["name"], n, slots_w, float(d["hp_mult"]), d["desc"]]
+		var btn := _rusty_button("", Color(0.95, 0.7, 0.35))
+		btn.custom_minimum_size = Vector2(270, 48)
+		var hid: String = id
+		if id == campaign.hull_current:
+			btn.text = "✓ В строю"
+			btn.disabled = true
+		elif id in campaign.hulls_owned:
+			btn.text = "Выбрать"
+			btn.pressed.connect(func():
+				if campaign.select_hull(hid):
+					hull_changed.emit()
+					_render_sheet())
+		else:
+			btn.text = "Собрать: 🔧%d ⚙%d маст.%d" % [int(d["parts"]), int(d["scrap"]), int(d["workshop"])]
+			btn.disabled = not campaign.can_build_hull(id)
+			btn.pressed.connect(func():
+				if campaign.build_hull(hid):
+					_play_earn()
+					hull_changed.emit()
+					_render_sheet())
+		row.add_child(btn)
 
 
 func _render_contracts(is_here: bool) -> void:
@@ -537,7 +599,7 @@ func _render_contracts(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
-		var txt := _mk_label(row, 14, TEXT_DIM)
+		var txt := _mk_label(row, 15, TEXT_DIM)
 		txt.custom_minimum_size = Vector2(500, 0)
 		txt.text = campaign.contract_text(c)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -570,7 +632,7 @@ func _render_base(is_here: bool) -> void:
 		_sheet_body.add_child(row)
 		var has_icon: bool = _add_row_icon(row, "res://assets/ui/b_%s.png" % id)
 		var prefix: String = "" if has_icon else "%s " % d["icon"]
-		var txt := _mk_label(row, 14, TEXT_DIM)
+		var txt := _mk_label(row, 15, TEXT_DIM)
 		txt.custom_minimum_size = Vector2(440, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if cost.is_empty():
@@ -585,7 +647,7 @@ func _render_base(is_here: bool) -> void:
 			txt.text = "%s%s [ур.%d→%d] — %s  |  цена: %s" % [prefix, d["name"], lvl, lvl + 1, d["desc"], " ".join(parts)]
 		row.add_child(txt)
 		var b := _rusty_button("Строить", Color(0.85, 0.7, 0.3))
-		b.custom_minimum_size = Vector2(120, 40)
+		b.custom_minimum_size = Vector2(130, 48)
 		b.disabled = cost.is_empty() or not campaign.can_build(id)
 		var bid: String = id
 		b.pressed.connect(func(): campaign.build(bid); _render_sheet())
@@ -617,11 +679,11 @@ func _render_lab(is_here: bool) -> void:
 		_sheet_body.add_child(row)
 		var ricon: bool = _add_row_icon(row, "res://assets/ui/r_%s.png" % id)
 		var rprefix: String = "" if ricon else "%s " % d["icon"]
-		var txt := _mk_label(row, 13, TEXT_DIM)
+		var txt := _mk_label(row, 15, TEXT_DIM)
 		txt.custom_minimum_size = Vector2(410, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.7, 0.8, 0.5))
-		b.custom_minimum_size = Vector2(110, 44)
+		b.custom_minimum_size = Vector2(120, 48)
 		if id in campaign.research_done:
 			txt.text = "%s%s ✅ — %s" % [rprefix, d["name"], d["desc"]]
 			b.visible = false
@@ -657,11 +719,11 @@ func _render_lab(is_here: bool) -> void:
 		_sheet_body.add_child(row)
 		var cicon: bool = _add_row_icon(row, "res://assets/ui/cr_%s.svg" % id)
 		var cprefix: String = "" if cicon else "%s " % d["icon"]
-		var txt := _mk_label(row, 13, TEXT_DIM)
+		var txt := _mk_label(row, 15, TEXT_DIM)
 		txt.custom_minimum_size = Vector2(410, 0)
 		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var b := _rusty_button("", Color(0.85, 0.7, 0.4))
-		b.custom_minimum_size = Vector2(110, 44)
+		b.custom_minimum_size = Vector2(120, 48)
 		txt.text = "%s%s ×%d — %s" % [cprefix, d["name"], int(campaign.inventory.get(id, 0)), d["desc"]]
 		var req: String = d.get("research", "")
 		if req != "" and req not in campaign.research_done:
@@ -687,7 +749,7 @@ func _render_lab(is_here: bool) -> void:
 		if int(campaign.inventory.get(id, 0)) > 0:
 			var taken: bool = campaign.pending.has(id)
 			var st := _rusty_button("В рейс" if not taken else "✅ взят", Color(0.9, 0.55, 0.25))
-			st.custom_minimum_size = Vector2(90, 44)
+			st.custom_minimum_size = Vector2(100, 48)
 			st.disabled = taken
 			var sid: String = id
 			st.pressed.connect(func(): campaign.stage_item(sid); _render_sheet())

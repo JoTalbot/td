@@ -164,11 +164,8 @@ func _ready() -> void:
 	map_screen.sfx = sfx
 	tutorial.setup(self, hud, state, waves, truck, meta)
 	# Crossout-прогрессия: собираем платформу из выбранного в шоуруме корпуса.
-	# Корпус влияет на число слотов (геометрия Truck) и запас HP.
-	truck.set_hull(campaign.hull_current)
-	var hull_mult := float(CampaignData.HULLS.get(campaign.hull_current, {}).get("hp_mult", 1.0))
-	state.max_hp = int(round(float(state.max_hp) * hull_mult))
-	state.hp = state.max_hp
+	_apply_hull()
+	map_screen.hull_changed.connect(_apply_hull)
 	_sync_legendary_abilities()
 
 	# Старт — на карте; бой начинается с выбора маршрута
@@ -399,6 +396,16 @@ func _on_enemy_killed(type: String) -> void:
 		elif roll > 0.45:
 			res = "water"
 		_run_loot[res] = int(_run_loot.get(res, 0)) + 1
+
+
+## Пересборка боевой платформы под корпус кампании: слоты и запас HP.
+## Вызывать на свежей сцене (до монтировки орудий) или из шоурума на карте.
+func _apply_hull() -> void:
+	truck.set_hull(campaign.hull_current)
+	var base := state.START_HP + meta.bonus_start_hp()
+	var hull_mult := float(CampaignData.HULLS.get(campaign.hull_current, {}).get("hp_mult", 1.0))
+	state.max_hp = int(round(float(base) * hull_mult))
+	state.hp = state.max_hp
 
 
 ## Раздать выкованные легендарные способности: Abilities (гейтинг) + HUD (кнопки).
