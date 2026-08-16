@@ -64,7 +64,7 @@ func _ready() -> void:
 	_build_encounter()
 	_build_hint()
 
-	state.scrap_changed.connect(func(v): _scrap_label.text = "⚙ %d" % v)
+	state.scrap_changed.connect(func(v): _scrap_label.text = "ЛОМ %d" % v)
 	state.hp_changed.connect(_on_hp_changed)
 	waves.wave_started.connect(func(i):
 		if waves.run_length > 0:
@@ -74,7 +74,7 @@ func _ready() -> void:
 		hide_encounter())   # встреча кончилась — волна пошла
 	waves.wave_cleared.connect(func(i): flash_message("Волна %d отбита!" % i))
 
-	_scrap_label.text = "⚙ %d" % state.scrap
+	_scrap_label.text = "ЛОМ %d" % state.scrap
 	_on_hp_changed(state.hp, state.max_hp)
 	_wave_label.text = "Держись..."
 
@@ -167,7 +167,7 @@ func _build_top_bar() -> void:
 	hp_box.add_theme_constant_override("separation", 6)
 	row.add_child(hp_box)
 	var hp_icon := Label.new()
-	hp_icon.text = "🛠"
+	hp_icon.text = "БРОНЯ"
 	hp_icon.add_theme_font_size_override("font_size", _font(24))
 	hp_box.add_child(hp_icon)
 	var bar_bg := PanelContainer.new()
@@ -218,7 +218,7 @@ func _build_bottom_bar() -> void:
 
 	for id in WeaponData.DEFS:
 		var def: Dictionary = WeaponData.DEFS[id]
-		var btn := _rusty_button("%s\n⚙ %d" % [def["name"], def["cost"]], def["color"])
+		var btn := _rusty_button("%s\n%d" % [def["name"], def["cost"]], def["color"])
 		btn.custom_minimum_size = Vector2(88, 68)
 		btn.add_theme_font_size_override("font_size", _font(18))
 		# Нарисованная иконка орудия: картинка сверху, цена строкой снизу
@@ -228,7 +228,7 @@ func _build_bottom_bar() -> void:
 			btn.add_theme_constant_override("icon_max_width", 44)
 			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-			btn.text = "⚙ %d" % def["cost"]
+			btn.text = "%d" % def["cost"]
 			btn.tooltip_text = def["name"]
 		btn.pressed.connect(func(): weapon_selected.emit(id))
 		row.add_child(btn)
@@ -312,7 +312,7 @@ func _build_garage() -> void:
 	_garage_panel.add_child(col)
 
 	var title := RustHeader.new()
-	title.setup("🔧 ГАРАЖ — ПРОКАЧКА ФУРЫ", _font(24), Color(0.65, 0.78, 0.4))
+	title.setup("ГАРАЖ — ПРОКАЧКА", _font(24), Color(0.65, 0.78, 0.4))
 	col.add_child(title)
 
 	for id in TruckData.DEFS:
@@ -374,7 +374,7 @@ func _build_weapon_panel() -> void:
 	_upgrade_btn.pressed.connect(func(): upgrade_pressed.emit())
 	col.add_child(_upgrade_btn)
 
-	var sell_btn := _rusty_button("Демонтаж", Color(0.9, 0.5, 0.3))
+	var sell_btn := _rusty_button("РАЗОБРАТЬ", Color(0.9, 0.5, 0.3))
 	sell_btn.custom_minimum_size = Vector2(0, 58)
 	sell_btn.pressed.connect(func(): sell_pressed.emit())
 	col.add_child(sell_btn)
@@ -387,7 +387,7 @@ func show_weapon_panel(weapon: Node3D) -> void:
 		def["name"], weapon.level + 1, st["damage"], st["range"], st["fire_rate"]
 	]
 	var up: int = weapon.upgrade_cost()
-	_upgrade_btn.text = "Прокачать ⚙ %d" % up if up >= 0 else "МАКС. УРОВЕНЬ"
+	_upgrade_btn.text = "УЛУЧШИТЬ • %d ЛОМА" % up if up >= 0 else "МАКС. УРОВЕНЬ"
 	_upgrade_btn.disabled = up < 0
 	_weapon_panel.visible = true
 
@@ -551,7 +551,7 @@ func _build_game_over() -> void:
 	panel.add_child(col)
 
 	var title := RustHeader.new()
-	title.setup("☠ ФУРА УНИЧТОЖЕНА", _font(40), Color(0.95, 0.28, 0.12))
+	title.setup("ФУРА УНИЧТОЖЕНА", _font(40), Color(0.95, 0.28, 0.12))
 	title.add_theme_color_override("font_color", Color(1.0, 0.5, 0.24))
 	col.add_child(title)
 
@@ -591,7 +591,7 @@ func _build_game_over() -> void:
 		col.add_child(mbtn)
 		_meta_buttons[id] = mbtn
 
-	var btn := _rusty_button("На карту пустоши")
+	var btn := _rusty_button("НА КАРТУ")
 	btn.custom_minimum_size = Vector2(240, 58)
 	btn.add_theme_font_size_override("font_size", _font(24))
 	btn.pressed.connect(func(): restart_pressed.emit())
@@ -628,7 +628,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 	for ch in col.get_children():
 		ch.queue_free()
 	var title := RustHeader.new()
-	title.setup("🏁 ПРИБЫТИЕ: %s" % city_name.to_upper(), _font(32), Color(0.65, 0.82, 0.4))
+	title.setup("ПРИБЫТИЕ: %s" % city_name.to_upper(), _font(32), Color(0.65, 0.82, 0.4))
 	col.add_child(title)
 	# Арт-баннер: ворота города на закате
 	var art_path := "res://assets/ui/art_arrival.jpg"
@@ -733,7 +733,7 @@ func show_arrival(city_name: String, summary: Dictionary) -> void:
 		cl.add_theme_color_override("font_color", Color(0.85, 0.95, 0.6))
 		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(cl)
-	var btn := _rusty_button("К стоянке (карта)", Color(0.7, 0.85, 0.5))
+	var btn := _rusty_button("НА КАРТУ", Color(0.7, 0.85, 0.5))
 	btn.custom_minimum_size = Vector2(0, 58)
 	btn.add_theme_font_size_override("font_size", _font(24))
 	btn.pressed.connect(func(): restart_pressed.emit())

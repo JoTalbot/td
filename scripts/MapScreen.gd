@@ -9,6 +9,7 @@ signal hull_changed
 const CampaignData := preload("res://scripts/CampaignData.gd")
 const RustButton := preload("res://scripts/RustButton.gd")
 const RustHeader := preload("res://scripts/RustHeader.gd")
+const CityMarker := preload("res://scripts/CityMarker.gd")
 
 var campaign: Node = null
 var settings: Node = null
@@ -147,9 +148,9 @@ func _add_row_icon(row: HBoxContainer, path: String, px: int = 30) -> bool:
 
 func _refresh_top() -> void:
 	var c: Dictionary = CampaignData.CITIES[campaign.location]
-	_loc_label.text = "%s %s" % [c["icon"], c["name"]]
-	_wallet_label.text = "⚙ %d" % campaign.wallet
-	_cargo_label.text = "📦 %d/%d" % [campaign.cargo_used(), campaign.cargo_cap()]
+	_loc_label.text = String(c["name"])
+	_wallet_label.text = "ЛОМ %d" % campaign.wallet
+	_cargo_label.text = "ТРЮМ %d/%d" % [campaign.cargo_used(), campaign.cargo_cap()]
 	var mods_txt := ""
 	for m in campaign.daily_mods():
 		var d: Dictionary = CampaignData.DAILY_MODS[m]
@@ -161,7 +162,7 @@ func _refresh_top() -> void:
 		mods_txt += "  %s %s" % [sd["icon"], sd["name"]]
 		season_tip = "%s %s: %s\n" % [sd["icon"], sd["name"], sd["desc"]]
 	var best: int = campaign.meta.best_wave if campaign.meta != null else 0
-	_day_label.text = "☀ День %d%s    🏆 %d" % [campaign.day, mods_txt, best]
+	_day_label.text = "ДЕНЬ %d%s    РЕКОРД %d" % [campaign.day, mods_txt, best]
 	_day_label.tooltip_text = season_tip
 	for m in campaign.daily_mods():
 		_day_label.tooltip_text += "%s: %s\n" % [CampaignData.DAILY_MODS[m]["name"], CampaignData.DAILY_MODS[m]["desc"]]
@@ -188,27 +189,20 @@ func _build_map() -> void:
 	add_child(_map_area)
 	for id in CampaignData.CITIES:
 		var c: Dictionary = CampaignData.CITIES[id]
-		var btn := _rusty_button("%s\n%s" % [c["icon"], c["name"]], ACCENT)
-		var city_size := Vector2(170, 108)
-		btn.custom_minimum_size = city_size
-		btn.size = city_size
-		btn.add_theme_font_size_override("font_size", _font(18))
-		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		# Нарисованная эмблема города над именем
+		var marker := CityMarker.new()
 		var cicon: String = "res://assets/ui/c_%s.png" % id
-		if ResourceLoader.exists(cicon):
-			btn.icon = load(cicon)
-			btn.add_theme_constant_override("icon_max_width", 38)
-			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
-			btn.text = String(c["name"])
+		var city_texture: Texture2D = load(cicon) if ResourceLoader.exists(cicon) else null
+		marker.setup(String(c["name"]), city_texture, _font(18))
+		var city_size := marker.custom_minimum_size
 		var city_pos: Vector2 = c["pos"] * area_size - city_size * 0.5
 		city_pos.x = clampf(city_pos.x, 0.0, area_size.x - city_size.x)
 		city_pos.y = clampf(city_pos.y, 0.0, area_size.y - city_size.y)
-		btn.position = city_pos
-		btn.pressed.connect(func(): _select(id))
-		_map_area.add_child(btn)
-		_city_buttons[id] = btn
+		marker.pressed.connect(func(): _select(id))
+		_map_area.add_child(marker)
+		# После входа в дерево принудительно ужимаем длинные названия до маркера.
+		marker.size = city_size
+		marker.position = city_pos
+		_city_buttons[id] = marker
 
 	# Нижний лист: инфо / рынок / контракты
 	_sheet = PanelContainer.new()
@@ -260,18 +254,8 @@ func _build_map() -> void:
 
 func _redraw_map() -> void:
 	for id in _city_buttons:
-		var btn: Button = _city_buttons[id]
-		var c: Dictionary = CampaignData.CITIES[id]
-		var mark := ""
-		if id == campaign.location:
-			mark = " 📍"
-		if not campaign.poi_at(id).is_empty():
-			mark += " ❓"
-		# С нарисованной эмблемой эмодзи города не нужен
-		if btn.icon != null:
-			btn.text = "%s%s" % [c["name"], mark]
-		else:
-			btn.text = "%s\n%s%s" % [c["icon"], c["name"], mark]
+		var marker: CityMarker = _city_buttons[id]
+		marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
 	_map_area.queue_redraw()
 
 
@@ -305,28 +289,28 @@ func _render_sheet() -> void:
 		(_nav_buttons["info"] as Button).set_pressed_no_signal(false)
 
 	if _view == "market":
-		_sheet_title.text = "%s %s — рынок" % [c["icon"], c["name"]]
+		_sheet_title.text = "РЫНОК — %s" % c["name"]
 		_render_market(is_here)
 	elif _view == "contracts":
-		_sheet_title.text = "%s %s — доска контрактов" % [c["icon"], c["name"]]
+		_sheet_title.text = "КОНТРАКТЫ — %s" % c["name"]
 		_render_contracts(is_here)
 	elif _view == "base":
-		_sheet_title.text = "%s %s — БАЗА" % [c["icon"], c["name"]]
+		_sheet_title.text = "БАЗА"
 		_render_base(is_here)
 	elif _view == "lab":
-		_sheet_title.text = "%s %s — ЛАБОРАТОРИЯ" % [c["icon"], c["name"]]
+		_sheet_title.text = "ЛАБОРАТОРИЯ"
 		_render_lab(is_here)
 	elif _view == "hangar":
-		_sheet_title.text = "%s %s — АНГАР ТРОФЕЕВ" % [c["icon"], c["name"]]
+		_sheet_title.text = "АНГАР"
 		_render_hangar(is_here)
 	elif _view == "showroom":
-		_sheet_title.text = "%s %s — ШОУРУМ ПЛАТФОРМ" % [c["icon"], c["name"]]
+		_sheet_title.text = "КОРПУСА"
 		_render_showroom(is_here)
 	elif _view == "settings":
-		_sheet_title.text = "⚙ НАСТРОЙКИ ФУРЫ"
+		_sheet_title.text = "НАСТРОЙКИ"
 		_render_settings()
 	else:
-		_sheet_title.text = "%s %s" % [c["icon"], c["name"]]
+		_sheet_title.text = String(c["name"])
 		_render_info(c, is_here, route)
 
 
@@ -359,7 +343,7 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			plab.text = "%s %s — %s" % [poi["icon"], poi["name"], poi["desc"]]
 			plab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			plab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			var pbtn := _rusty_button("🔎 Осмотреть", Color(0.85, 0.75, 0.4))
+			var pbtn := _rusty_button("ОСМОТРЕТЬ", Color(0.85, 0.75, 0.4))
 			pbtn.custom_minimum_size = Vector2(150, 58)
 			pbtn.pressed.connect(func(): _resolve_poi_at(_selected))
 			prow.add_child(pbtn)
@@ -368,18 +352,18 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	btns.add_theme_constant_override("separation", 8)
 	_sheet_body.add_child(btns)
 	if is_here:
-		var mk := _rusty_button("⛺ Рынок")
+		var mk := _rusty_button("РЫНОК")
 		mk.custom_minimum_size = Vector2(160, 58)
 		mk.pressed.connect(func(): _open_view("market"))
 		btns.add_child(mk)
-		var ct := _rusty_button("📋 Контракты")
+		var ct := _rusty_button("КОНТРАКТЫ")
 		ct.custom_minimum_size = Vector2(170, 58)
 		ct.pressed.connect(func(): _open_view("contracts"))
 		btns.add_child(ct)
 		var tn := 0
 		for t in campaign.trophies:
 			tn += int(campaign.trophies[t])
-		var hg := _rusty_button("🛻 Ангар (%d)" % tn, Color(0.75, 0.7, 0.55))
+		var hg := _rusty_button("АНГАР  %d" % tn, Color(0.75, 0.7, 0.55))
 		hg.custom_minimum_size = Vector2(160, 58)
 		hg.pressed.connect(func(): _open_view("hangar"))
 		btns.add_child(hg)
@@ -387,16 +371,16 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			var btns2 := HBoxContainer.new()
 			btns2.add_theme_constant_override("separation", 8)
 			_sheet_body.add_child(btns2)
-			var bb := _rusty_button("🏠 База", Color(0.85, 0.7, 0.3))
+			var bb := _rusty_button("БАЗА", Color(0.85, 0.7, 0.3))
 			bb.custom_minimum_size = Vector2(150, 58)
 			bb.pressed.connect(func(): _open_view("base"))
 			btns2.add_child(bb)
-			var lb := _rusty_button("⚗️ Лаборатория" if campaign.bld_level("lab") > 0 else "⚗️ Лаборатория (нет)", Color(0.7, 0.8, 0.5))
+			var lb := _rusty_button("ЛАБОРАТОРИЯ" if campaign.bld_level("lab") > 0 else "ЛАБОРАТОРИЯ — ЗАКРЫТА", Color(0.7, 0.8, 0.5))
 			lb.custom_minimum_size = Vector2(210, 58)
 			lb.disabled = campaign.bld_level("lab") == 0
 			lb.pressed.connect(func(): _open_view("lab"))
 			btns2.add_child(lb)
-			var sr := _rusty_button("🛠 Шоурум", Color(0.95, 0.7, 0.35))
+			var sr := _rusty_button("КОРПУСА", Color(0.95, 0.7, 0.35))
 			sr.custom_minimum_size = Vector2(170, 58)
 			var hicon: String = "res://assets/ui/h_%s.png" % campaign.hull_current
 			if ResourceLoader.exists(hicon):
@@ -408,10 +392,10 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		var waves_count := 4 + int(route[0]) * 2
 		var tags := ""
 		if float(route[1]) >= 1.4:
-			tags += " ☠ СМЕРТЕЛЬНАЯ ТРАССА"
+			tags += " • ОПАСНО"
 		if CampaignData.route_is_caravan(campaign.location, _selected):
-			tags += " 🐫 караванный тракт"
-		var go := _rusty_button("🚚 В РЕЙС: %d волн, ★%.1f%s" % [waves_count, float(route[1]), tags], Color(0.9, 0.5, 0.25))
+			tags += " • КАРАВАН"
+		var go := _rusty_button("В РЕЙС • %d ВОЛН • %.1f%s" % [waves_count, float(route[1]), tags], Color(0.9, 0.5, 0.25))
 		go.custom_minimum_size = Vector2(360, 58)
 		go.add_theme_font_size_override("font_size", _font(22))
 		go.pressed.connect(func(): travel_requested.emit(_selected))
