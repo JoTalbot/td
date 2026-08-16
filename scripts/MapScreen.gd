@@ -293,7 +293,12 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			btns2.add_child(lb)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
-		var go := _rusty_button("🚚 В РЕЙС: %d волн, опасность ★%.0f" % [waves_count, float(route[1])], Color(0.9, 0.5, 0.25))
+		var tags := ""
+		if float(route[1]) >= 1.4:
+			tags += " ☠ СМЕРТЕЛЬНАЯ ТРАССА"
+		if CampaignData.route_is_caravan(campaign.location, _selected):
+			tags += " 🐫 караванный тракт"
+		var go := _rusty_button("🚚 В РЕЙС: %d волн, ★%.1f%s" % [waves_count, float(route[1]), tags], Color(0.9, 0.5, 0.25))
 		go.custom_minimum_size = Vector2(360, 56)
 		go.add_theme_font_size_override("font_size", 17)
 		go.pressed.connect(func(): travel_requested.emit(_selected))
@@ -633,8 +638,22 @@ class MapCanvas:
 		for r: Array in CDATA.ROUTES:
 			var a: Vector2 = (CDATA.CITIES[r[0]]["pos"] as Vector2) * size
 			var b: Vector2 = (CDATA.CITIES[r[1]]["pos"] as Vector2) * size
-			var col := Color(0.45, 0.35, 0.2, 0.9) if float(r[3]) < 1.2 else Color(0.6, 0.3, 0.15, 0.9)
+			var col := Color(0.45, 0.35, 0.2, 0.9)
+			if float(r[3]) >= 1.4:
+				col = Color(0.8, 0.18, 0.1, 0.95)   # смертельная трасса
+			elif float(r[3]) >= 1.2:
+				col = Color(0.6, 0.3, 0.15, 0.9)
 			draw_line(a, b, col, 4.0, true)
 			draw_circle(a, 5.0, col)
+			# Метки трасс в середине линии
+			var marks := ""
+			if float(r[3]) >= 1.4:
+				marks += "☠"
+			if r.size() > 4 and String(r[4]) == "caravan":
+				marks += "🐫"
+			if marks != "":
+				var mid := (a + b) * 0.5 + Vector2(-8, -8)
+				draw_string(ThemeDB.fallback_font, mid, marks,
+					HORIZONTAL_ALIGNMENT_CENTER, -1, 18, Color(1.0, 0.9, 0.7, 0.95))
 		# Рамка пустоши
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.35, 0.25, 0.12, 0.5), false, 3.0)

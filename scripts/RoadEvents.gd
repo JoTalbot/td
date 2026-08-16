@@ -42,6 +42,16 @@ const ENCOUNTER_MAX_PER_RUN := 3
 var _was_between := false
 var _encounters_done := 0
 
+## Караванный тракт: первое событие рейса гарантированно — сброс припасов.
+var caravan_run := false
+var _caravan_supply_pending := false
+
+
+## Main вызывает при старте рейса по караванному тракту.
+func set_caravan_run(on: bool) -> void:
+	caravan_run = on
+	_caravan_supply_pending = on
+
 
 func setup(p_state: Node, p_truck: Node3D, p_wasteland: Node, p_env: Environment) -> void:
 	state = p_state
@@ -63,7 +73,12 @@ func _process(delta: float) -> void:
 	_timer -= delta
 	if _timer <= 0.0:
 		_timer = _rng.randf_range(EVENT_GAP_MIN, EVENT_GAP_MAX)
-		trigger(_pick_event())
+		if _caravan_supply_pending:
+			# Караванный тракт: конвой сбрасывает ящики гарантированно и первым
+			_caravan_supply_pending = false
+			trigger("supply")
+		else:
+			trigger(_pick_event())
 	if _storm_timer > 0.0:
 		_storm_timer -= delta
 		if _storm_timer <= 0.0:

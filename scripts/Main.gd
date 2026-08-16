@@ -182,6 +182,15 @@ func _on_travel(city_id: String) -> void:
 	hud.flash_message("🚚 Рейс: %s → %s" % [
 		CampaignData.CITIES[campaign.location]["name"],
 		CampaignData.CITIES[city_id]["name"]])
+	# Метки трассы: караванный тракт и смертельные дороги
+	events.set_caravan_run(CampaignData.route_is_caravan(campaign.location, city_id))
+	var tags := ""
+	if events.caravan_run:
+		tags += " 🐫 караванный тракт — конвой сбросит припасы!"
+	if float(route[1]) >= 1.4:
+		tags += " ☠ Смертельная трасса: награды щедрее, рейдеры злее!"
+	if tags != "":
+		hud.flash_message(tags.strip_edges())
 	_apply_campaign_effects()
 	_spawn_escort_if_needed(city_id)
 	_sync_legendary_abilities()

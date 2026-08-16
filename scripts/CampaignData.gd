@@ -56,17 +56,53 @@ const CITIES := {
 		"faction": "Кликуши",
 		"mods": {"chips": 0.5, "metal": 1.2, "fuel": 1.2},
 	},
+	"rusthaven": {
+		"name": "Ржавая Гавань",
+		"icon": "⚓",
+		"pos": Vector2(0.84, 0.14),
+		"desc": "Порт на дне высохшего озера. Корпуса кораблей пилят на металл.",
+		"faction": "Корабелы Мёртвого Моря",
+		"mods": {"metal": 0.5, "fuel": 0.8, "water": 1.4, "chips": 1.2},
+	},
+	"salttown": {
+		"name": "Соляной Копь",
+		"icon": "🧂",
+		"pos": Vector2(0.86, 0.72),
+		"desc": "Соляные шахты в белом мареве. Соль консервирует всё, что ещё ходит.",
+		"faction": "Соляные Копаты",
+		"mods": {"food": 0.5, "water": 1.2, "metal": 1.1, "chips": 1.3},
+	},
+	"ashen": {
+		"name": "Пепельный Храм",
+		"icon": "🌋",
+		"pos": Vector2(0.33, 0.38),
+		"desc": "Капище в кратере. Пеплопевцы льют порох и поют машинные псалмы.",
+		"faction": "Пеплопевцы",
+		"mods": {"ammo": 0.7, "chips": 0.7, "water": 1.5, "food": 1.4},
+	},
 }
 
-## Дороги: [город A, город B, расстояние (рейс = 4 + dist*2 волн), опасность].
+## Дороги: [город A, город B, расстояние (рейс = 4 + dist*2 волн), опасность, флаг?].
+## Опасность >= 1.4 — смертельная трасса (☠ на карте). "caravan" — караванный
+## тракт: по пути конвой гарантированно сбросит припасы (🐫 на карте).
 const ROUTES := [
 	["citadel", "gasgrad", 1, 1.0],
 	["citadel", "bulletfarm", 1, 1.1],
-	["citadel", "bartertown", 2, 1.2],
+	["citadel", "bartertown", 2, 1.2, "caravan"],
 	["gasgrad", "bartertown", 1, 1.1],
 	["bulletfarm", "bartertown", 1, 1.0],
 	["bartertown", "crowsnest", 2, 1.35],
 	["gasgrad", "crowsnest", 2, 1.3],
+	# Карта 2.0: Пепельный Храм, Соляной Копь, Ржавая Гавань
+	["citadel", "ashen", 1, 1.15],
+	["gasgrad", "ashen", 1, 1.0],
+	["ashen", "bartertown", 1, 1.1],
+	["bulletfarm", "salttown", 1, 1.1, "caravan"],
+	["salttown", "bartertown", 1, 1.2],
+	["citadel", "salttown", 2, 1.5],          # ☠ Бурый разлом
+	["rusthaven", "salttown", 1, 1.6],        # ☠ самая злая трасса пустоши
+	["rusthaven", "bartertown", 2, 1.4],      # ☠
+	["rusthaven", "crowsnest", 1, 1.35],
 ]
 
 ## Здания базы (в Цитадели): цена — лом + ресурсы из трюма.
@@ -275,6 +311,7 @@ const LEGENDARY_ABILITY_RECIPES := {
 }
 
 ## Сезон по реальной дате (месяц, день); "" если обычный день.
+## (см. также ROUTES: пятый элемент строки — метка трассы: "caravan" и т.п.)
 static func season_for(month: int, day: int) -> String:
 	var md := month * 100 + day
 	for id in SEASONS:
@@ -308,6 +345,20 @@ static func route_between(a: String, b: String) -> Array:
 		if (r[0] == a and r[1] == b) or (r[0] == b and r[1] == a):
 			return [int(r[2]), float(r[3])]
 	return []
+
+
+## Караванный тракт между городами (🐫: гарантированный сброс припасов в рейсе).
+static func route_is_caravan(a: String, b: String) -> bool:
+	for r in ROUTES:
+		if (r[0] == a and r[1] == b) or (r[0] == b and r[1] == a):
+			return r.size() > 4 and String(r[4]) == "caravan"
+	return false
+
+
+## Смертельная трасса: опасность ★1.4+ (☠ на карте, награды щедрее).
+static func route_is_deadly(a: String, b: String) -> bool:
+	var route := route_between(a, b)
+	return not route.is_empty() and float(route[1]) >= 1.4
 
 
 static func neighbors(city: String) -> Array[String]:
