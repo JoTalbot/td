@@ -53,6 +53,7 @@ var _pause_sound: Label
 var _pause_vibration: Button
 var _pause_shake: Button
 var _pause_effects: Button
+var _quit_confirm: Control
 var _safe_insets := Vector4.ZERO
 
 const PANEL_BG := Color(0.12, 0.09, 0.06, 0.92)
@@ -633,10 +634,56 @@ func _build_pause_menu() -> void:
 	_pause_shake = _pause_option(col, "ТРЯСКА", _cycle_pause_shake)
 	_pause_effects = _pause_option(col, "ЭФФЕКТЫ", _toggle_pause_effects)
 
-	var map_btn := _rusty_button("ЗАВЕРШИТЬ РЕЙС И ВЫЙТИ НА КАРТУ", Color(0.85, 0.4, 0.25))
+	var map_btn := _rusty_button("ЗАВЕРШИТЬ РЕЙС И ВЫЙТИ", Color(0.85, 0.4, 0.25))
 	map_btn.custom_minimum_size = Vector2(0, 64)
-	map_btn.pressed.connect(_quit_run_from_pause)
+	map_btn.pressed.connect(_show_quit_confirmation)
 	col.add_child(map_btn)
+	_build_quit_confirmation()
+
+
+func _build_quit_confirmation() -> void:
+	_quit_confirm = Control.new()
+	_quit_confirm.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_quit_confirm.visible = false
+	_pause_overlay.add_child(_quit_confirm)
+	var shade := ColorRect.new()
+	shade.color = Color(0.025, 0.012, 0.006, 0.9)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	_quit_confirm.add_child(shade)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_quit_confirm.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(590, 0)
+	panel.add_theme_stylebox_override("panel", _styled_panel(Color(0.92, 0.32, 0.18)))
+	center.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 14)
+	panel.add_child(col)
+	var title := RustHeader.new()
+	title.setup("ЗАВЕРШИТЬ РЕЙС?", _font(28), Color(0.92, 0.32, 0.18))
+	col.add_child(title)
+	var warning := Label.new()
+	warning.text = "Рейс будет засчитан как провал. Часть груза сгорит. Это действие нельзя отменить."
+	warning.add_theme_font_size_override("font_size", _font(20))
+	warning.add_theme_color_override("font_color", Color(1.0, 0.8, 0.62))
+	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning.custom_minimum_size = Vector2(550, 72)
+	col.add_child(warning)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(buttons)
+	var cancel := _rusty_button("НЕТ, ПРОДОЛЖИТЬ", Color(0.62, 0.8, 0.5))
+	cancel.custom_minimum_size = Vector2(260, 64)
+	cancel.pressed.connect(_hide_quit_confirmation)
+	buttons.add_child(cancel)
+	var confirm := _rusty_button("ДА, ЗАВЕРШИТЬ", Color(0.92, 0.32, 0.18))
+	confirm.custom_minimum_size = Vector2(260, 64)
+	confirm.pressed.connect(_quit_run_from_pause)
+	buttons.add_child(confirm)
 
 
 func _pause_option(parent: VBoxContainer, title: String, callback: Callable) -> Button:
@@ -671,8 +718,24 @@ func _show_pause() -> void:
 
 func _hide_pause() -> void:
 	get_tree().paused = false
+	if _quit_confirm != null:
+		_quit_confirm.visible = false
 	if _pause_overlay != null:
 		_pause_overlay.visible = false
+
+
+func _show_quit_confirmation() -> void:
+	if _quit_confirm != null:
+		_quit_confirm.visible = true
+		_quit_confirm.modulate.a = 0.0
+		var reveal := create_tween()
+		reveal.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		reveal.tween_property(_quit_confirm, "modulate:a", 1.0, 0.12)
+
+
+func _hide_quit_confirmation() -> void:
+	if _quit_confirm != null:
+		_quit_confirm.visible = false
 
 
 func _refresh_pause() -> void:
@@ -718,7 +781,9 @@ func _quit_run_from_pause() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") and visible:
-		if _pause_overlay != null and _pause_overlay.visible:
+		if _quit_confirm != null and _quit_confirm.visible:
+			_hide_quit_confirmation()
+		elif _pause_overlay != null and _pause_overlay.visible:
 			_hide_pause()
 		else:
 			_show_pause()
