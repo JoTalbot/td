@@ -27,6 +27,9 @@ var poi_used: Array = []           # осмотренные находки: кл
 var reputation: Dictionary = {}    # city -> очки репутации (0..100) у фракции
 var trophies: Dictionary = {}      # тип трофея -> кол-во (ездит с фурой)
 var leg_abilities: Array = []      # легендарные способности, выкованные навсегда (id из AbilityData)
+var service_buffs: Array = []      # городские услуги на следующий рейс
+var discovered_cities: Array = ["citadel"]
+var story_progress: Dictionary = {} # city -> следующий этап сюжетной цепочки
 ## Корпуса (Crossout-прогрессия): собранные платформы и текущая рабочая.
 var hulls_owned: Array = ["buggy"]
 var hull_current := "buggy"
@@ -36,7 +39,11 @@ var meta: Node = null
 
 func _ready() -> void:
 	day_seed = int(Time.get_unix_time_from_system() / 86400.0)
+	var had_save := FileAccess.file_exists(SAVE_PATH)
 	load_campaign()
+	if not had_save:
+		discover_around(location)
+		save_campaign()
 
 
 func load_campaign() -> void:
@@ -66,6 +73,13 @@ func load_campaign() -> void:
 	reputation = data.get("reputation", {})
 	trophies = data.get("trophies", {})
 	leg_abilities = data.get("leg_abilities", [])
+	service_buffs = data.get("service_buffs", [])
+	story_progress = data.get("story_progress", {})
+	if data.has("discovered_cities"):
+		discovered_cities = data.get("discovered_cities", [location])
+	else:
+		# Ветеранские сейвы не закрываем туманом задним числом.
+		discovered_cities = CampaignData.CITIES.keys()
 	hulls_owned = data.get("hulls_owned", [])
 	hull_current = str(data.get("hull_current", ""))
 	if hulls_owned.is_empty():
@@ -102,9 +116,108 @@ func save_campaign() -> void:
 		"reputation": reputation,
 		"trophies": trophies,
 		"leg_abilities": leg_abilities,
+		"service_buffs": service_buffs,
+		"discovered_cities": discovered_cities,
+		"story_progress": story_progress,
 		"hulls_owned": hulls_owned,
 		"hull_current": hull_current,
 	}))
+
+## --- Разведка, городские услуги и сюжет фракций ---
+func is_city_discovered(city: String) -> bool:
+	return city in discovered_cities
+
+
+func discover_around(city: String) -> void:
+	if city not in discovered_cities:
+		discovered_cities.append(city)
+	for neighbor in CampaignData.neighbors(city):
+		if neighbor not in discovered_cities:
+			discovered_cities.append(neighbor)
+
+
+func can_buy_city_service(city: String) -> bool:
+	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
+	if service.is_empty() or location != city or String(service["buff"]) in service_buffs:
+		return false
+	if wallet < int(service["scrap"]):
+		return false
+	for res in service["needs"]:
+		if cargo_qty(res) < int(service["needs"][res]):
+			return false
+	return true
+
+
+func buy_city_service(city: String) -> bool:
+	if not can_buy_city_service(city):
+		return false
+	var service: Dictionary = CampaignData.CITY_SERVICES[city]
+	wallet -= int(service["scrap"])
+	for res in service["needs"]:
+		take_cargo(res, int(service["needs"][res]))
+	service_buffs.append(String(service["buff"]))
+	save_campaign()
+	return true
+
+
+func pop_service_buffs() -> Array:
+	var out := service_buffs.duplicate()
+	service_buffs.clear()
+	save_campaign()
+	return out
+
+
+func story_stage(city: String) -> int:
+	return int(story_progress.get(city, 0))
+
+
+func story_current(city: String) -> Dictionary:
+	var chain: Array = CampaignData.CITY_STORIES.get(city, [])
+	var stage := story_stage(city)
+	return chain[stage] if stage < chain.size() else {}
+
+
+func can_advance_story(city: String) -> bool:
+	if location != city:
+		return false
+	var stage := story_current(city)
+	if stage.is_empty():
+		return false
+	for key in stage["needs"]:
+		var amount := int(stage["needs"][key])
+		if String(key).begins_with("trophy:"):
+			if int(trophies.get(String(key).trim_prefix("trophy:"), 0)) < amount:
+				return false
+		elif cargo_qty(key) < amount:
+			return false
+	return true
+
+
+func advance_story(city: String) -> bool:
+	if not can_advance_story(city):
+		return false
+	var stage := story_current(city)
+	for key in stage["needs"]:
+		var amount := int(stage["needs"][key])
+		if String(key).begins_with("trophy:"):
+			var trophy_id := String(key).trim_prefix("trophy:")
+			trophies[trophy_id] = int(trophies.get(trophy_id, 0)) - amount
+		else:
+			take_cargo(key, amount)
+	for key in stage["reward"]:
+		var amount := int(stage["reward"][key])
+		match String(key):
+			"rep": gain_rep(city, amount)
+			"scrap": wallet += amount
+			"bp":
+				if meta != null:
+					meta.blueprints += amount
+					meta.save_meta()
+			_: add_cargo(key, amount)
+	story_progress[city] = story_stage(city) + 1
+	save_campaign()
+	return true
+
 
 ## --- База (только в родном городе) ---
 func bld_level(id: String) -> int:
@@ -688,6 +801,7 @@ func resolve_poi(city: String) -> Dictionary:
 ## трофеи в ангар. Возвращает сводку для панели прибытия.
 func arrive(city: String, run_scrap: int, loot: Dictionary, captured: Dictionary = {}) -> Dictionary:
 	location = city
+	discover_around(city)
 	day += 1
 	runs_finished += 1
 	wallet += run_scrap

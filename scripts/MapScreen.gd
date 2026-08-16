@@ -253,6 +253,7 @@ func _build_map() -> void:
 	reset_zoom.tooltip_text = "Сбросить масштаб карты"
 	reset_zoom.pressed.connect(_reset_map_transform)
 	_map_viewport.add_child(reset_zoom)
+	_restore_map_transform()
 
 	# Нижний лист: инфо / рынок / контракты
 	_sheet = PanelContainer.new()
@@ -308,6 +309,8 @@ func _on_map_gui_input(event: InputEvent) -> void:
 			_map_touches[event.index] = event.position
 		else:
 			_map_touches.erase(event.index)
+			if _map_touches.is_empty():
+				_save_map_transform()
 		if _map_touches.size() == 2:
 			var touch_points := _map_touches.values()
 			_map_pinch_distance = (touch_points[0] as Vector2).distance_to(touch_points[1] as Vector2)
@@ -329,10 +332,14 @@ func _on_map_gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_map_mouse_dragging = event.pressed
+			if not event.pressed:
+				_save_map_transform()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_set_map_zoom(_map_zoom * 1.15, event.position)
+			_save_map_transform()
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_set_map_zoom(_map_zoom / 1.15, event.position)
+			_save_map_transform()
 	elif event is InputEventMouseMotion and _map_mouse_dragging:
 		_map_pan += event.relative
 		_apply_map_transform()
@@ -358,16 +365,34 @@ func _apply_map_transform() -> void:
 	_map_stage.position = _map_pan
 
 
+func _restore_map_transform() -> void:
+	if settings == null:
+		return
+	var saved: Dictionary = settings.map_view()
+	_map_zoom = clampf(float(saved.get("zoom", 1.0)), 1.0, 2.4)
+	_map_pan = saved.get("pan", Vector2.ZERO)
+	_apply_map_transform()
+
+
+func _save_map_transform() -> void:
+	if settings != null:
+		settings.save_map_view(_map_zoom, _map_pan)
+
+
 func _reset_map_transform() -> void:
 	_map_zoom = 1.0
 	_map_pan = Vector2.ZERO
 	_apply_map_transform()
+	_save_map_transform()
 
 
 func _redraw_map() -> void:
 	for id in _city_buttons:
 		var marker: CityMarker = _city_buttons[id]
-		marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
+		marker.visible = campaign.is_city_discovered(id)
+		if marker.visible:
+			marker.set_marks(id == campaign.location, not campaign.poi_at(id).is_empty())
+	(_map_area as MapCanvas).set_discovered(campaign.discovered_cities)
 	var selected_to := ""
 	if _selected != campaign.location and not CampaignData.route_between(campaign.location, _selected).is_empty():
 		selected_to = _selected
@@ -468,9 +493,20 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		var route_tags := ""
 		if CampaignData.route_is_caravan(campaign.location, _selected):
 			route_tags = " • КАРАВАН"
-		route_info.text = "МАРШРУТ • %d ВОЛН • ОПАСНОСТЬ %.1f%s" % [
-			4 + int(route[0]) * 2, float(route[1]), route_tags]
-		route_info.tooltip_text = "Подсвеченная дорога ведёт из текущего города в выбранный"
+		var route_meta: Dictionary = CampaignData.route_meta(campaign.location, _selected)
+		var route_name := String(route_meta.get("name", "Безымянный тракт"))
+		route_info.text = "%s • %d ВОЛН • ОПАСНОСТЬ %.1f%s" % [
+			route_name.to_upper(), 4 + int(route[0]) * 2, float(route[1]), route_tags]
+		route_info.tooltip_text = String(route_meta.get("desc", "Подсвеченная дорога ведёт в выбранный город"))
+		var preview: Dictionary = CampaignData.route_preview(campaign.location, _selected)
+		var preview_row := HBoxContainer.new()
+		preview_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		preview_row.add_theme_constant_override("separation", 8)
+		_sheet_body.add_child(preview_row)
+		_status_icon(preview_row, "scrap", 34)
+		var forecast := _mk_label(preview_row, 19, Color(0.78, 0.9, 0.62))
+		forecast.text = "ПРОГНОЗ • ЛОМ ~%d • ЛУТ ~%d • РЕПУТАЦИЯ +%d" % [
+			int(preview.get("scrap", 0)), int(preview.get("loot", 0)), int(preview.get("rep", 1))]
 	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
 		var poi: Dictionary = campaign.poi_at(_selected)
@@ -486,6 +522,8 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			pbtn.custom_minimum_size = Vector2(150, 58)
 			pbtn.pressed.connect(func(): _resolve_poi_at(_selected))
 			prow.add_child(pbtn)
+	if is_here:
+		_render_city_specials(_selected)
 
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
@@ -542,6 +580,56 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	else:
 		var nope := _mk_label(btns, 20, Color(0.6, 0.5, 0.4))
 		nope.text = "Прямой дороги нет — езжай через соседей."
+
+
+func _render_city_specials(city: String) -> void:
+	var service: Dictionary = CampaignData.CITY_SERVICES.get(city, {})
+	if not service.is_empty():
+		var service_row := HBoxContainer.new()
+		service_row.add_theme_constant_override("separation", 10)
+		_sheet_body.add_child(service_row)
+		var service_text := _mk_label(service_row, 19, Color(0.82, 0.88, 0.58))
+		service_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		service_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		service_text.text = "УСЛУГА • %s\n%s" % [service["name"], service["desc"]]
+		var buy_service := _rusty_button("ЗАКАЗАТЬ • %d ЛОМА" % int(service["scrap"]), Color(0.72, 0.82, 0.48))
+		buy_service.custom_minimum_size = Vector2(230, 64)
+		buy_service.disabled = not campaign.can_buy_city_service(city)
+		buy_service.pressed.connect(func():
+			if campaign.buy_city_service(city):
+				_play_earn()
+				_render_sheet())
+		service_row.add_child(buy_service)
+	if CampaignData.CITY_STORIES.has(city):
+		var stage: Dictionary = campaign.story_current(city)
+		var story_label := _mk_label(_sheet_body, 20, Color(0.9, 0.66, 0.35))
+		if stage.is_empty():
+			story_label.text = "ИСТОРИЯ ФРАКЦИИ • ЦЕПОЧКА ЗАВЕРШЕНА"
+			return
+		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s" % [
+			stage["title"], stage["text"], _cost_text(stage["needs"])]
+		story_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var story_btn := _rusty_button("ПЕРЕДАТЬ И ПРОДОЛЖИТЬ", Color(0.9, 0.58, 0.28))
+		story_btn.custom_minimum_size = Vector2(0, 62)
+		story_btn.disabled = not campaign.can_advance_story(city)
+		story_btn.pressed.connect(func():
+			if campaign.advance_story(city):
+				_play_earn()
+				_render_sheet())
+		_sheet_body.add_child(story_btn)
+
+
+func _cost_text(cost: Dictionary) -> String:
+	var parts: Array[String] = []
+	for key in cost:
+		var name := String(key)
+		if name.begins_with("trophy:"):
+			var trophy_id := name.trim_prefix("trophy:")
+			name = String(CampaignData.TROPHIES.get(trophy_id, {}).get("name", trophy_id))
+		else:
+			name = String(CampaignData.RESOURCES.get(name, {}).get("name", name))
+		parts.append("%s ×%d" % [name, int(cost[key])])
+	return ", ".join(parts)
 
 
 ## Осмотр находки дня: разрешаем и показываем итог поверх листа города.
@@ -1020,6 +1108,11 @@ class MapCanvas:
 	const CDATA := preload("res://scripts/CampaignData.gd")
 	var selected_a := ""
 	var selected_b := ""
+	var discovered: Array = []
+
+	func set_discovered(cities: Array) -> void:
+		discovered = cities.duplicate()
+		queue_redraw()
 
 	func select_route(a: String, b: String) -> void:
 		selected_a = a
@@ -1028,6 +1121,8 @@ class MapCanvas:
 
 	func _draw() -> void:
 		for r: Array in CDATA.ROUTES:
+			if String(r[0]) not in discovered or String(r[1]) not in discovered:
+				continue
 			var a: Vector2 = (CDATA.CITIES[r[0]]["pos"] as Vector2) * size
 			var b: Vector2 = (CDATA.CITIES[r[1]]["pos"] as Vector2) * size
 			var is_selected: bool = selected_b != "" and (

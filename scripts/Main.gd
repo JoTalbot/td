@@ -42,6 +42,7 @@ var _earned_blueprints := 0
 var battle_active := false
 ## Город назначения текущего рейса
 var _destination := ""
+var _route_meta: Dictionary = {}
 ## Лут, набранный в рейсе (в трюм попадёт по прибытии)
 var _run_loot: Dictionary = {}
 var _run_trophies: Dictionary = {}
@@ -194,6 +195,7 @@ func _on_travel(city_id: String) -> void:
 	if route.is_empty():
 		return
 	_destination = city_id
+	_route_meta = CampaignData.route_meta(campaign.location, city_id)
 	waves.run_length = 4 + int(route[0]) * 2
 	waves.danger = float(route[1])
 	# Первые выезды на голой багги — учебный профиль: короче и мягче
@@ -219,7 +221,9 @@ func _on_travel(city_id: String) -> void:
 		tags += " 🐫 караванный тракт — конвой сбросит припасы!"
 	if float(route[1]) >= 1.4:
 		tags += " ☠ Смертельная трасса: награды щедрее, рейдеры злее!"
-	if tags != "":
+	if not _route_meta.is_empty():
+		hud.flash_message("ТРАССА: %s — %s" % [_route_meta["name"], _route_meta["desc"]])
+	elif tags != "":
 		hud.flash_message(tags.strip_edges())
 	_apply_campaign_effects()
 	_spawn_escort_if_needed(city_id)
@@ -311,6 +315,18 @@ func _apply_campaign_effects() -> void:
 			"tailwind":
 				wasteland.speed_scale *= 1.15
 				abilities.cooldown_mult *= 0.8
+	# Именованная трасса меняет правила конкретного рейса.
+	match String(_route_meta.get("modifier", "")):
+		"reward": waves.bonus_mult *= float(_route_meta.get("value", 1.0))
+		"armor": state.add_max_hp(int(state.max_hp * float(_route_meta.get("value", 0.0))))
+		"loot": _loot_chance += float(_route_meta.get("value", 0.0))
+		"range": state.weapon_range_mult *= float(_route_meta.get("value", 1.0))
+		"horde": waves.extra_count += int(_route_meta.get("value", 0))
+	# Услуги городов расходуются при старте следующего рейса.
+	for buff in campaign.pop_service_buffs():
+		match String(buff):
+			"bone_plating": state.add_max_hp(int(state.max_hp * 0.15))
+			"copper_sights": state.damage_mult *= 1.12
 	for item in campaign.pop_pending():
 		# Легендарки из кузни трофеев: орудие заданного уровня, продаётся за 0
 		if item.begins_with("leg_"):

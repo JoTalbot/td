@@ -155,6 +155,37 @@ const ROUTES := [
 	["copperpit", "bartertown", 2, 1.5],       # ☠ Медный разлом
 ]
 
+## Именованные трассы: ключи всегда отсортированы по id городов.
+## modifier применяется в Main на весь рейс.
+const ROUTE_META := {
+	"bartertown|citadel": {"name": "Старый караванный тракт", "desc": "Торговцы платят за охрану дороги.", "modifier": "reward", "value": 1.12},
+	"citadel|bonewall": {"name": "Костяная гряда", "desc": "Белая пыль укрепляет костяную обшивку.", "modifier": "armor", "value": 0.15},
+	"bartertown|copperpit": {"name": "Медный разлом", "desc": "В отвалах часто попадаются полезные детали.", "modifier": "loot", "value": 0.12},
+	"copperpit|rusthaven": {"name": "Шахтёрский караван", "desc": "Богатый конвой повышает награду.", "modifier": "reward", "value": 1.20},
+	"rusthaven|salttown": {"name": "Берег мёртвых судов", "desc": "Соляная мгла режет дальность орудий.", "modifier": "range", "value": 0.85},
+	"crowsnest|gasgrad": {"name": "Чёрный дым", "desc": "Из копоти чаще выходят дополнительные рейдеры.", "modifier": "horde", "value": 2},
+}
+
+## Уникальные услуги новых городов: одноразовый бонус на следующий рейс.
+const CITY_SERVICES := {
+	"bonewall": {"name": "Костяная обшивка", "desc": "+15% HP в следующем рейсе", "buff": "bone_plating", "scrap": 40, "needs": {"parts": 2}},
+	"copperpit": {"name": "Медный прицел", "desc": "+12% урона в следующем рейсе", "buff": "copper_sights", "scrap": 50, "needs": {"metal": 2}},
+}
+
+## Короткие сюжетные цепочки фракций. Награды: лом, груз, репутация, чертежи.
+const CITY_STORIES := {
+	"bonewall": [
+		{"title": "Кости у ворот", "text": "Сборщикам нужен целый багги для новых ворот.", "needs": {"trophy:buggy": 1}, "reward": {"rep": 10, "parts": 3}},
+		{"title": "Белая броня", "text": "Привези детали для ритуальной обшивки.", "needs": {"parts": 4}, "reward": {"rep": 12, "scrap": 120, "bp": 1}},
+		{"title": "Хребет вождя", "text": "Вмонтируй обломок босса в главные ворота.", "needs": {"trophy:boss": 1}, "reward": {"rep": 20, "parts": 8, "bp": 2}},
+	],
+	"copperpit": [
+		{"title": "Мёртвый кабель", "text": "Шакалам нужны платы для запуска шахтного лифта.", "needs": {"chips": 3}, "reward": {"rep": 10, "metal": 5}},
+		{"title": "Голодный привод", "text": "Лифт требует топливо и новые детали.", "needs": {"fuel": 3, "parts": 3}, "reward": {"rep": 12, "scrap": 140, "bp": 1}},
+		{"title": "Сердце карьера", "text": "Корсарский гироскоп оживит древний экскаватор.", "needs": {"trophy:ace": 1}, "reward": {"rep": 20, "chips": 6, "bp": 2}},
+	],
+}
+
 ## Здания базы (в Цитадели): цена — лом + ресурсы из трюма.
 const BUILDINGS := {
 	"storage": {
@@ -389,12 +420,37 @@ static func poi_for(city: String, day_seed: int) -> Dictionary:
 	return d
 
 
+static func route_key(a: String, b: String) -> String:
+	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
+
+
+static func route_meta(a: String, b: String) -> Dictionary:
+	return ROUTE_META.get(route_key(a, b), {})
+
+
 static func route_between(a: String, b: String) -> Array:
 	## Возвращает [dist, danger] или [] если дороги нет.
 	for r in ROUTES:
 		if (r[0] == a and r[1] == b) or (r[0] == b and r[1] == a):
 			return [int(r[2]), float(r[3])]
 	return []
+
+
+static func route_preview(a: String, b: String) -> Dictionary:
+	var route := route_between(a, b)
+	if route.is_empty():
+		return {}
+	var waves := 4 + int(route[0]) * 2
+	var danger := float(route[1])
+	var reward_mult := 1.0
+	var meta := route_meta(a, b)
+	if String(meta.get("modifier", "")) == "reward":
+		reward_mult = float(meta.get("value", 1.0))
+	var scrap := 0
+	for wave in range(1, waves + 1):
+		scrap += int((25 + wave * 6) * danger * reward_mult)
+	var loot_chance := 0.25 + (float(meta.get("value", 0.0)) if String(meta.get("modifier", "")) == "loot" else 0.0)
+	return {"waves": waves, "scrap": scrap, "loot": mini(int(round(loot_chance * waves)), waves), "rep": 1}
 
 
 ## Караванный тракт между городами (🐫: гарантированный сброс припасов в рейсе).

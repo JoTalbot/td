@@ -10,6 +10,9 @@ const DEFAULTS := {
 	"vibration": true,
 	"shake": 100,             # 0 | 50 | 100
 	"effects": "full",       # full | economy
+	"map_zoom": 1.0,
+	"map_pan_x": 0.0,
+	"map_pan_y": 0.0,
 }
 
 var values: Dictionary = DEFAULTS.duplicate(true)
@@ -49,6 +52,17 @@ func particle_gain() -> float:
 	return 0.55 if String(get_value("effects")) == "economy" else 1.0
 
 
+func map_view() -> Dictionary:
+	return {"zoom": float(values["map_zoom"]), "pan": Vector2(float(values["map_pan_x"]), float(values["map_pan_y"]))}
+
+
+func save_map_view(zoom: float, pan: Vector2) -> void:
+	values["map_zoom"] = clampf(zoom, 1.0, 2.4)
+	values["map_pan_x"] = pan.x
+	values["map_pan_y"] = pan.y
+	_save_settings()
+
+
 func vibrate(duration_ms: int = 35, _amplitude: float = 0.45) -> void:
 	if bool(get_value("vibration")):
 		# Godot 4.2 принимает только длительность; параметр силы оставлен для будущих версий.
@@ -78,6 +92,9 @@ func _sanitize() -> void:
 	values["shake"] = 0 if shake_value < 25 else (50 if shake_value < 75 else 100)
 	if String(values["effects"]) not in ["full", "economy"]:
 		values["effects"] = DEFAULTS["effects"]
+	values["map_zoom"] = clampf(float(values["map_zoom"]), 1.0, 2.4)
+	values["map_pan_x"] = float(values["map_pan_x"])
+	values["map_pan_y"] = float(values["map_pan_y"])
 
 
 func _save_settings() -> void:
