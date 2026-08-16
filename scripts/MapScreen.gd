@@ -27,8 +27,9 @@ var _city_buttons: Dictionary = {}
 var _sheet: PanelContainer
 var _sheet_title: Label
 var _sheet_body: VBoxContainer
+var _nav_buttons: Dictionary = {}
 var _selected := ""
-var _view := "info"   # info | market | contracts
+var _view := "info"   # info | market | contracts | hangar | base | lab | showroom
 
 
 func _ready() -> void:
@@ -216,6 +217,25 @@ func _build_map() -> void:
 	_sheet_title = RustHeader.new()
 	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", 25, ACCENT)
 	col.add_child(_sheet_title)
+	# Закреплённые вкладки остаются на месте, пока длинное содержимое крутится.
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 8)
+	nav.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(nav)
+	for tab in [
+		["info", "← ГОРОД", Color(0.75, 0.7, 0.5)],
+		["market", "РЫНОК", Color(0.72, 0.84, 0.48)],
+		["contracts", "КОНТРАКТЫ", Color(0.82, 0.66, 0.34)],
+		["hangar", "АНГАР", Color(0.78, 0.58, 0.35)],
+	]:
+		var tab_id: String = tab[0]
+		var tab_btn := _rusty_button(tab[1], tab[2])
+		tab_btn.custom_minimum_size = Vector2(156, 58)
+		tab_btn.add_theme_font_size_override("font_size", 18)
+		tab_btn.toggle_mode = true
+		tab_btn.pressed.connect(func(): _open_view(tab_id))
+		nav.add_child(tab_btn)
+		_nav_buttons[tab_id] = tab_btn
 	# Лист может быть длинным (ангар, лаборатория) — крутим вертикально
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -246,7 +266,11 @@ func _redraw_map() -> void:
 
 func _select(id: String) -> void:
 	_selected = id
-	_view = "info"
+	_open_view("info")
+
+
+func _open_view(view_id: String) -> void:
+	_view = view_id
 	_render_sheet()
 
 
@@ -262,6 +286,12 @@ func _render_sheet() -> void:
 	var route: Array = CampaignData.route_between(campaign.location, _selected)
 	_refresh_top()
 	_redraw_map()
+	for tab_id in _nav_buttons:
+		var tab_btn: Button = _nav_buttons[tab_id]
+		tab_btn.set_pressed_no_signal(tab_id == _view)
+	# Вложенные экраны базы возвращаются закреплённой вкладкой «ГОРОД».
+	if not _nav_buttons.has(_view):
+		(_nav_buttons["info"] as Button).set_pressed_no_signal(false)
 
 	if _view == "market":
 		_sheet_title.text = "%s %s — рынок" % [c["icon"], c["name"]]
@@ -326,18 +356,18 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	if is_here:
 		var mk := _rusty_button("⛺ Рынок")
 		mk.custom_minimum_size = Vector2(160, 58)
-		mk.pressed.connect(func(): _view = "market"; _render_sheet())
+		mk.pressed.connect(func(): _open_view("market"))
 		btns.add_child(mk)
 		var ct := _rusty_button("📋 Контракты")
 		ct.custom_minimum_size = Vector2(170, 58)
-		ct.pressed.connect(func(): _view = "contracts"; _render_sheet())
+		ct.pressed.connect(func(): _open_view("contracts"))
 		btns.add_child(ct)
 		var tn := 0
 		for t in campaign.trophies:
 			tn += int(campaign.trophies[t])
 		var hg := _rusty_button("🛻 Ангар (%d)" % tn, Color(0.75, 0.7, 0.55))
 		hg.custom_minimum_size = Vector2(160, 58)
-		hg.pressed.connect(func(): _view = "hangar"; _render_sheet())
+		hg.pressed.connect(func(): _open_view("hangar"))
 		btns.add_child(hg)
 		if bool(c.get("home", false)):
 			var btns2 := HBoxContainer.new()
@@ -345,12 +375,12 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			_sheet_body.add_child(btns2)
 			var bb := _rusty_button("🏠 База", Color(0.85, 0.7, 0.3))
 			bb.custom_minimum_size = Vector2(150, 58)
-			bb.pressed.connect(func(): _view = "base"; _render_sheet())
+			bb.pressed.connect(func(): _open_view("base"))
 			btns2.add_child(bb)
 			var lb := _rusty_button("⚗️ Лаборатория" if campaign.bld_level("lab") > 0 else "⚗️ Лаборатория (нет)", Color(0.7, 0.8, 0.5))
 			lb.custom_minimum_size = Vector2(210, 58)
 			lb.disabled = campaign.bld_level("lab") == 0
-			lb.pressed.connect(func(): _view = "lab"; _render_sheet())
+			lb.pressed.connect(func(): _open_view("lab"))
 			btns2.add_child(lb)
 			var sr := _rusty_button("🛠 Шоурум", Color(0.95, 0.7, 0.35))
 			sr.custom_minimum_size = Vector2(170, 58)
@@ -358,7 +388,7 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			if ResourceLoader.exists(hicon):
 				sr.icon = load(hicon)
 				sr.add_theme_constant_override("icon_max_width", 34)
-			sr.pressed.connect(func(): _view = "showroom"; _render_sheet())
+			sr.pressed.connect(func(): _open_view("showroom"))
 			btns2.add_child(sr)
 	elif not route.is_empty():
 		var waves_count := 4 + int(route[0]) * 2
@@ -396,10 +426,6 @@ func _play_earn() -> void:
 
 
 func _render_market(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Торговать можно только в городе, где стоит фура."
@@ -441,10 +467,6 @@ func _render_market(is_here: bool) -> void:
 
 ## Ангар: захваченные в рейсах тачки — пилить на ресурсы или продавать.
 func _render_hangar(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	var total := 0
 	for t in campaign.trophies:
 		total += int(campaign.trophies[t])
@@ -539,10 +561,6 @@ func _render_hangar(is_here: bool) -> void:
 
 ## Шоурум: лесенка корпусов. Собираем из запчастей (только дома), выбираем рабочую.
 func _render_showroom(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Шоурум при базе — загляни домой."
@@ -589,10 +607,6 @@ func _render_showroom(is_here: bool) -> void:
 
 
 func _render_contracts(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	var active_t := _mk_label(_sheet_body, 21, ACCENT)
 	active_t.text = "— Активные (%d/3) —" % campaign.contracts.size()
 	if campaign.contracts.is_empty():
@@ -628,10 +642,6 @@ func _render_contracts(is_here: bool) -> void:
 
 ## Вид базы: постройки, их уровни и цены.
 func _render_base(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Строить можно только дома."
@@ -669,10 +679,6 @@ func _render_base(is_here: bool) -> void:
 
 ## Вид лаборатории: исследования, крафт, инвентарь модулей.
 func _render_lab(is_here: bool) -> void:
-	var back := _rusty_button("← К описанию")
-	back.custom_minimum_size = Vector2(170, 58)
-	back.pressed.connect(func(): _view = "info"; _render_sheet())
-	_sheet_body.add_child(back)
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Лаборанты работают только дома."
