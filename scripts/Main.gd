@@ -225,6 +225,16 @@ func _on_travel(city_id: String) -> void:
 	waves.bonus_mult *= campaign.route_mastery_reward_mult(campaign.location, city_id)
 	var route_controller: String = campaign.route_controller(campaign.location, city_id)
 	waves.commander_type = campaign.route_commander(campaign.location, city_id)
+	# Контратака проигравшей фракции: едем по уязвимой дороге — рейс-оборона
+	var ca_route: Dictionary = campaign.counterattack_on(campaign.location, city_id)
+	if not ca_route.is_empty():
+		waves.extra_count += 2
+		hud.flash_message("⚔ КОНТРАТАКА: «%s» идёт отбивать дорогу — удержите трассу!" % \
+			CampaignData.CITIES.get(String(ca_route["by"]), {}).get("faction", "Рейдеры"))
+		var ca_cmd: Dictionary = CampaignData.FACTION_COMMANDERS.get(String(ca_route["by"]), {})
+		if waves.commander_type == "" and not ca_cmd.is_empty():
+			waves.commander_type = String(ca_cmd.get("type", ""))
+			hud.flash_message("☠ Атаку возглавляет %s!" % ca_cmd.get("name", "командир"))
 	var friendly_control := campaign.rep_level(route_controller) >= 2
 	if friendly_control:
 		waves.danger *= 0.95
@@ -462,6 +472,14 @@ func _on_run_completed() -> void:
 	# Мастерство трассы растёт только за живое успешное прибытие.
 	campaign.note_route(campaign.location, _destination)
 	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
+	# Оборона дороги: успешный рейс по уязвимому маршруту отбивает контратаку
+	var repelled: Dictionary = campaign.repel_counterattack(campaign.location, _destination)
+	if not repelled.is_empty():
+		summary["counter_repelled"] = int(repelled.get("scrap", 120))
+		hud.flash_message("⚔ КОНТРАТАКА ОТБИТА! +⚙%d и уважение «%s»" % [
+			int(repelled.get("scrap", 0)),
+			CampaignData.CITIES.get(String(repelled.get("defender", "")), {}).get("faction", "защитников")])
+		sfx.play("earn", 1.0, 1.2)
 	summary["escort"] = escort_pay
 	waves.ally = null
 	# Живой финиш тоже приносит чертежи и идёт в рекорды

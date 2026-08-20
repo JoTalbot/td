@@ -687,6 +687,12 @@ func _render_war_front() -> void:
 		label.text = "%s • %s • %d дн.%s" % [route_name, faction, age, " • КОМАНДИР" if commander != "" else ""]
 		if commander != "":
 			label.add_theme_color_override("font_color", Color(1.0, 0.48, 0.22))
+		var cattack: Dictionary = campaign.counterattack_on(a, b)
+		if not cattack.is_empty():
+			var by_faction := String(CampaignData.CITIES.get(String(cattack.get("by", "")), {}).get("faction", "?"))
+			label.text += " • ⚔ КОНТРАТАКА «%s» через %d" % [by_faction, int(cattack.get("eta", 1))]
+			label.add_theme_color_override("font_color", Color(1.0, 0.38, 0.25))
+		if commander != "" or not cattack.is_empty():
 			var pulse := create_tween()
 			pulse.set_loops()
 			pulse.tween_property(row, "modulate:a", 0.58, 0.55)
@@ -708,7 +714,12 @@ func _render_war_log() -> void:
 		var text := _mk_label(row, 19, TEXT_DIM)
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		text.text = "ДЕНЬ %d • %s\nКОНТРОЛЬ: %s" % [int(entry.get("day", 0)), entry.get("name", "Дорога"), faction]
+		var tag := ""
+		if bool(entry.get("counter", false)):
+			tag = " ⚔ КОНТРАТАКА УДАЛАСЬ"
+		elif bool(entry.get("repelled", false)):
+			tag = " 🛡 КОНТРАТАКА ОТБИТА"
+		text.text = "ДЕНЬ %d • %s%s\nКОНТРОЛЬ: %s" % [int(entry.get("day", 0)), entry.get("name", "Дорога"), tag, faction]
 
 
 func _render_city_specials(city: String) -> void:

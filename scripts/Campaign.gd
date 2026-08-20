@@ -42,6 +42,8 @@ var truck_paint := "rust"
 var route_control: Dictionary = {}  # route_key -> город-фракция, контролирующая дорогу
 var route_control_age: Dictionary = {} # route_key -> дней непрерывного контроля
 var war_log: Array = []              # последние захваты дорог
+## Контратаки проигравших фракций: route_key -> {by, owner, eta (рейсов до удара)}.
+var counterattacks: Dictionary = {}
 var achievements: Array = []         # автоматически выданные достижения
 var achievement_stats: Dictionary = {"trade": 0, "trophies": 0}
 var war_week := -1
@@ -103,6 +105,7 @@ func load_campaign() -> void:
 	route_control = data.get("route_control", {})
 	route_control_age = data.get("route_control_age", {})
 	war_log = data.get("war_log", [])
+	counterattacks = data.get("counterattacks", {})
 	achievements = data.get("achievements", [])
 	achievement_stats = data.get("achievement_stats", {"trade": 0, "trophies": 0})
 	war_week = int(data.get("war_week", -1))
@@ -164,6 +167,7 @@ func save_campaign() -> void:
 		"route_control": route_control,
 		"route_control_age": route_control_age,
 		"war_log": war_log,
+		"counterattacks": counterattacks,
 		"achievements": achievements,
 		"achievement_stats": achievement_stats,
 		"war_week": war_week,
@@ -281,6 +285,26 @@ func advance_faction_war() -> void:
 	# Все удерживаемые дороги стареют на день; смена владельца сбрасывает срок.
 	for controlled_key in route_control:
 		route_control_age[controlled_key] = int(route_control_age.get(controlled_key, 0)) + 1
+	# Дозревшие контратаки бьют первыми: проигравшая фракция отбивает дорогу назад.
+	for ca_key in counterattacks.keys():
+		var ca: Dictionary = counterattacks[ca_key]
+		ca["eta"] = int(ca.get("eta", 1)) - 1
+		if int(ca["eta"]) > 0:
+			continue
+		var back := String(ca.get("by", ""))
+		counterattacks.erase(ca_key)
+		var held := String(route_control.get(ca_key, ""))
+		if held == "":
+			var owns := String(ca_key).split("|")
+			held = owns[0] if owns.size() == 2 else ""
+		if back == "" or held == "" or held == back:
+			continue
+		route_control[ca_key] = back
+		route_control_age[ca_key] = 0
+		war_log.push_front({"day": day, "route": ca_key, "name": _route_display_name(ca_key),
+			"owner": back, "previous": held, "counter": true})
+		if war_log.size() > 20:
+			war_log.resize(20)
 	var route: Array = CampaignData.ROUTES[(day * 7 + runs_finished * 3) % CampaignData.ROUTES.size()]
 	var key := CampaignData.route_key(String(route[0]), String(route[1]))
 	var owner := String(route[0]) if (day + runs_finished) % 2 == 0 else String(route[1])
@@ -292,6 +316,44 @@ func advance_faction_war() -> void:
 		war_log.push_front({"day": day, "route": key, "name": route_name, "owner": owner, "previous": previous})
 		if war_log.size() > 20:
 			war_log.resize(20)
+		# Проигравшая фракция не сдаётся: через 2-3 рейса грянет контратака.
+		if not counterattacks.has(key):
+			var loser := previous
+			if loser == "":
+				loser = String(route[0]) if String(route[0]) < String(route[1]) else String(route[1])
+			if loser != owner:
+				counterattacks[key] = {"by": loser, "owner": owner, "eta": 2 + (day + runs_finished) % 2}
+
+
+## Имя дороги по её ключу "a|b" — для записей войны.
+func _route_display_name(key: String) -> String:
+	var owns := String(key).split("|")
+	if owns.size() == 2:
+		return String(CampaignData.route_meta(owns[0], owns[1]).get("name", "Безымянная дорога"))
+	return key
+
+
+## Назревшая контратака на дороге A—B: {} если всё тихо.
+func counterattack_on(a: String, b: String) -> Dictionary:
+	return counterattacks.get(CampaignData.route_key(a, b), {})
+
+
+## Успешный рейс по уязвимой дороге отбивает контратаку: лом + уважение защитников.
+func repel_counterattack(a: String, b: String) -> Dictionary:
+	var key := CampaignData.route_key(a, b)
+	if not counterattacks.has(key):
+		return {}
+	var ca: Dictionary = counterattacks[key]
+	counterattacks.erase(key)
+	var defender := String(ca.get("owner", route_controller(a, b)))
+	wallet += 120
+	if defender != "":
+		gain_rep(defender, 3)
+	war_log.push_front({"day": day, "route": key, "name": _route_display_name(key),
+		"owner": defender, "previous": String(ca.get("by", "")), "repelled": true})
+	if war_log.size() > 20:
+		war_log.resize(20)
+	return {"scrap": 120, "rep": 3, "defender": defender}
 
 
 func _current_war_week() -> int:
