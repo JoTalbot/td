@@ -195,6 +195,7 @@ func _ready() -> void:
 	state.game_over.connect(_on_game_over)
 	waves.run_completed.connect(_on_run_completed)
 	waves.enemy_killed.connect(_on_enemy_killed)
+	waves.cargo_looted.connect(_on_cargo_looted)
 	state.weapon_jam_requested.connect(_on_weapon_jam_requested)
 	# Звуковая полировка: горн волны, рык босса
 	waves.wave_started.connect(func(_i): sfx.play("horn", 0.7))
@@ -254,9 +255,10 @@ func _on_travel(city_id: String) -> void:
 		CampaignData.CITIES[city_id]["name"]])
 	# Метки трассы: караванный тракт и смертельные дороги
 	events.set_caravan_run(CampaignData.route_is_caravan(campaign.location, city_id))
+	waves.treasurer_planned = events.caravan_run
 	var tags := ""
 	if events.caravan_run:
-		tags += " 🐫 караванный тракт — конвой сбросит припасы!"
+		tags += " 🐫 караванный тракт — конвой сбросит припасы, а в пути может попасться КАЗНАЧЕЙ с сейфом!"
 	if float(route[1]) >= 1.4:
 		tags += " ☠ Смертельная трасса: награды щедрее, рейдеры злее!"
 	if not _route_meta.is_empty():
@@ -475,7 +477,7 @@ func _on_enemy_killed(type: String) -> void:
 	for c in done:
 		hud.flash_message("✅ Контракт выполнен! +⚙%d" % c["reward"])
 	# Звук взрыва и тряска: боссы гремят сильнее
-	if type in ["boss", "ace", "scoutboss", "bonepriest", "copperdrill"]:
+	if type in ["boss", "ace", "scoutboss", "bonepriest", "copperdrill", "treasurer"]:
 		sfx.play("big_boom", 0.9)
 		camera_rig.add_trauma(0.5)
 	else:
@@ -489,6 +491,15 @@ func _on_enemy_killed(type: String) -> void:
 		_run_trophies[type] = int(_run_trophies.get(type, 0)) + 1
 		hud.flash_message("🛻 Захвачен трофей: %s %s!" % [tpl["icon"], tpl["name"]])
 		sfx.play("earn", 0.8)
+	# Казначей расколот: сейф опустошён — запчасти, платы и пара ящиков наугад
+	if type == "treasurer":
+		var jackpot := {"parts": 2, "chips": 1}
+		var res_keys := ["metal", "fuel", "water", "ammo", "food"]
+		res_keys.shuffle()
+		for res in res_keys.slice(0, 2):
+			jackpot[res] = 2
+		_on_cargo_looted(jackpot)
+		hud.flash_message("🏦 КАЗНА РАЗБИТА! Сейф Казначея опустошён — вся добыча ваша!")
 	# Лут с убитого (металл чаще всего); «День Основания» удваивает шанс
 	if randf() < _loot_chance:
 		var roll := randf()
@@ -506,6 +517,23 @@ func _on_enemy_killed(type: String) -> void:
 		elif roll > 0.45:
 			res = "water"
 		_run_loot[res] = int(_run_loot.get(res, 0)) + 1
+
+
+## Груз Казначея (сброшенный балласт или разбитая казна) — прямиком в трюм.
+func _on_cargo_looted(bundle: Dictionary) -> void:
+	for res in bundle:
+		_run_loot[res] = int(_run_loot.get(res, 0)) + int(bundle[res])
+	hud.flash_message("📦 Груз с трассы подобран: %s!" % _bundle_text(bundle))
+	sfx.play("earn", 0.7)
+
+
+## «запчасти ×2, платы ×1» — человекочитаемая строка набора ресурсов.
+func _bundle_text(bundle: Dictionary) -> String:
+	var parts: Array = []
+	for res in bundle:
+		var info: Dictionary = CampaignData.RESOURCES.get(res, {})
+		parts.append("%s %s ×%d" % [info.get("icon", "▪"), info.get("name", res), int(bundle[res])])
+	return ", ".join(parts)
 
 
 ## Пересборка боевой платформы под корпус кампании: слоты и запас HP.

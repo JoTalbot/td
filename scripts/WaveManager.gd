@@ -9,6 +9,8 @@ signal boss_event(text: String)
 signal run_completed
 ## Любой враг убит — для контрактов-баунти и лута.
 signal enemy_killed(type: String)
+## Сброшенный балласт Казначея подобран на ходу: набор {ресурс: кол-во} — в трюм Main.
+signal cargo_looted(bundle: Dictionary)
 
 const EnemyScript := preload("res://scripts/Enemy.gd")
 const CopterScript := preload("res://scripts/RaiderCopter.gd")
@@ -37,6 +39,9 @@ var ambush_every := 0
 var scout_boss := false
 ## Командир фракции на финальной волне обычного рейса.
 var commander_type := ""
+## Караванный тракт: посреди рейса стороной проедет Казначей с золотой казной.
+var treasurer_planned := false
+var _treasurer_spawned := false
 var spawning := false
 var between_waves := true
 var countdown := 5.0
@@ -63,6 +68,7 @@ func start() -> void:
 	active = true
 	between_waves = true
 	countdown = 5.0
+	_treasurer_spawned = false
 
 
 func _process(delta: float) -> void:
@@ -161,6 +167,13 @@ func _launch_wave() -> void:
 		boss_event.emit("🎃 Стая автожиров в ночном небе!")
 	if sab_in_wave:
 		boss_event.emit("⚠ В строю диверсанты — не подпускайте к фуре!")
+	# Караванные тракты: на середине рейса мимо обогнал Казначей с золотой казной.
+	# Волну не блокирует: уходит по дуге за полминуты — золотая цель, успей расколотить!
+	if treasurer_planned and not _treasurer_spawned and run_length > 1 \
+			and wave_index == mini(ceili(run_length * 0.5), run_length - 1):
+		_treasurer_spawned = true
+		_spawn_treasurer(hp_scale)
+		boss_event.emit("💰 КАРАВАННЫЙ КАЗНАЧЕЙ на горизонте! Бейте в сейф, пока не ушёл с казной!")
 	wave_started.emit(wave_index)
 
 
@@ -240,6 +253,29 @@ func _spawn(data: Dictionary) -> void:
 	else:
 		# Появляются сзади в клубах пыли, чуть сбоку
 		enemy.global_position = truck.global_position + Vector3(enemy.attack_offset.x * 1.5, 0, -38.0)
+
+
+## Казначей (караванный тракт): броневик с золотой казной. В enemies_alive НЕ
+## входит — живой уходит с трассы; убитый целиком идёт трофеем и с грузом в трюм.
+func _spawn_treasurer(hp_scale: float) -> void:
+	var t: Node3D = EnemyScript.new()
+	t.enemy_type = "treasurer"
+	t.is_boss = true
+	t.fleeing = true
+	t.escape_side = 1.0 if randf() < 0.5 else -1.0
+	t.max_hp = int(340.0 * hp_scale)
+	t.chase_speed = 5.5
+	t.reward = 150
+	t.attack_damage = 0
+	t.truck = truck
+	t.state = state
+	t.phase_announced.connect(func(text: String): boss_event.emit(text))
+	t.cargo_dropped.connect(func(bundle: Dictionary): cargo_looted.emit(bundle))
+	t.died.connect(func(_r): enemy_killed.emit("treasurer"))
+	t.escaped.connect(func():
+		boss_event.emit("💨 Казначей ушёл с трассы — казна растворилась в пыли. В другой раз!"))
+	get_tree().current_scene.add_child(t)
+	t.global_position = truck.global_position + Vector3(t.escape_side * 9.0, 0, -40.0)
 
 
 ## Корсар: воздушный босс. Часть волны — считается в enemies_alive.

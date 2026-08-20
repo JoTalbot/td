@@ -374,6 +374,7 @@ const TROPHIES := {
 	"scoutboss": {"name": "Дозорный-картограф", "icon": "🧭", "chance": 1.0, "scrap_price": 180, "salvage": {"metal": 7, "chips": 4, "parts": 6}},
 	"bonepriest": {"name": "Тотем Костяного Жреца", "icon": "🦴", "chance": 1.0, "scrap_price": 210, "salvage": {"metal": 6, "food": 3, "parts": 7}},
 	"copperdrill": {"name": "Дрель Медного Бурильщика", "icon": "⚙", "chance": 1.0, "scrap_price": 230, "salvage": {"metal": 9, "chips": 3, "parts": 8}},
+	"treasurer": {"name": "Сейф Казначея", "icon": "💰", "chance": 1.0, "scrap_price": 240, "salvage": {"metal": 5, "chips": 2, "parts": 4}},
 	"trainloko": {"name": "Локомотив", "icon": "🚂", "chance": 1.0, "scrap_price": 200, "salvage": {"metal": 10, "chips": 3, "parts": 6}},
 	"traincar":  {"name": "Вагон поезда", "icon": "🚃", "chance": 0.5, "scrap_price": 80, "salvage": {"metal": 5, "chips": 2, "parts": 3}},
 }
@@ -425,6 +426,7 @@ const LEGENDARY_RECIPES := {
 	"leg_stena": {"name": "«Стена»", "icon": "🧱", "weapon": "cannon", "level": 2, "needs": {"boss": 1, "ram": 1}, "desc": "Пушка ур.3 в следующий рейс"},
 	"leg_ossuary": {"name": "«Костница»", "icon": "🦴", "weapon": "flamer", "level": 2, "needs": {"bonepriest": 1}, "desc": "Огнемёт ур.3 из тотема Жреца"},
 	"leg_borer": {"name": "«Проходчик»", "icon": "⚙", "weapon": "mortar", "level": 2, "needs": {"copperdrill": 1}, "desc": "Мортира ур.3 из дрели Бурильщика"},
+	"leg_grabcrane": {"name": "«Граб-кран»", "icon": "🪝", "weapon": "harpoon", "level": 1, "needs": {"treasurer": 1}, "desc": "Гарпун ур.2 из тросов и лебёдки Казначея"},
 }
 
 ## Легендарная ковка способностей: сгорают трофеи — способность открыта НАВСЕГДА.

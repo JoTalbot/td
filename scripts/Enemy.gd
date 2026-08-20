@@ -7,6 +7,10 @@ signal died(reward: int)
 signal phase_announced(text: String)
 ## Босс в отчаянии зовёт байкеров на подмогу.
 signal spawn_minions(count: int)
+## Казначей сбежал живым с казной (волну не блокирует).
+signal escaped
+## Казначей в панике сбросил балласт: набор ресурсов {id: кол-во} сыпется за борт.
+signal cargo_dropped(bundle: Dictionary)
 
 const Junk := preload("res://scripts/Junk.gd")
 
@@ -33,6 +37,12 @@ var ally: Node3D = null      # эскорт-фургон: если задан и
 ## Диверсант: первый удар по фуре заклинивает случайное оружие на несколько секунд.
 var sab := false
 var _sab_done := false
+
+## Караванный Казначей: не воюет, а спасает казну — уходит дугой мимо фуры с трассы.
+var fleeing := false
+var escape_side := 1.0
+var _escape_pts: Array = []
+var _cargo_dropped := false
 
 ## Абордаж: добитую (HP < 30%) лёгкую тачку игрок может угнать тапом — целиком в ангар.
 const BOARDABLE := ["buggy", "biker", "ram", "traincar"]
@@ -66,6 +76,7 @@ func _ready() -> void:
 		"scoutboss": _build_scoutboss()
 		"bonepriest": _build_bonepriest()
 		"copperdrill": _build_copperdrill()
+		"treasurer": _build_treasurer()
 		"trainloko": _build_trainloko()
 		"traincar": _build_traincar()
 		_: _build_buggy()
@@ -75,6 +86,8 @@ func _ready() -> void:
 	Junk.dust_trail(self, Vector3(0, 0.1, -1.5), 30, 0.7)
 	if sab:
 		_add_sab_hood()
+	if fleeing:
+		_plan_escape()
 
 
 ## Чёрный балахон диверсанта: заметен издалека — приоритетная цель.
@@ -295,6 +308,83 @@ func _build_copperdrill() -> void:
 		lamp.add_child(glow)
 
 
+## Караванный Казначей: броневик-повозка с золотым сейфом, мешками и слитками.
+func _build_treasurer() -> void:
+	var gold := Junk.metal(Color(0.86, 0.62, 0.16), 0.32, 0.9)
+	var dark := Junk.metal(Color(0.15, 0.13, 0.11), 0.6, 0.8)
+	# Бронированный корпус и кабина охраны
+	Junk.box(_body, Vector3(2.0, 0.9, 4.2), Vector3(0, 0.8, 0), Junk.rust(_rng))
+	Junk.box(_body, Vector3(1.7, 0.9, 1.3), Vector3(0, 1.5, 1.55), Junk.rust(_rng))
+	Junk.box(_body, Vector3(1.4, 0.35, 0.1), Vector3(0, 1.72, 2.16), Junk.metal(Color(0.1, 0.12, 0.14)))
+	# Сейф-казна на кузове: золотая крышка, обручи и навесной замок
+	Junk.box(_body, Vector3(1.5, 0.9, 2.0), Vector3(0, 1.5, -0.9), dark)
+	Junk.box(_body, Vector3(1.58, 0.14, 2.08), Vector3(0, 1.98, -0.9), gold)
+	for z in [-1.7, -0.4]:
+		Junk.cyl(_body, 0.09, 1.66, Vector3(0, 1.52, z), gold, Vector3(0, 0, 90))
+	Junk.box(_body, Vector3(0.28, 0.4, 0.16), Vector3(0, 1.32, 0.14), gold)
+	Junk.cyl(_body, 0.09, 0.3, Vector3(0, 1.6, 0.14), gold, Vector3(90, 0, 0))
+	# Слитки и мешки с мелочью, выглядывающие над бортами
+	for i in 4:
+		Junk.box(_body, Vector3(0.32, 0.12, 0.2), Vector3(-0.55 + i * 0.37, 1.31, 0.32), gold, Vector3(0, randf_range(-8.0, 8.0), 0))
+	for side in [-1.0, 1.0]:
+		Junk.cyl(_body, 0.2, 0.5, Vector3(side * 0.78, 1.35, 0.62), Junk.metal(Color(0.52, 0.4, 0.2), 0.95, 0.05))
+	# Охранная дуга над сейфом
+	Junk.cyl(_body, 0.06, 1.9, Vector3(-0.82, 2.15, -0.9), dark, Vector3(0, 0, -16))
+	Junk.cyl(_body, 0.06, 1.9, Vector3(0.82, 2.15, -0.9), dark, Vector3(0, 0, 16))
+	Junk.cyl(_body, 0.06, 1.55, Vector3(0, 2.5, -0.9), dark, Vector3(0, 0, 90))
+	# Выхлопные трубы-курительницы
+	for side in [-1.0, 1.0]:
+		Junk.cyl(_body, 0.09, 1.5, Vector3(side * 0.95, 1.9, 1.9), dark)
+	# Три оси колёс — повозка гружёная под завязку
+	for side in [-1.0, 1.0]:
+		for zi in 3:
+			_wheels.append(Junk.wheel(_body, 0.55, 0.42, Vector3(side * 1.15, 0.55, -1.45 + zi * 1.45)))
+
+
+## Маршрут сбегания Казначея: обгонная дуга мимо фуры — и прочь с трассы с казной.
+func _plan_escape() -> void:
+	var origin: Vector3 = truck.global_position if truck != null else global_position
+	var side := escape_side
+	_escape_pts = [
+		origin + Vector3(side * 6.5, 0, -12.0),
+		origin + Vector3(side * 7.5, 0, 0.0),
+		origin + Vector3(side * 9.0, 0, 10.0),
+		origin + Vector3(side * 13.0, 0, 22.0),
+		origin + Vector3(side * 22.0, 0, 38.0),
+		origin + Vector3(side * 36.0, 0, 58.0),
+	]
+
+
+## Паника Казначея по порогу HP: балласт за борт — часть казны игроку, а он жмёт на газ.
+func _check_flee_panic(ratio: float) -> void:
+	if _cargo_dropped or ratio > 0.5:
+		return
+	_cargo_dropped = true
+	chase_speed *= 1.55
+	_drop_ballast_visual()
+	cargo_dropped.emit({"parts": 1, "fuel": 1})
+	phase_announced.emit("💰 КАЗНАЧЕЙ СБРОСИЛ БАЛЛАСТ — груз сыплется за борт, а он наддал ходу!")
+
+
+## Золотые ящички кувыркаются на трассу позади повозки (чистый визуал).
+func _drop_ballast_visual() -> void:
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	var gold := Junk.metal(Color(0.86, 0.62, 0.16), 0.32, 0.9)
+	for i in 3:
+		var crate := Junk.box(scene, Vector3(0.34, 0.24, 0.22),
+			global_position + Vector3(randf_range(-0.6, 0.6), 1.3, randf_range(-0.5, 0.5)), gold)
+		var tw := crate.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(crate, "position:z", crate.position.z - 3.0 - float(i), 0.7).set_ease(Tween.EASE_IN)
+		tw.tween_property(crate, "position:y", 0.12, 0.55).set_ease(Tween.EASE_IN)
+		tw.tween_property(crate, "rotation:x", randf_range(2.0, 4.0), 0.7)
+		tw.chain().tween_interval(2.5)
+		tw.chain().tween_property(crate, "scale", Vector3.ZERO, 0.4)
+		tw.chain().tween_callback(crate.queue_free)
+
+
 func _build_hp_bar() -> void:
 	_hp_bar = MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -325,6 +415,9 @@ func take_damage(amount: int, p_state: Node) -> void:
 		smoke_process.color = Color(0.07, 0.065, 0.06, 0.65)
 	if hp <= 0:
 		_die(p_state)
+	elif fleeing:
+		# Казначею не до фаз ярости: бьют по броне — он паникует и сбрасывает балласт
+		_check_flee_panic(ratio)
 	elif is_boss:
 		_update_boss_phase(ratio)
 	else:
@@ -483,6 +576,24 @@ func _process(delta: float) -> void:
 	if _hook_mark != null:
 		var s := 1.0 + 0.25 * sin(_bob * 0.9)
 		_hook_mark.scale = Vector3(s, s, s)
+
+	# Казначей не воюет: катит по дуге сбегания и сваливает с трассы с казной
+	if fleeing:
+		if _escape_pts.is_empty():
+			return
+		var spot: Vector3 = _escape_pts[0]
+		var to_spot := spot - global_position
+		to_spot.y = 0.0
+		if to_spot.length() <= 1.2:
+			_escape_pts.pop_front()
+			if _escape_pts.is_empty():
+				escaped.emit()
+				queue_free()
+			return
+		var run_dir := to_spot.normalized()
+		global_position += run_dir * chase_speed * _slow_mult * delta
+		_body.rotation.y = lerp_angle(_body.rotation.y, atan2(run_dir.x, run_dir.z), delta * 5.0)
+		return
 
 	# Цель: союзный фургон, если метим в него, иначе фура
 	var anchor: Node3D = truck
