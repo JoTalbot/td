@@ -1,0 +1,39 @@
+name: Fix route origin regression
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-origin.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix origin capture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          p = Path('scripts/Main.gd')
+          text = p.read_text(encoding='utf-8')
+          old = 'func _on_run_completed() -> void:\n\tbattle_active = false\n'
+          new = 'func _on_run_completed() -> void:\n\tvar origin := campaign.location\n\tbattle_active = false\n'
+          if old in text and '\tvar origin := campaign.location\n\tbattle_active = false' not in text:
+              text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+          wf = Path('.github/workflows/fix-origin.yml')
+          if wf.exists():
+              wf.unlink()
+          subprocess.run(['git','config','user.name','github-actions[bot]'], check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+          subprocess.run(['git','add','scripts/Main.gd','.github/workflows/fix-origin.yml'], check=True)
+          subprocess.run(['git','diff','--cached','--check'], check=True)
+          if subprocess.run(['git','diff','--cached','--quiet']).returncode != 0:
+              subprocess.run(['git','commit','-m','fix: capture route origin before arrival'], check=True)
+              subprocess.run(['git','push'], check=True)
+          PY
