@@ -538,7 +538,7 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		_sheet_body.add_child(preview_row)
 		_status_icon(preview_row, "scrap", 34)
 		var forecast := _mk_label(preview_row, 19, Color(0.78, 0.9, 0.62))
-		var mastery_mult := campaign.route_mastery_reward_mult(campaign.location, _selected)
+		var mastery_mult: float = campaign.route_mastery_reward_mult(campaign.location, _selected)
 		var network_mult := NetworkRewards.multiplier(campaign.route_control, CampaignData.ROUTES, campaign.location, _selected)
 		var mastery_scrap := int(int(preview.get("scrap", 0)) * mastery_mult * network_mult)
 		var mastery_count: int = campaign.route_mastery_count(campaign.location, _selected)
