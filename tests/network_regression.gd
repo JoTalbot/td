@@ -28,7 +28,7 @@ func _initialize() -> void:
 	]
 	var expanded_control := control.duplicate()
 	for route in expanded_routes.slice(routes.size()):
-		expanded_control[NetworkRewards._route_key(String(route[0]), String(route[1]))] = "citadel"
+		expanded_control[NetworkRewards.route_key(String(route[0]), String(route[1]))] = "citadel"
 	_check(failures, "bonus is capped", is_equal_approx(NetworkRewards.multiplier(expanded_control, expanded_routes, "citadel", "gasgrad"), 1.10))
 	_check(failures, "other faction does not leak bonus", is_equal_approx(NetworkRewards.multiplier(control, routes, "rusthaven", "salttown"), 1.0))
 	if failures.is_empty():
