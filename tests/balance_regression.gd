@@ -8,15 +8,15 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	var previous_reward := 0
 	for wave in range(1, 16):
-		var reward := _wave_reward(wave, 1.0, 1.0, 0)
+		var reward := _wave_reward(wave, 1.0, 1.0, 1.0)
 		_check(failures, "wave %d reward grows" % wave, reward > previous_reward)
 		_check(failures, "wave %d reward is finite" % wave, reward > 0 and reward < 10000)
 		previous_reward = reward
 
-	_check(failures, "danger increases reward", _wave_reward(10, 1.5, 1.0, 0) > _wave_reward(10, 1.0, 1.0, 0))
+	_check(failures, "danger increases reward", _wave_reward(10, 1.5, 1.0, 1.0) > _wave_reward(10, 1.0, 1.0, 1.0))
 	_check(failures, "network cap is bounded", MAX_NETWORK_BONUS <= 1.10)
-	_check(failures, "engine bonus is monotonic", _wave_reward(10, 1.0, 1.50, 0) > _wave_reward(10, 1.0, 1.25, 0))
-	_check(failures, "engine bonus remains bounded", _wave_reward(15, 1.0, 2.0, 0) < 10000)
+	_check(failures, "engine bonus is monotonic", _wave_reward(10, 1.0, 1.50, 1.0) > _wave_reward(10, 1.0, 1.25, 1.0))
+	_check(failures, "engine bonus remains bounded", _wave_reward(15, 1.0, 2.0, 1.0) < 10000)
 
 	var boss_hp_5 := _boss_hp(5, 1.0, 1.0)
 	var boss_hp_10 := _boss_hp(10, 1.0, 1.0)
