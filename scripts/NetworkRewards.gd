@@ -6,7 +6,7 @@ const PER_EXTRA_ROUTE: float = 0.02
 const MAX_BONUS: float = 0.10
 
 static func multiplier(route_control: Dictionary, routes: Array, a: String, b: String) -> float:
-	var key: String = _route_key(a, b)
+	var key: String = route_key(a, b)
 	var owner: String = String(route_control.get(key, ""))
 	if owner == "":
 		return 1.0
@@ -35,7 +35,7 @@ static func _component_size(route_control: Dictionary, routes: Array, owner: Str
 			var right: String = String(route[1])
 			if left != city and right != city:
 				continue
-			var edge_key: String = _route_key(left, right)
+			var edge_key: String = route_key(left, right)
 			if String(route_control.get(edge_key, "")) != owner:
 				continue
 			nodes[left] = true
@@ -45,5 +45,6 @@ static func _component_size(route_control: Dictionary, routes: Array, owner: Str
 				queue.append(next_city)
 	return nodes.size()
 
-static func _route_key(a: String, b: String) -> String:
+## Canonical route key shared by gameplay and deterministic regression tests.
+static func route_key(a: String, b: String) -> String:
 	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
