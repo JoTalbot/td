@@ -467,6 +467,7 @@ func _mount_legendary(item: String) -> void:
 
 ## Доехали: сворачиваем лом и лут в кампанию, показываем сводку.
 func _on_run_completed() -> void:
+	var origin := campaign.location
 	battle_active = false
 	weather.set_active(false)
 	if Junk.quality_high:
