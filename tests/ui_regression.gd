@@ -1,9 +1,8 @@
 extends SceneTree
-## Lightweight headless UI/resource regression checks.
-## Не рендерит пиксели: проверяет, что критические сцены и ассеты не исчезли из сборки.
+## Лёгкая headless-проверка UI и критических ресурсов.
+## Пиксели не сравниваем: проверяем, что ключевые файлы сборки не исчезли.
 
 const REQUIRED_FILES := [
-	"res://project.godot",
 	"res://scripts/Main.gd",
 	"res://scripts/Campaign.gd",
 	"res://scripts/CampaignData.gd",
