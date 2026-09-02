@@ -10,16 +10,19 @@ static func multiplier(route_control: Dictionary, routes: Array, a: String, b: S
 	var owner := String(route_control.get(key, ""))
 	if owner == "":
 		return 1.0
-	var route_count := _component_route_count(route_control, routes, owner, a, b)
-	return 1.0 + minf(maxi(route_count - 1, 0) * PER_EXTRA_ROUTE, MAX_BONUS)
+	var component := _component_size(route_control, routes, owner, a, b)
+	# Одна контролируемая дорога = базовая награда. Бонус начинается
+	# только со второй дороги той же связной сети.
+	var extra_routes := maxi(component - 2, 0)
+	return 1.0 + minf(extra_routes * PER_EXTRA_ROUTE, MAX_BONUS)
 
-static func component_route_count(route_control: Dictionary, routes: Array, owner: String, a: String, b: String) -> int:
-	return _component_route_count(route_control, routes, owner, a, b)
+static func component_size(route_control: Dictionary, routes: Array, owner: String, a: String, b: String) -> int:
+	return _component_size(route_control, routes, owner, a, b)
 
-static func _component_route_count(route_control: Dictionary, routes: Array, owner: String, a: String, b: String) -> int:
+static func _component_size(route_control: Dictionary, routes: Array, owner: String, a: String, b: String) -> int:
+	var nodes: Dictionary = {}
 	var queue: Array[String] = [a, b]
 	var seen: Dictionary = {}
-	var edges: Dictionary = {}
 	while not queue.is_empty():
 		var city := queue.pop_front()
 		if seen.has(city):
@@ -35,11 +38,12 @@ static func _component_route_count(route_control: Dictionary, routes: Array, own
 			var edge_key := _route_key(left, right)
 			if String(route_control.get(edge_key, "")) != owner:
 				continue
-			edges[edge_key] = true
+			nodes[left] = true
+			nodes[right] = true
 			var next_city := right if left == city else left
 			if not seen.has(next_city):
 				queue.append(next_city)
-	return edges.size()
+	return nodes.size()
 
 static func _route_key(a: String, b: String) -> String:
 	return "%s|%s" % [a, b] if a < b else "%s|%s" % [b, a]
