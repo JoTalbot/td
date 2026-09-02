@@ -38,6 +38,9 @@ jobs:
       - name: Регрессия связной сети дорог
         timeout-minutes: 2
         run: timeout 60s godot --headless --path . --script tests/network_regression.gd
+      - name: Регрессия баланса
+        timeout-minutes: 2
+        run: timeout 60s godot --headless --path . --script tests/balance_regression.gd
 
   build-apk:
     name: Сборка APK
