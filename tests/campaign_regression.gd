@@ -29,10 +29,12 @@ func _initialize() -> void:
 	if failures.is_empty():
 		print("CAMPAIGN REGRESSION: PASS")
 		quit(0)
+		return
 	print("CAMPAIGN REGRESSION: FAIL")
 	for failure in failures:
 		print(" - %s" % failure)
 	quit(1)
+	return
 
 func _check(_campaign: Node, failures: Array[String], name: String, condition: bool) -> void:
 	if not condition:
