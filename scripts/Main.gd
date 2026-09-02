@@ -17,6 +17,7 @@ const RoadEvents := preload("res://scripts/RoadEvents.gd")
 const MetaProgress := preload("res://scripts/MetaProgress.gd")
 const Campaign := preload("res://scripts/Campaign.gd")
 const CampaignData := preload("res://scripts/CampaignData.gd")
+const NetworkRewards := preload("res://scripts/NetworkRewards.gd")
 const MapScreen := preload("res://scripts/MapScreen.gd")
 const Tutorial := preload("res://scripts/Tutorial.gd")
 const UserSettings := preload("res://scripts/UserSettings.gd")
@@ -218,15 +219,26 @@ func _on_travel(city_id: String) -> void:
 	var route: Array = CampaignData.route_between(campaign.location, city_id)
 	if route.is_empty():
 		return
+	var origin := campaign.location
 	_destination = city_id
-	_route_meta = CampaignData.route_meta(campaign.location, city_id)
+	_route_meta = CampaignData.route_meta(origin, city_id)
+	# Каждый рейс получает чистый набор модификаторов, без накопления от предыдущего.
+	waves.bonus_mult = 1.0
+	waves.extra_count = 0
+	waves.commander_type = ""
+	waves.scout_boss = false
+	waves.treasurer_planned = false
 	waves.run_length = 4 + int(route[0]) * 2
-	waves.danger = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, city_id)
-	waves.bonus_mult *= campaign.route_mastery_reward_mult(campaign.location, city_id)
-	var route_controller: String = campaign.route_controller(campaign.location, city_id)
+	waves.danger = float(route[1]) * campaign.route_mastery_danger_mult(origin, city_id)
+	waves.bonus_mult *= campaign.route_mastery_reward_mult(origin, city_id)
+	var network_mult := NetworkRewards.multiplier(campaign.route_control, CampaignData.ROUTES, origin, city_id)
+	waves.bonus_mult *= network_mult
+	if network_mult > 1.0:
+		hud.flash_message("🛣 СВЯЗНАЯ СЕТЬ: +%d%% к награде" % int(round((network_mult - 1.0) * 100.0)))
+	var route_controller: String = campaign.route_controller(origin, city_id)
 	waves.commander_type = campaign.route_commander(campaign.location, city_id)
 	# Контратака проигравшей фракции: едем по уязвимой дороге — рейс-оборона
-	var ca_route: Dictionary = campaign.counterattack_on(campaign.location, city_id)
+	var ca_route: Dictionary = campaign.counterattack_on(origin, city_id)
 	if not ca_route.is_empty():
 		waves.extra_count += 2
 		hud.flash_message("⚔ КОНТРАТАКА: «%s» идёт отбивать дорогу — удержите трассу!" % \
@@ -261,10 +273,10 @@ func _on_travel(city_id: String) -> void:
 	battle_active = true
 	weather.set_active(true)
 	hud.flash_message("🚚 Рейс: %s → %s" % [
-		CampaignData.CITIES[campaign.location]["name"],
+		CampaignData.CITIES[origin]["name"],
 		CampaignData.CITIES[city_id]["name"]])
 	# Метки трассы: караванный тракт и смертельные дороги
-	events.set_caravan_run(CampaignData.route_is_caravan(campaign.location, city_id))
+	events.set_caravan_run(CampaignData.route_is_caravan(origin, city_id))
 	waves.treasurer_planned = events.caravan_run
 	var tags := ""
 	if events.caravan_run:
@@ -470,10 +482,10 @@ func _on_run_completed() -> void:
 		else:
 			sfx.play("boss", 0.7)
 	# Мастерство трассы растёт только за живое успешное прибытие.
-	campaign.note_route(campaign.location, _destination)
+	campaign.note_route(origin, _destination)
 	var summary: Dictionary = campaign.arrive(_destination, state.scrap, _run_loot, _run_trophies)
 	# Оборона дороги: успешный рейс по уязвимому маршруту отбивает контратаку
-	var repelled: Dictionary = campaign.repel_counterattack(campaign.location, _destination)
+	var repelled: Dictionary = campaign.repel_counterattack(origin, _destination)
 	if not repelled.is_empty():
 		summary["counter_repelled"] = int(repelled.get("scrap", 120))
 		hud.flash_message("⚔ КОНТРАТАКА ОТБИТА! +⚙%d и уважение «%s»" % [
