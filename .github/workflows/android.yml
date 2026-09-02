@@ -34,6 +34,8 @@ jobs:
         run: godot --headless --path . --script tests/campaign_regression.gd
       - name: Регрессия UI-ресурсов
         run: godot --headless --path . --script tests/ui_regression.gd
+      - name: Регрессия связной сети дорог
+        run: godot --headless --path . --script tests/network_regression.gd
 
   build-apk:
     name: Сборка APK
