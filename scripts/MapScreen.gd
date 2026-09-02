@@ -111,10 +111,13 @@ func _rusty_button(text: String, accent := ACCENT) -> Button:
 
 
 func _build_chrome() -> void:
+	# Фон — выжженный пергамент
 	var bg := ColorRect.new()
 	bg.color = Color(0.16, 0.12, 0.07, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+
+	# Верхняя панель: положение, кошелёк, трюм, день
 	var top := PanelContainer.new()
 	top.add_theme_stylebox_override("panel", _styled_panel())
 	top.anchor_left = 0.0
@@ -124,6 +127,7 @@ func _build_chrome() -> void:
 	top.offset_top = 8 + _safe_insets.y
 	top.offset_bottom = 160 + _safe_insets.y
 	add_child(top)
+	# Две строки не дают крупным статусам слипаться на узком портретном экране.
 	var top_col := VBoxContainer.new()
 	top_col.add_theme_constant_override("separation", 5)
 	top.add_child(top_col)
@@ -160,6 +164,8 @@ func _mk_label(parent: Control, size: int, color: Color) -> Label:
 	return l
 
 
+## Маленькая нарисованная иконка в начало строки списка.
+## Возвращает true, если ассет нашёлся (тогда эмодзи в тексте можно опустить).
 func _status_icon(parent: Control, id: String, px: int = 30) -> TextureRect:
 	var tr := TextureRect.new()
 	var path := "res://assets/ui/st_%s.svg" % id
@@ -211,8 +217,11 @@ func _refresh_top() -> void:
 
 func _build_map() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
-	var area_size := Vector2(viewport_size.x - 16.0 - _safe_insets.x - _safe_insets.z, maxf(370.0, 506.0 - _safe_insets.y - _safe_insets.w))
+	var area_size := Vector2(
+		viewport_size.x - 16.0 - _safe_insets.x - _safe_insets.z,
+		maxf(370.0, 506.0 - _safe_insets.y - _safe_insets.w))
 	var area_pos := Vector2(8 + _safe_insets.x, 170 + _safe_insets.y)
+	# Окно обрезает увеличенную карту, а stage двигает фон, дороги и города вместе.
 	_map_viewport = Control.new()
 	_map_viewport.position = area_pos
 	_map_viewport.size = area_size
@@ -224,6 +233,7 @@ func _build_map() -> void:
 	_map_stage.size = area_size
 	_map_stage.mouse_filter = Control.MOUSE_FILTER_PASS
 	_map_viewport.add_child(_map_stage)
+	# Рисованный фон пустоши под дорогами и кнопками городов
 	var bg_path := "res://assets/ui/map_bg.jpg"
 	if ResourceLoader.exists(bg_path):
 		var bg := TextureRect.new()
@@ -249,6 +259,7 @@ func _build_map() -> void:
 		city_pos.y = clampf(city_pos.y, 0.0, area_size.y - city_size.y)
 		marker.pressed.connect(func(): _select(id))
 		_map_area.add_child(marker)
+		# После входа в дерево принудительно ужимаем длинные названия до маркера.
 		marker.size = city_size
 		marker.position = city_pos
 		marker.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -260,6 +271,8 @@ func _build_map() -> void:
 	reset_zoom.pressed.connect(_reset_map_transform)
 	_map_viewport.add_child(reset_zoom)
 	_restore_map_transform()
+
+	# Нижний лист: инфо / рынок / контракты
 	_sheet = PanelContainer.new()
 	_sheet.add_theme_stylebox_override("panel", _styled_panel())
 	_sheet.anchor_left = 0.0
@@ -277,11 +290,17 @@ func _build_map() -> void:
 	_sheet_title = RustHeader.new()
 	(_sheet_title as RustHeader).setup("КАРТА ПУСТОШИ", _font(25), _ui_accent())
 	col.add_child(_sheet_title)
+	# Закреплённые вкладки остаются на месте, пока длинное содержимое крутится.
 	var nav := HBoxContainer.new()
 	nav.add_theme_constant_override("separation", 8)
 	nav.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(nav)
-	for tab in [["info", "← ГОРОД", Color(0.75, 0.7, 0.5)], ["market", "РЫНОК", Color(0.72, 0.84, 0.48)], ["contracts", "КОНТРАКТЫ", Color(0.82, 0.66, 0.34)], ["hangar", "АНГАР", Color(0.78, 0.58, 0.35)]]:
+	for tab in [
+		["info", "← ГОРОД", Color(0.75, 0.7, 0.5)],
+		["market", "РЫНОК", Color(0.72, 0.84, 0.48)],
+		["contracts", "КОНТРАКТЫ", Color(0.82, 0.66, 0.34)],
+		["hangar", "АНГАР", Color(0.78, 0.58, 0.35)],
+	]:
 		var tab_id: String = tab[0]
 		var tab_btn := _rusty_button(tab[1], tab[2])
 		tab_btn.custom_minimum_size = Vector2(156, 58)
@@ -290,6 +309,7 @@ func _build_map() -> void:
 		tab_btn.pressed.connect(func(): _open_view(tab_id))
 		nav.add_child(tab_btn)
 		_nav_buttons[tab_id] = tab_btn
+	# Лист может быть длинным (ангар, лаборатория) — крутим вертикально
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -425,8 +445,10 @@ func _render_sheet() -> void:
 	for tab_id in _nav_buttons:
 		var tab_btn: Button = _nav_buttons[tab_id]
 		tab_btn.set_pressed_no_signal(tab_id == _view)
+	# Вложенные экраны базы возвращаются закреплённой вкладкой «ГОРОД».
 	if not _nav_buttons.has(_view):
 		(_nav_buttons["info"] as Button).set_pressed_no_signal(false)
+
 	if _view == "market":
 		_sheet_title.text = "РЫНОК — %s" % c["name"]
 		_render_market(is_here)
@@ -477,13 +499,16 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 			cheap.append("%s %s" % [CampaignData.RESOURCES[r]["icon"], CampaignData.RESOURCES[r]["name"]])
 	spec.text = "Дёшево тут: %s" % (", ".join(cheap) if not cheap.is_empty() else "ничего особенного")
 	spec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Фракция и наше положение в ней
 	var rep_lvl: int = campaign.rep_level(_selected)
 	var rep_row := HBoxContainer.new()
 	rep_row.add_theme_constant_override("separation", 8)
 	_sheet_body.add_child(rep_row)
 	_status_icon(rep_row, "rep", 34)
 	var frac := _mk_label(rep_row, 19, Color(0.7, 0.85, 0.9).lerp(Color(0.95, 0.8, 0.4), rep_lvl / 4.0))
-	frac.text = "%s • %s • %d/100  |  скидка %d%% • скупка +%d%%" % [c.get("faction", "Фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected), rep_lvl * 4, rep_lvl * 3]
+	frac.text = "%s • %s • %d/100  |  скидка %d%% • скупка +%d%%" % [
+		c.get("faction", "Фракция"), campaign.rep_title(_selected), campaign.rep_of(_selected),
+		rep_lvl * 4, rep_lvl * 3]
 	frac.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	frac.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if not is_here and not route.is_empty():
@@ -492,7 +517,8 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		route_row.add_theme_constant_override("separation", 10)
 		_sheet_body.add_child(route_row)
 		_status_icon(route_row, "warning" if float(route[1]) >= 1.4 else "route", 38)
-		var route_info := _mk_label(route_row, 20, Color(1.0, 0.48, 0.25) if float(route[1]) >= 1.4 else Color(0.95, 0.78, 0.42))
+		var route_info := _mk_label(route_row, 20,
+			Color(1.0, 0.48, 0.25) if float(route[1]) >= 1.4 else Color(0.95, 0.78, 0.42))
 		var route_tags := ""
 		if CampaignData.route_is_caravan(campaign.location, _selected):
 			route_tags = " • КАРАВАН"
@@ -502,7 +528,8 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		var controller_name := String(CampaignData.CITIES.get(controller, {}).get("faction", "Ничейная земля"))
 		var mastery_level: int = campaign.route_mastery_level(campaign.location, _selected)
 		var effective_danger: float = float(route[1]) * campaign.route_mastery_danger_mult(campaign.location, _selected)
-		route_info.text = "%s • МАСТЕРСТВО %d/3 • %d ВОЛН • ОПАСНОСТЬ %.2f%s\nКОНТРОЛЬ: %s" % [route_name.to_upper(), mastery_level, 4 + int(route[0]) * 2, effective_danger, route_tags, controller_name]
+		route_info.text = "%s • МАСТЕРСТВО %d/3 • %d ВОЛН • ОПАСНОСТЬ %.2f%s\nКОНТРОЛЬ: %s" % [
+			route_name.to_upper(), mastery_level, 4 + int(route[0]) * 2, effective_danger, route_tags, controller_name]
 		route_info.tooltip_text = String(route_meta.get("desc", "Подсвеченная дорога ведёт в выбранный город"))
 		var preview: Dictionary = CampaignData.route_preview(campaign.location, _selected)
 		var preview_row := HBoxContainer.new()
@@ -511,11 +538,13 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 		_sheet_body.add_child(preview_row)
 		_status_icon(preview_row, "scrap", 34)
 		var forecast := _mk_label(preview_row, 19, Color(0.78, 0.9, 0.62))
-		var mastery_mult: float = campaign.route_mastery_reward_mult(campaign.location, _selected)
-		var network_mult: float = NetworkRewards.multiplier(campaign.route_control, CampaignData.ROUTES, campaign.location, _selected)
-		var mastery_scrap: int = int(int(preview.get("scrap", 0)) * mastery_mult * network_mult)
+		var mastery_mult := campaign.route_mastery_reward_mult(campaign.location, _selected)
+		var network_mult := NetworkRewards.multiplier(campaign.route_control, CampaignData.ROUTES, campaign.location, _selected)
+		var mastery_scrap := int(int(preview.get("scrap", 0)) * mastery_mult * network_mult)
 		var mastery_count: int = campaign.route_mastery_count(campaign.location, _selected)
-		forecast.text = "ПРОГНОЗ • ЛОМ ~%d • ЛУТ ~%d • РЕПУТАЦИЯ +%d  |  ПРОЕЗДОВ %d%s" % [mastery_scrap, int(preview.get("loot", 0)), int(preview.get("rep", 1)), mastery_count, (" • СЕТЬ +%d%%" % int(round((network_mult - 1.0) * 100.0))) if network_mult > 1.0 else ""]
+		forecast.text = "ПРОГНОЗ • ЛОМ ~%d • ЛУТ ~%d • РЕПУТАЦИЯ +%d  |  ПРОЕЗДОВ %d%s" % [
+			mastery_scrap, int(preview.get("loot", 0)), int(preview.get("rep", 1)), mastery_count, (" • СЕТЬ +%d%%" % int(round((network_mult - 1.0) * 100.0))) if network_mult > 1.0 else ""]
+	# Рандомная находка дня рядом с городом — одна попытка в сутки
 	if is_here:
 		var poi: Dictionary = campaign.poi_at(_selected)
 		if not poi.is_empty():
@@ -533,10 +562,12 @@ func _render_info(c: Dictionary, is_here: bool, route: Array) -> void:
 	if is_here:
 		_render_war_campaign(_selected)
 		_render_city_specials(_selected)
-	var achievements_btn := _rusty_button("ДОСТИЖЕНИЯ • %d/%d" % [campaign.achievements.size(), CampaignData.ACHIEVEMENTS.size()], Color(0.82, 0.64, 0.3))
+	var achievements_btn := _rusty_button("ДОСТИЖЕНИЯ • %d/%d" % [
+		campaign.achievements.size(), CampaignData.ACHIEVEMENTS.size()], Color(0.82, 0.64, 0.3))
 	achievements_btn.custom_minimum_size = Vector2(300, 58)
 	achievements_btn.pressed.connect(func(): _open_view("achievements"))
 	_sheet_body.add_child(achievements_btn)
+
 	var btns := HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 8)
 	_sheet_body.add_child(btns)
@@ -629,13 +660,16 @@ func _render_war_front() -> void:
 	var summary := _mk_label(_sheet_body, 20, Color(0.95, 0.68, 0.35))
 	summary.custom_minimum_size = Vector2(640, 0)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	summary.text = "НЕДЕЛЬНАЯ СТОРОНА: %s • ОЧКИ %d/15 • ДО СБРОСА %s" % [campaign.war_faction_name(), campaign.war_points, campaign.war_time_left()]
+	summary.text = "НЕДЕЛЬНАЯ СТОРОНА: %s • ОЧКИ %d/15 • ДО СБРОСА %s" % [
+		campaign.war_faction_name(), campaign.war_points, campaign.war_time_left()]
 	var next_move: Dictionary = campaign.next_war_move()
 	if not next_move.is_empty():
 		var forecast := _mk_label(_sheet_body, 19, Color(0.72, 0.86, 0.9))
 		forecast.custom_minimum_size = Vector2(640, 0)
 		forecast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		forecast.text = "ПРОГНОЗ ХОДА: %s — %s  →  %s" % [CampaignData.CITIES[next_move["a"]]["name"], CampaignData.CITIES[next_move["b"]]["name"], CampaignData.CITIES[next_move["owner"]]["faction"]]
+		forecast.text = "ПРОГНОЗ ХОДА: %s — %s  →  %s" % [
+			CampaignData.CITIES[next_move["a"]]["name"], CampaignData.CITIES[next_move["b"]]["name"],
+			CampaignData.CITIES[next_move["owner"]]["faction"]]
 	for route in CampaignData.ROUTES:
 		var a := String(route[0])
 		var b := String(route[1])
@@ -701,7 +735,8 @@ func _render_city_specials(city: String) -> void:
 		service_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		service_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var service_strength := int(round(campaign.city_service_strength(city) * 100.0))
-		service_text.text = "УСЛУГА • %s • РАНГ %d\nЭФФЕКТ +%d%% • НУЖНО: %s" % [service["name"], campaign.rep_level(city) + 1, service_strength, _cost_text(service["needs"])]
+		service_text.text = "УСЛУГА • %s • РАНГ %d\nЭФФЕКТ +%d%% • НУЖНО: %s" % [
+			service["name"], campaign.rep_level(city) + 1, service_strength, _cost_text(service["needs"])]
 		var buy_service := _rusty_button("ЗАКАЗАТЬ • %d ЛОМА" % campaign.city_service_price(city), Color(0.72, 0.82, 0.48))
 		buy_service.custom_minimum_size = Vector2(230, 64)
 		buy_service.disabled = not campaign.can_buy_city_service(city)
@@ -728,7 +763,8 @@ func _render_city_specials(city: String) -> void:
 			art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_sheet_body.add_child(art)
 			_sheet_body.move_child(art, story_label.get_index())
-		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s\nНАГРАДА: %s" % [stage["title"], stage["text"], _cost_text(stage["needs"]), _reward_text(stage["reward"])]
+		story_label.text = "ИСТОРИЯ • %s\n%s\nНУЖНО: %s\nНАГРАДА: %s" % [
+			stage["title"], stage["text"], _cost_text(stage["needs"]), _reward_text(stage["reward"])]
 		story_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var choices := HBoxContainer.new()
 		choices.add_theme_constant_override("separation", 8)
@@ -774,6 +810,7 @@ func _reward_text(reward: Dictionary) -> String:
 	return ", ".join(parts)
 
 
+## Осмотр находки дня: разрешаем и показываем итог поверх листа города.
 func _resolve_poi_at(city: String) -> void:
 	var res: Dictionary = campaign.resolve_poi(city)
 	_render_sheet()
@@ -785,6 +822,7 @@ func _resolve_poi_at(city: String) -> void:
 	_sheet_body.move_child(box, 0)
 
 
+## Звон лома для сделок рынка (защита от null в smoke-тестах).
 func _play_earn() -> void:
 	if sfx != null:
 		sfx.play("earn", 0.7)
@@ -826,6 +864,7 @@ func _render_market(is_here: bool) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_sheet_body.add_child(row)
+		# Нарисованная иконка ресурса (png с движка или svg-заглушка)
 		var res_icon: String = "res://assets/ui/res_%s.png" % res
 		if not ResourceLoader.exists(res_icon):
 			res_icon = "res://assets/ui/res_%s.svg" % res
@@ -856,6 +895,7 @@ func _render_market(is_here: bool) -> void:
 		row.add_child(sell_b)
 
 
+## Ангар: захваченные в рейсах тачки — пилить на ресурсы или продавать.
 func _render_hangar(is_here: bool) -> void:
 	var total := 0
 	for t in campaign.trophies:
@@ -894,6 +934,7 @@ func _render_hangar(is_here: bool) -> void:
 		sel.custom_minimum_size = Vector2(100, 58)
 		sel.pressed.connect(func(): campaign.sell_trophy(tid); _render_sheet())
 		row.add_child(sel)
+	# Кузня легендарок: трофеи плавим в орудия на следующий рейс
 	var fhead := _mk_label(_sheet_body, 21, Color(1.0, 0.8, 0.4))
 	fhead.text = "КУЗНЯ ТРОФЕЕВ"
 	_sheet_body.add_child(fhead)
@@ -913,8 +954,12 @@ func _render_hangar(is_here: bool) -> void:
 		fb.custom_minimum_size = Vector2(130, 58)
 		fb.disabled = not campaign.can_forge(fid)
 		var ffid: String = fid
-		fb.pressed.connect(func(): campaign.forge(ffid); _play_earn(); _render_sheet())
+		fb.pressed.connect(func():
+			campaign.forge(ffid)
+			_play_earn()
+			_render_sheet())
 		frow.add_child(fb)
+	# Кузня легендарных способностей: дороже, зато навсегда
 	var ahead := _mk_label(_sheet_body, 21, Color(0.55, 0.75, 1.0))
 	ahead.text = "КУЗНЯ СПОСОБНОСТЕЙ • НАВСЕГДА"
 	_sheet_body.add_child(ahead)
@@ -937,10 +982,14 @@ func _render_hangar(is_here: bool) -> void:
 		if already:
 			ab.text = "В арсенале ✓"
 		var aaid: String = aid
-		ab.pressed.connect(func(): campaign.forge_ability(aaid); _play_earn(); _render_sheet())
+		ab.pressed.connect(func():
+			campaign.forge_ability(aaid)
+			_play_earn()
+			_render_sheet())
 		arow.add_child(ab)
 
 
+## Шоурум: лесенка корпусов. Собираем из запчастей (только дома), выбираем рабочую.
 func _render_showroom(is_here: bool) -> void:
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
@@ -957,7 +1006,8 @@ func _render_showroom(is_here: bool) -> void:
 	for paint in [["rust", "РЖАВЧИНА"], ["bone", "КОСТЬ"], ["copper", "МЕДЬ"], ["war", "ВОЙНА"]]:
 		_add_paint_button(paint_row, String(paint[0]), String(paint[1]))
 	var head := _mk_label(_sheet_body, 20, Color(0.85, 0.78, 0.6))
-	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
+	head.text = "ЗАПЧАСТИ %d  •  ЛОМ %d  •  МАСТЕРСКАЯ %d" % [
+		campaign.cargo_qty("parts"), campaign.wallet, campaign.bld_level("workshop")]
 	var cosmetic_title := _mk_label(_sheet_body, 21, Color(0.95, 0.72, 0.32))
 	cosmetic_title.text = "КОСМЕТИКА МАСТЕРСТВА"
 	var cosmetic_row := HBoxContainer.new()
@@ -989,34 +1039,49 @@ func _render_showroom(is_here: bool) -> void:
 			btn.disabled = true
 		elif id in campaign.hulls_owned:
 			btn.text = "Выбрать"
-			btn.pressed.connect(func(): if campaign.select_hull(hid): hull_changed.emit(); _render_sheet())
+			btn.pressed.connect(func():
+				if campaign.select_hull(hid):
+					hull_changed.emit()
+					_render_sheet())
 		else:
 			btn.text = "СОБРАТЬ  🔧%d  ⚙%d  •%d" % [int(d["parts"]), int(d["scrap"]), int(d["workshop"])]
 			btn.tooltip_text = "Нужна мастерская ур.%d" % int(d["workshop"])
 			btn.disabled = not campaign.can_build_hull(id)
-			btn.pressed.connect(func(): if campaign.build_hull(hid): _play_earn(); hull_changed.emit(); _render_sheet())
+			btn.pressed.connect(func():
+				if campaign.build_hull(hid):
+					_play_earn()
+					hull_changed.emit()
+					_render_sheet())
 		row.add_child(btn)
 
 
 func _add_paint_button(parent: HBoxContainer, id: String, label: String) -> void:
 	var available: bool = id in campaign.available_paints()
 	var selected: bool = campaign.truck_paint == id
-	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНО" if selected else ("ВЫБРАТЬ" if available else "ЗАКРЫТО")], Color(0.72, 0.42, 0.18) if selected else Color(0.46, 0.4, 0.32))
+	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНО" if selected else ("ВЫБРАТЬ" if available else "ЗАКРЫТО")],
+		Color(0.72, 0.42, 0.18) if selected else Color(0.46, 0.4, 0.32))
 	button.custom_minimum_size = Vector2(156, 64)
 	button.add_theme_font_size_override("font_size", _font(18))
 	button.disabled = not available or selected
-	button.pressed.connect(func(): if campaign.select_truck_paint(id): hull_changed.emit(); _render_sheet())
+	button.pressed.connect(func():
+		if campaign.select_truck_paint(id):
+			hull_changed.emit()
+			_render_sheet())
 	parent.add_child(button)
 
 
 func _add_cosmetic_toggle(parent: HBoxContainer, id: String, label: String) -> void:
 	var unlocked: bool = campaign.cosmetic_unlocked(id)
 	var enabled: bool = campaign.cosmetic_enabled(id)
-	var button := _rusty_button("%s\n%s" % [label, "ВКЛ" if enabled else ("ВЫКЛ" if unlocked else "ЗАКРЫТО")], Color(0.82, 0.62, 0.28) if enabled else Color(0.45, 0.42, 0.36))
+	var button := _rusty_button("%s\n%s" % [label, "ВКЛ" if enabled else ("ВЫКЛ" if unlocked else "ЗАКРЫТО")],
+		Color(0.82, 0.62, 0.28) if enabled else Color(0.45, 0.42, 0.36))
 	button.custom_minimum_size = Vector2(156, 64)
 	button.add_theme_font_size_override("font_size", _font(18))
 	button.disabled = not unlocked
-	button.pressed.connect(func(): if campaign.toggle_route_cosmetic(id): hull_changed.emit(); _render_sheet())
+	button.pressed.connect(func():
+		if campaign.toggle_route_cosmetic(id):
+			hull_changed.emit()
+			_render_sheet())
 	parent.add_child(button)
 
 
@@ -1048,10 +1113,13 @@ func _render_contracts(is_here: bool) -> void:
 		take.custom_minimum_size = Vector2(90, 58)
 		take.disabled = campaign.contracts.size() >= 3
 		var uid := str(c["uid"])
-		take.pressed.connect(func(): campaign.accept_contract(campaign.location, uid); _render_sheet())
+		take.pressed.connect(func():
+			campaign.accept_contract(campaign.location, uid)
+			_render_sheet())
 		row.add_child(take)
 
 
+## Вид базы: постройки, их уровни и цены.
 func _render_base(is_here: bool) -> void:
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
@@ -1074,8 +1142,10 @@ func _render_base(is_here: bool) -> void:
 		else:
 			var parts: Array = []
 			for k in cost:
-				if k == "scrap": parts.append("⚙%d" % int(cost[k]))
-				else: parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(cost[k])])
+				if k == "scrap":
+					parts.append("⚙%d" % int(cost[k]))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(cost[k])])
 			txt.text = "%s%s [ур.%d→%d] — %s  |  цена: %s" % [prefix, d["name"], lvl, lvl + 1, d["desc"], " ".join(parts)]
 		row.add_child(txt)
 		var b := _rusty_button("Строить", Color(0.85, 0.7, 0.3))
@@ -1086,15 +1156,20 @@ func _render_base(is_here: bool) -> void:
 		row.add_child(b)
 
 
+## Вид лаборатории: исследования, крафт, инвентарь модулей.
 func _render_lab(is_here: bool) -> void:
 	if not is_here:
 		var l := _mk_label(_sheet_body, 20, Color(0.7, 0.55, 0.4))
 		l.text = "Лаборанты работают только дома."
 		return
+
+	# Активное исследование
 	if campaign.research_active != "":
 		var d: Dictionary = CampaignData.RESEARCH[campaign.research_active]
 		var cur := _mk_label(_sheet_body, 20, Color(0.8, 0.85, 0.6))
 		cur.text = "⚗️ Идёт: %s %s — осталось рейсов: %d" % [d["icon"], d["name"], campaign.research_left]
+
+	# Список техов
 	for id in CampaignData.RESEARCH:
 		var d: Dictionary = CampaignData.RESEARCH[id]
 		var row := HBoxContainer.new()
@@ -1116,8 +1191,10 @@ func _render_lab(is_here: bool) -> void:
 		else:
 			var parts: Array = []
 			for k in d["cost"]:
-				if k == "scrap": parts.append("⚙%d" % int(d["cost"][k]))
-				else: parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["cost"][k])])
+				if k == "scrap":
+					parts.append("⚙%d" % int(d["cost"][k]))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["cost"][k])])
 			parts.append("📐%d" % int(d["bp"]))
 			parts.append("🔬%dр" % int(d["runs"]))
 			var lab_ok: bool = campaign.research_level_req_met(id)
@@ -1133,6 +1210,8 @@ func _render_lab(is_here: bool) -> void:
 			b.pressed.connect(func(): campaign.start_research(rid); _render_sheet())
 		row.add_child(txt)
 		row.add_child(b)
+
+	# Крафт-модули
 	var ct := _mk_label(_sheet_body, 21, ACCENT)
 	ct.text = "КРАФТ • НА ОДИН РЕЙС"
 	for id in CampaignData.RECIPES:
@@ -1157,8 +1236,10 @@ func _render_lab(is_here: bool) -> void:
 		else:
 			var parts: Array = []
 			for k in d["needs"]:
-				if k == "scrap": parts.append("⚙%d" % campaign.craft_scrap_cost(id))
-				else: parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["needs"][k])])
+				if k == "scrap":
+					parts.append("⚙%d" % campaign.craft_scrap_cost(id))
+				else:
+					parts.append("%s×%d" % [CampaignData.RESOURCES[k]["icon"], int(d["needs"][k])])
 			b.text = "Скрафтить"
 			b.disabled = not campaign.can_craft(id)
 			txt.text += "  |  " + " ".join(parts)
@@ -1166,6 +1247,7 @@ func _render_lab(is_here: bool) -> void:
 			b.pressed.connect(func(): campaign.craft(cid); _render_sheet())
 		row.add_child(txt)
 		row.add_child(b)
+		# Модуль в следующий рейс
 		if int(campaign.inventory.get(id, 0)) > 0:
 			var taken: bool = campaign.pending.has(id)
 			var st := _rusty_button("В рейс" if not taken else "ВЗЯТ", Color(0.9, 0.55, 0.25))
@@ -1188,9 +1270,11 @@ func _render_achievements() -> void:
 		var label := _mk_label(row, 20, Color(1.0, 0.78, 0.35) if unlocked else TEXT_DIM)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.text = "%s • %s\n%s\nНАГРАДА: %s" % ["ВЫПОЛНЕНО" if unlocked else "В ПРОЦЕССЕ", data["name"], data["desc"], _reward_text(data["reward"])]
+		label.text = "%s • %s\n%s\nНАГРАДА: %s" % [
+			"ВЫПОЛНЕНО" if unlocked else "В ПРОЦЕССЕ", data["name"], data["desc"], _reward_text(data["reward"])]
 
 
+## Настройки доступны со стоянки и сохраняются отдельно от кампании.
 func _render_settings() -> void:
 	if settings == null:
 		var unavailable := _mk_label(_sheet_body, 20, TEXT_DIM)
@@ -1199,6 +1283,7 @@ func _render_settings() -> void:
 	var intro := _mk_label(_sheet_body, 19, TEXT_DIM)
 	intro.text = "Все параметры сохраняются сразу. Размер текста применится после быстрого обновления сцены."
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
 	var size_row := _settings_row("РАЗМЕР НАДПИСЕЙ")
 	var large := _rusty_button("КРУПНЫЙ", Color(0.65, 0.76, 0.5))
 	var huge := _rusty_button("ОЧЕНЬ КРУПНЫЙ", Color(0.9, 0.65, 0.3))
@@ -1210,6 +1295,7 @@ func _render_settings() -> void:
 	huge.set_pressed_no_signal(String(settings.get_value("ui_size")) == "huge")
 	large.pressed.connect(func(): _set_setting("ui_size", "large", true))
 	huge.pressed.connect(func(): _set_setting("ui_size", "huge", true))
+
 	var sound_row := _settings_row("ГРОМКОСТЬ")
 	var quieter := _rusty_button("−", Color(0.65, 0.72, 0.5))
 	quieter.custom_minimum_size = Vector2(82, 58)
@@ -1225,11 +1311,14 @@ func _render_settings() -> void:
 	sound_row.add_child(louder)
 	quieter.pressed.connect(func(): _set_setting("sound", maxi(0, int(settings.get_value("sound")) - 10)))
 	louder.pressed.connect(func(): _set_setting("sound", mini(100, int(settings.get_value("sound")) + 10)))
+
 	var vibration_row := _settings_row("ВИБРАЦИЯ УДАРОВ")
-	var vibration := _rusty_button("ВКЛЮЧЕНА" if bool(settings.get_value("vibration")) else "ВЫКЛЮЧЕНА", Color(0.65, 0.82, 0.5) if bool(settings.get_value("vibration")) else Color(0.65, 0.45, 0.35))
+	var vibration := _rusty_button("ВКЛЮЧЕНА" if bool(settings.get_value("vibration")) else "ВЫКЛЮЧЕНА",
+		Color(0.65, 0.82, 0.5) if bool(settings.get_value("vibration")) else Color(0.65, 0.45, 0.35))
 	vibration.custom_minimum_size = Vector2(220, 58)
 	vibration.pressed.connect(func(): _set_setting("vibration", not bool(settings.get_value("vibration"))))
 	vibration_row.add_child(vibration)
+
 	var shake_row := _settings_row("ТРЯСКА КАМЕРЫ")
 	var shake_names := {0: "ВЫКЛ.", 50: "СРЕДНЯЯ", 100: "ПОЛНАЯ"}
 	var shake_value_int := int(settings.get_value("shake"))
@@ -1239,13 +1328,16 @@ func _render_settings() -> void:
 		var current := int(settings.get_value("shake"))
 		_set_setting("shake", 50 if current == 0 else (100 if current == 50 else 0)))
 	shake_row.add_child(shake)
+
 	var effects_row := _settings_row("ПРОФИЛЬ ГРАФИКИ")
 	var economy := String(settings.get_value("effects")) == "economy"
-	var effects := _rusty_button("ЭКОНОМНЫЙ" if economy else "КАЧЕСТВЕННЫЙ", Color(0.6, 0.75, 0.5) if economy else Color(0.9, 0.58, 0.28))
+	var effects := _rusty_button("ЭКОНОМНЫЙ" if economy else "КАЧЕСТВЕННЫЙ",
+		Color(0.6, 0.75, 0.5) if economy else Color(0.9, 0.58, 0.28))
 	effects.custom_minimum_size = Vector2(220, 58)
 	effects.tooltip_text = "Экономный режим уменьшает пыль, искры и отключает свет взрывов"
 	effects.pressed.connect(func(): _set_setting("effects", "full" if economy else "economy", true))
 	effects_row.add_child(effects)
+
 	var theme_title := _mk_label(_sheet_body, 20, TEXT_DIM)
 	theme_title.text = "ТЕМА ИНТЕРФЕЙСА"
 	var theme_row := HBoxContainer.new()
@@ -1258,6 +1350,7 @@ func _render_settings() -> void:
 	fps_button.custom_minimum_size = Vector2(220, 58)
 	fps_button.pressed.connect(func(): _set_setting("show_fps", not bool(settings.get_value("show_fps"))))
 	fps_row.add_child(fps_button)
+
 	var reset := _rusty_button("СБРОСИТЬ ОБУЧЕНИЕ", Color(0.75, 0.48, 0.3))
 	reset.custom_minimum_size = Vector2(320, 58)
 	reset.pressed.connect(_reset_tutorial)
@@ -1265,9 +1358,11 @@ func _render_settings() -> void:
 
 
 func _add_theme_button(parent: HBoxContainer, id: String, label: String) -> void:
-	var unlocked: bool = id == "rust" or (id == "bone" and campaign.story_stage("bonewall") >= 3) or (id == "copper" and campaign.story_stage("copperpit") >= 3) or (id == "war" and campaign.mastered_routes.size() >= 3)
+	var unlocked: bool = id == "rust" or (id == "bone" and campaign.story_stage("bonewall") >= 3) \
+		or (id == "copper" and campaign.story_stage("copperpit") >= 3) or (id == "war" and campaign.mastered_routes.size() >= 3)
 	var selected: bool = String(settings.get_value("ui_theme")) == id
-	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНА" if selected else ("ВЫБРАТЬ" if unlocked else "ЗАКРЫТО")], Color(0.78, 0.48, 0.22) if selected else Color(0.42, 0.38, 0.32))
+	var button := _rusty_button("%s\n%s" % [label, "ВЫБРАНА" if selected else ("ВЫБРАТЬ" if unlocked else "ЗАКРЫТО")],
+		Color(0.78, 0.48, 0.22) if selected else Color(0.42, 0.38, 0.32))
 	button.custom_minimum_size = Vector2(156, 64)
 	button.add_theme_font_size_override("font_size", _font(18))
 	button.disabled = not unlocked or selected
@@ -1306,6 +1401,7 @@ func _reset_tutorial() -> void:
 	_sheet_body.move_child(done, 0)
 
 
+## Холст карты: рисует дороги между городами.
 class MapCanvas:
 	extends Control
 	const CDATA := preload("res://scripts/CampaignData.gd")
@@ -1333,6 +1429,7 @@ class MapCanvas:
 		queue_redraw()
 
 	func _draw() -> void:
+		# Полупрозрачные зоны влияния фракций лежат под дорогами и эмблемами.
 		for city in discovered:
 			if not CDATA.CITIES.has(city):
 				continue
@@ -1345,10 +1442,12 @@ class MapCanvas:
 				continue
 			var a: Vector2 = (CDATA.CITIES[r[0]]["pos"] as Vector2) * size
 			var b: Vector2 = (CDATA.CITIES[r[1]]["pos"] as Vector2) * size
-			var is_selected: bool = selected_b != "" and ((String(r[0]) == selected_a and String(r[1]) == selected_b) or (String(r[1]) == selected_a and String(r[0]) == selected_b))
+			var is_selected: bool = selected_b != "" and (
+				(String(r[0]) == selected_a and String(r[1]) == selected_b) or
+				(String(r[1]) == selected_a and String(r[0]) == selected_b))
 			var col := Color(0.45, 0.35, 0.2, 0.9)
 			if float(r[3]) >= 1.4:
-				col = Color(0.8, 0.18, 0.1, 0.95)
+				col = Color(0.8, 0.18, 0.1, 0.95)   # смертельная трасса
 			elif float(r[3]) >= 1.2:
 				col = Color(0.6, 0.3, 0.15, 0.9)
 			if is_selected:
@@ -1369,6 +1468,7 @@ class MapCanvas:
 			var mastery_mid := (a + b) * 0.5
 			for i in mastery_level:
 				draw_circle(mastery_mid + Vector2((i - (mastery_level - 1) * 0.5) * 12.0, 12), 4.0, Color(1.0, 0.78, 0.25, 0.95))
+			# Метки трасс в середине линии
 			var marks := ""
 			if float(r[3]) >= 1.4:
 				marks += "☠"
@@ -1376,5 +1476,7 @@ class MapCanvas:
 				marks += "🐫"
 			if marks != "":
 				var mid := (a + b) * 0.5 + Vector2(-12, -12)
-				draw_string(ThemeDB.fallback_font, mid, marks, HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color(1.0, 0.9, 0.7, 0.95))
+				draw_string(ThemeDB.fallback_font, mid, marks,
+					HORIZONTAL_ALIGNMENT_CENTER, -1, 24, Color(1.0, 0.9, 0.7, 0.95))
+		# Рамка пустоши
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0.35, 0.25, 0.12, 0.5), false, 3.0)
