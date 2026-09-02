@@ -2,6 +2,7 @@ extends SceneTree
 ## Регрессия баланса 2.5: детерминированные формулы не должны ломать темп прогрессии.
 ## Это не заменяет 20 реальных рейсов из docs/BALANCE_2.5.md.
 
+const WaveManagerScript := preload("res://scripts/WaveManager.gd")
 const MAX_NETWORK_BONUS := 1.10
 
 func _initialize() -> void:
@@ -23,6 +24,30 @@ func _initialize() -> void:
 	var boss_hp_15 := _boss_hp(15, 1.0, 1.0)
 	_check(failures, "boss HP grows with wave", boss_hp_5 < boss_hp_10 and boss_hp_10 < boss_hp_15)
 	_check(failures, "boss HP remains playable", boss_hp_15 < 10000)
+
+	# start() is called again for every campaign route. Verify that no per-run
+	# wave state leaks into the next route.
+	var waves: Node = WaveManagerScript.new()
+	waves.wave_index = 12
+	waves.enemies_alive = 4
+	waves.bosses_down = 3
+	waves.spawning = true
+	waves.countdown = 0.0
+	waves._spawn_timer = 2.0
+	waves._side_toggle = -1.0
+	waves._spawned_count = 7
+	waves._hp_scale = 3.4
+	waves._treasurer_spawned = true
+	waves.start()
+	_check(failures, "new run resets wave index", waves.wave_index == 0)
+	_check(failures, "new run resets live enemy count", waves.enemies_alive == 0)
+	_check(failures, "new run resets boss counter", waves.bosses_down == 0)
+	_check(failures, "new run resets spawning state", not waves.spawning)
+	_check(failures, "new run resets countdown", is_equal_approx(waves.countdown, 5.0))
+	_check(failures, "new run resets treasurer state", not waves._treasurer_spawned)
+	_check(failures, "new run resets flank counter", waves._spawned_count == 0)
+	_check(failures, "new run resets HP scale", is_equal_approx(waves._hp_scale, 1.0))
+	waves.free()
 
 	if failures.is_empty():
 		print("BALANCE REGRESSION: PASS")
