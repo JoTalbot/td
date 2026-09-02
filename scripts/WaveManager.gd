@@ -65,8 +65,22 @@ const TYPES := {
 
 
 func start() -> void:
+	# WaveManager живёт между экранами карты, поэтому каждый новый рейс
+	# обязан начинать собственное состояние. Иначе второй рейс продолжал бы
+	# нумерацию волн, боссов и остаточных сущностей предыдущего рейса.
+	wave_index = 0
+	enemies_alive = 0
+	bosses_down = 0
+	_spawn_queue.clear()
+	_spawn_timer = 0.0
+	_side_toggle = 1.0
+	_train_cars.clear()
+	_flank_plan.clear()
+	_spawned_count = 0
+	_hp_scale = 1.0
 	active = true
 	between_waves = true
+	spawning = false
 	countdown = 5.0
 	_treasurer_spawned = false
 
