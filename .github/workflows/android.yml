@@ -44,6 +44,9 @@ jobs:
       - name: Регрессия экономики наград
         timeout-minutes: 2
         run: timeout 60s godot --headless --path . --script tests/reward_regression.gd
+      - name: Регрессия множителей награды
+        timeout-minutes: 2
+        run: timeout 60s godot --headless --path . --script tests/reward_multiplier_regression.gd
 
   build-apk:
     name: Сборка APK
