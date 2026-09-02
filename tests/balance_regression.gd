@@ -5,6 +5,16 @@ extends SceneTree
 const WaveManagerScript := preload("res://scripts/WaveManager.gd")
 const MAX_NETWORK_BONUS := 1.10
 
+class StubTruck extends Node3D:
+	var upgrade_levels: Dictionary = {"engine": 0}
+
+class StubState extends Node:
+	var is_game_over := false
+	var earned := 0
+
+	func earn(value: int) -> void:
+		earned = value
+
 func _initialize() -> void:
 	var failures: Array[String] = []
 	var previous_reward := 0
@@ -24,6 +34,26 @@ func _initialize() -> void:
 	var boss_hp_15 := _boss_hp(15, 1.0, 1.0)
 	_check(failures, "boss HP grows with wave", boss_hp_5 < boss_hp_10 and boss_hp_10 < boss_hp_15)
 	_check(failures, "boss HP remains playable", boss_hp_15 < 10000)
+
+	# Exercise the real WaveManager reward path instead of only checking a copy
+	# of the formula. This catches future drift in _process().
+	var live_waves: Node = WaveManagerScript.new()
+	var live_truck := StubTruck.new()
+	var live_state := StubState.new()
+	live_waves.truck = live_truck
+	live_waves.state = live_state
+	live_waves.wave_index = 10
+	live_waves.danger = 1.25
+	live_waves.bonus_mult = 1.08
+	live_waves.between_waves = false
+	live_waves.spawning = false
+	live_waves.enemies_alive = 0
+	live_waves._process(0.0)
+	var expected_live_reward := _wave_reward(10, 1.25, 1.0, 1.08)
+	_check(failures, "live WaveManager reward matches formula", live_state.earned == expected_live_reward)
+	live_waves.free()
+	live_truck.free()
+	live_state.free()
 
 	# start() is called again for every campaign route. Verify that no per-run
 	# wave state leaks into the next route.
