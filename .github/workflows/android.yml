@@ -32,6 +32,8 @@ jobs:
         run: timeout 20s godot --headless --path . --quit-after 5 || test $? -eq 124
       - name: Регрессия кампании
         run: godot --headless --path . --script tests/campaign_regression.gd
+      - name: Регрессия UI-ресурсов
+        run: godot --headless --path . --script tests/ui_regression.gd
 
   build-apk:
     name: Сборка APK
