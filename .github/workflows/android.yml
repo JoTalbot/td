@@ -16,6 +16,7 @@ jobs:
   verify:
     name: Проверка проекта
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,12 +36,14 @@ jobs:
       - name: Регрессия UI-ресурсов
         run: godot --headless --path . --script tests/ui_regression.gd
       - name: Регрессия связной сети дорог
-        run: godot --headless --path . --script tests/network_regression.gd
+        timeout-minutes: 2
+        run: timeout 60s godot --headless --path . --script tests/network_regression.gd
 
   build-apk:
     name: Сборка APK
     needs: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
