@@ -13,8 +13,29 @@ env:
   GODOT_VERSION: "4.2.2"
 
 jobs:
+  verify:
+    name: Проверка проекта
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Установка Godot (headless)
+        run: |
+          curl -sL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp
+          sudo mv "/tmp/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
+      - name: Импорт ресурсов
+        run: godot --headless --path . --import
+      - name: Headless startup smoke
+        run: timeout 20s godot --headless --path . --quit-after 5 || test $? -eq 124
+      - name: Регрессия кампании
+        run: godot --headless --path . --script tests/campaign_regression.gd
+
   build-apk:
     name: Сборка APK
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
